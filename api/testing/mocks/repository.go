@@ -102,6 +102,8 @@ type MockMetricsRepository struct {
 	Models        []model.ModelCost
 	Tenants       []model.TenantUsage
 	AgentUsages   []model.AgentUsage
+	AttrKeys      []string
+	AttrUsage     []model.AttributeUsage
 
 	Err error
 }
@@ -148,6 +150,14 @@ func (m *MockMetricsRepository) TenantUsage(_ context.Context, _ query.MetricsFi
 
 func (m *MockMetricsRepository) AgentUsage(_ context.Context, _ query.MetricsFilter, _ int) ([]model.AgentUsage, error) {
 	return m.AgentUsages, m.Err
+}
+
+func (m *MockMetricsRepository) AttributeKeys(_ context.Context, _ query.MetricsFilter, _ int) ([]string, error) {
+	return m.AttrKeys, m.Err
+}
+
+func (m *MockMetricsRepository) UsageByAttribute(_ context.Context, _ query.MetricsFilter, _ string, _ int) ([]model.AttributeUsage, error) {
+	return m.AttrUsage, m.Err
 }
 
 // NewTestTrace returns a pre-populated Trace fixture for use in tests.

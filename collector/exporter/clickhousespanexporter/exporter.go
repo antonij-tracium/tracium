@@ -32,12 +32,13 @@ func (e *chExporter) pushTraces(ctx context.Context, td ptrace.Traces) error {
 		// service.name is a resource-level attribute shared by every span in the
 		// batch; it is the most stable agent identity, so we lift it out once and
 		// pass it down to each span's agent-name derivation.
-		serviceName := strAttr(rss.At(i).Resource().Attributes(), attrServiceName)
+		resourceAttrs := rss.At(i).Resource().Attributes()
+		serviceName := strAttr(resourceAttrs, attrServiceName)
 		sss := rss.At(i).ScopeSpans()
 		for j := 0; j < sss.Len(); j++ {
 			ss := sss.At(j).Spans()
 			for k := 0; k < ss.Len(); k++ {
-				spans = append(spans, fromOTLP(ss.At(k), serviceName, e.trustReportedCost))
+				spans = append(spans, fromOTLP(ss.At(k), serviceName, resourceAttrs, e.trustReportedCost))
 			}
 		}
 	}
@@ -66,7 +67,7 @@ const (
 	attrTraceloopEntity   = "traceloop.entity.name"
 )
 
-func fromOTLP(s ptrace.Span, serviceName string, trustReportedCost bool) *spanmodel.Span {
+func fromOTLP(s ptrace.Span, serviceName string, resourceAttrs pcommon.Map, trustReportedCost bool) *spanmodel.Span {
 	attrs := s.Attributes()
 	model := strAttr(attrs, attrModelRequest)
 	if model == "" {
@@ -137,7 +138,73 @@ func fromOTLP(s ptrace.Span, serviceName string, trustReportedCost bool) *spanmo
 		Input:          input,
 		Output:         output,
 		AvailableTools: strAttr(attrs, attrAvailableTools),
+		Attributes:     customAttributes(resourceAttrs, attrs),
 	}
+}
+
+// Ingest bounds for the custom-attribute map. The OTLP ports are
+// unauthenticated, so a span's attribute bag is capped before it can reach
+// storage — without a ceiling a client could attach thousands of oversized keys
+// and bloat every row. These are generous; a working instrumentation stays well
+// under them.
+const (
+	maxAttrs          = 64 // custom keys retained per span
+	maxAttrKeyBytes   = 128
+	maxAttrValueBytes = 256
+)
+
+// attrDenyPrefixes are the namespaces Tracium already promotes to typed columns
+// or stores as content. Keeping them in the custom-attribute map would duplicate
+// promoted data (model, tokens, cost, tenant, agent) or store large
+// prompt/completion text; everything outside them is a custom business attribute
+// the operator can allocate by, retained verbatim.
+var attrDenyPrefixes = []string{"gen_ai.", "tracium.", "llm.", "traceloop."}
+
+// attrDenyKeys are promoted keys that don't share a denied prefix.
+var attrDenyKeys = map[string]bool{attrServiceName: true}
+
+// customAttributes merges a span's resource- and span-level OTLP attributes into
+// the flat map Tracium stores for allocation, dropping the promoted/content
+// namespaces and applying the ingest caps above. Span-level keys win over
+// resource-level ones. Returns nil when nothing custom is present.
+func customAttributes(resourceAttrs, spanAttrs pcommon.Map) map[string]string {
+	out := make(map[string]string)
+	add := func(m pcommon.Map) {
+		m.Range(func(k string, v pcommon.Value) bool {
+			if len(k) == 0 || len(k) > maxAttrKeyBytes || isDeniedAttr(k) {
+				return true
+			}
+			// Cap the number of distinct keys, but always allow a span-level key
+			// to overwrite a resource-level one already stored.
+			if _, exists := out[k]; !exists && len(out) >= maxAttrs {
+				return true
+			}
+			val := v.AsString()
+			if len(val) > maxAttrValueBytes {
+				val = strings.ToValidUTF8(val[:maxAttrValueBytes], "")
+			}
+			out[k] = val
+			return true
+		})
+	}
+	add(resourceAttrs)
+	add(spanAttrs)
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func isDeniedAttr(k string) bool {
+	if attrDenyKeys[k] {
+		return true
+	}
+	for _, p := range attrDenyPrefixes {
+		if strings.HasPrefix(k, p) {
+			return true
+		}
+	}
+	return false
 }
 
 // agentName picks the agent identity for a span's trace as the first usable

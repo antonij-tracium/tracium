@@ -118,6 +118,19 @@ type ModelCost struct {
 	OutputTokens int64   `json:"output_tokens"`
 }
 
+// AttributeUsage is spend/usage grouped by one value of a custom attribute —
+// the allocation primitive that splits AI cost across whatever dimension the
+// instrumentation tags spans with (team, user, environment, customer, …).
+// Value is the attribute's value; the rest are its totals over the window.
+type AttributeUsage struct {
+	Value        string  `json:"value"`
+	Cost         float64 `json:"cost"`
+	Calls        int64   `json:"calls"`
+	Runs         int64   `json:"runs"`
+	InputTokens  int64   `json:"input_tokens"`
+	OutputTokens int64   `json:"output_tokens"`
+}
+
 // TenantUsage is one tenant's spend over the current window paired with the
 // equal-length preceding window, so the usage table can show per-column change.
 // Trend is cost per time bucket across the current window (oldest first,

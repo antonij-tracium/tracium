@@ -12,6 +12,7 @@ import type {
   ModelCost,
   TenantUsage,
   AgentUsage,
+  AttributeUsage,
 } from '../../modules/usage/interfaces';
 import type { Agent, AgentDetail } from '../../modules/agents/interfaces';
 
@@ -65,5 +66,16 @@ export class MetricsAPI extends BaseAPIClient {
 
   getAgentUsage(range: string): Promise<PaginatedResponse<AgentUsage>> {
     return this.get('/metrics/usage-agents', { range });
+  }
+
+  // Custom-attribute allocation. attribute-keys lists the dimensions present in
+  // the window (team, user.id, environment, …); usage-by-attribute groups spend
+  // across the values of the chosen key.
+  getAttributeKeys(range: string): Promise<PaginatedResponse<string>> {
+    return this.get('/metrics/attribute-keys', { range });
+  }
+
+  getUsageByAttribute(range: string, key: string): Promise<PaginatedResponse<AttributeUsage>> {
+    return this.get('/metrics/usage-by-attribute', { range, key });
   }
 }

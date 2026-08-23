@@ -1,6 +1,7 @@
 package clickhousespanexporter
 
 import (
+	"fmt"
 	"testing"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -22,7 +23,7 @@ func TestFromOTLP_MapsExceptionEventToError(t *testing.T) {
 	ev.Attributes().PutStr("exception.type", "NotFoundError")
 	ev.Attributes().PutStr("exception.message", "model_not_found: gpt-4o-miini")
 
-	row := fromOTLP(s, "", false)
+	row := fromOTLP(s, "", pcommon.NewMap(), false)
 
 	if row.ErrorType != "NotFoundError" {
 		t.Errorf("error_type = %q, want NotFoundError", row.ErrorType)
@@ -40,7 +41,7 @@ func TestFromOTLP_ErrorStatusWithoutExceptionEvent(t *testing.T) {
 	s.Status().SetCode(ptrace.StatusCodeError)
 	s.Status().SetMessage("upstream timeout")
 
-	row := fromOTLP(s, "", false)
+	row := fromOTLP(s, "", pcommon.NewMap(), false)
 
 	if row.ErrorType != "error" {
 		t.Errorf("error_type = %q, want generic \"error\"", row.ErrorType)
@@ -55,7 +56,7 @@ func TestFromOTLP_OkSpanHasNoError(t *testing.T) {
 	s := ptrace.NewSpan()
 	s.Status().SetCode(ptrace.StatusCodeOk)
 
-	row := fromOTLP(s, "", false)
+	row := fromOTLP(s, "", pcommon.NewMap(), false)
 
 	if row.ErrorType != "" || row.ErrorMessage != "" {
 		t.Errorf("ok span got error (%q, %q), want empty", row.ErrorType, row.ErrorMessage)
@@ -106,7 +107,7 @@ func TestFromOTLP_SetsKind(t *testing.T) {
 	s.SetName("retrieve_docs")
 	s.Attributes().PutStr("openinference.span.kind", "RETRIEVER")
 
-	if row := fromOTLP(s, "", false); row.Kind != "retriever" {
+	if row := fromOTLP(s, "", pcommon.NewMap(), false); row.Kind != "retriever" {
 		t.Errorf("kind = %q, want retriever", row.Kind)
 	}
 }
@@ -139,5 +140,54 @@ func TestAgentName_DerivationPriority(t *testing.T) {
 					tt.service, tt.genaiAgent, tt.traceloopWorkflow, tt.traceloopEntity, tt.spanName, got, tt.want)
 			}
 		})
+	}
+}
+
+// fromOTLP retains custom business attributes (the ones the operator allocates
+// by) from both resource and span level, while excluding the promoted/content
+// namespaces so they are not duplicated into the map.
+func TestFromOTLP_RetainsCustomAttributes(t *testing.T) {
+	res := pcommon.NewMap()
+	res.PutStr("service.name", "billing-agent") // promoted → agent, excluded
+	res.PutStr("deployment.environment", "prod")
+	res.PutStr("team", "platform")
+
+	s := ptrace.NewSpan()
+	s.Attributes().PutStr("gen_ai.request.model", "gpt-4o") // promoted, excluded
+	s.Attributes().PutStr("tracium.cost_usd", "0.01")       // promoted, excluded
+	s.Attributes().PutStr("user.id", "alice@example.com")
+	s.Attributes().PutStr("team", "payments") // span overrides resource
+
+	row := fromOTLP(s, "billing-agent", res, false)
+
+	want := map[string]string{
+		"deployment.environment": "prod",
+		"team":                   "payments",
+		"user.id":                "alice@example.com",
+	}
+	if len(row.Attributes) != len(want) {
+		t.Fatalf("attributes = %v, want %v", row.Attributes, want)
+	}
+	for k, v := range want {
+		if row.Attributes[k] != v {
+			t.Errorf("attributes[%q] = %q, want %q", k, row.Attributes[k], v)
+		}
+	}
+	for _, denied := range []string{"service.name", "gen_ai.request.model", "tracium.cost_usd"} {
+		if _, ok := row.Attributes[denied]; ok {
+			t.Errorf("promoted key %q leaked into attributes", denied)
+		}
+	}
+}
+
+// The attribute bag is capped so an unauthenticated client can't bloat rows.
+func TestFromOTLP_CapsAttributeCount(t *testing.T) {
+	s := ptrace.NewSpan()
+	for i := 0; i < maxAttrs+50; i++ {
+		s.Attributes().PutStr(fmt.Sprintf("k%03d", i), "v")
+	}
+	row := fromOTLP(s, "", pcommon.NewMap(), false)
+	if len(row.Attributes) > maxAttrs {
+		t.Errorf("retained %d attributes, cap is %d", len(row.Attributes), maxAttrs)
 	}
 }

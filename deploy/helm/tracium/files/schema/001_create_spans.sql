@@ -85,6 +85,15 @@ CREATE TABLE IF NOT EXISTS tracium.spans (
     --     unmetered UInt8 DEFAULT 0;
     output_tokens_derived UInt8 DEFAULT 0,
     unmetered             UInt8 DEFAULT 0,
+    -- Custom business attributes the instrumentation attached and the operator
+    -- allocates by (team, user.id, environment, customer, cost_center, …), stored
+    -- as a Map so the query layer can GROUP BY / filter attributes['<key>'] with
+    -- no schema change. Additive column — per Rule 5 it does not bump
+    -- schema_version, and existing tables do not adopt it (CREATE IF NOT EXISTS);
+    -- add it in place with:
+    --   ALTER TABLE tracium.spans ADD COLUMN IF NOT EXISTS
+    --     attributes Map(String, String) DEFAULT map();
+    attributes Map(String, String) DEFAULT map(),
     INDEX idx_trace_id trace_id  TYPE bloom_filter(0.001) GRANULARITY 1,
     INDEX idx_tenant   tenant_id TYPE bloom_filter(0.01) GRANULARITY 4
 ) ENGINE = MergeTree()

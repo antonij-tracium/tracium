@@ -6,3 +6,4 @@ export type { UsageData } from './UsageData';
 export type { ModelCost } from './ModelCost';
 export type { TenantUsage } from './TenantUsage';
 export type { AgentUsage } from './AgentUsage';
+export type { AttributeUsage } from './AttributeUsage';

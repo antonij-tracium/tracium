@@ -72,6 +72,10 @@ Each directory has its own `README.md` with the details.
 - **`JWT_SECRET` is required** — it signs and verifies auth tokens with one key, so
   generate a unique one per deployment (`openssl rand -hex 32`).
 - **Retention:** `RETENTION_DAYS` (default 90; `0` keeps data forever).
+- **Cost allocation:** any custom OTLP attribute your apps attach (e.g. `team`,
+  `user.id`, `environment`) is retained and becomes a dimension you can allocate
+  spend by — `GET /v1/metrics/usage-by-attribute?key=team`, or the dashboard's
+  cost-allocation picker.
 - **Prompt/completion capture is ON by default** (`capture_content: true`) so the
   viewer can show inputs/outputs — set it off if you don't want that text stored;
   PII redaction is an Enterprise feature.

@@ -45,7 +45,8 @@ const insertQuery = `INSERT INTO tracium.spans (
 	input, output, available_tools,
 	source,
 	agent_name,
-	kind
+	kind,
+	attributes
 )`
 
 // WriteBatch inserts all spans in a single ClickHouse batch operation.
@@ -63,6 +64,10 @@ func (w *ClickHouseWriter) WriteBatch(ctx context.Context, spans []*spanmodel.Sp
 		source := s.Source
 		if source == "" {
 			source = "span"
+		}
+		attributes := s.Attributes
+		if attributes == nil {
+			attributes = map[string]string{}
 		}
 		if err := batch.Append(
 			s.TraceID,
@@ -90,6 +95,7 @@ func (w *ClickHouseWriter) WriteBatch(ctx context.Context, spans []*spanmodel.Sp
 			source,
 			s.AgentName,
 			s.Kind,
+			attributes,
 		); err != nil {
 			return fmt.Errorf("clickhouse: append row for span %s: %w", s.SpanID, err)
 		}

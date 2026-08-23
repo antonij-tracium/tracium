@@ -26,6 +26,7 @@ import {
   UsageMasthead,
   Breakdown,
   TabPill,
+  AllocationPanel,
 } from '../components';
 import type { KpiItem, DeltaTone, BreakdownTab, SortKey } from '../components';
 import { useModelCosts, useTenantUsage, useAgentUsage } from '../hooks/useUsage';
@@ -275,6 +276,8 @@ export function UsageLivePage({ range, setView, setSelected }: UsageLivePageProp
           />
         </Section>
       )}
+
+      <AllocationPanel range={range} />
     </div>
   );
 }

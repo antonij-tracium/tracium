@@ -8,3 +8,4 @@ export { PanelFrame } from './PanelFrame';
 export { UsageMasthead } from './UsageMasthead';
 export { Breakdown, TabPill } from './Breakdown';
 export type { BreakdownTab, SortKey, TabDef } from './Breakdown';
+export { AllocationPanel } from './AllocationPanel';

@@ -135,6 +135,8 @@ func main() {
 		r.Get(version.Route(version.V1, "/metrics/model-costs"), metricsHandler.ModelCosts)
 		r.Get(version.Route(version.V1, "/metrics/usage-tenants"), metricsHandler.TenantUsage)
 		r.Get(version.Route(version.V1, "/metrics/usage-agents"), metricsHandler.AgentUsage)
+		r.Get(version.Route(version.V1, "/metrics/attribute-keys"), metricsHandler.AttributeKeys)
+		r.Get(version.Route(version.V1, "/metrics/usage-by-attribute"), metricsHandler.UsageByAttribute)
 	})
 
 	// ── HTTP Server ───────────────────────────────────────────────────────────
@@ -230,5 +232,13 @@ func (n *noopRepository) TenantUsage(_ context.Context, _ query.MetricsFilter, _
 }
 
 func (n *noopRepository) AgentUsage(_ context.Context, _ query.MetricsFilter, _ int) ([]model.AgentUsage, error) {
+	return nil, nil
+}
+
+func (n *noopRepository) AttributeKeys(_ context.Context, _ query.MetricsFilter, _ int) ([]string, error) {
+	return nil, nil
+}
+
+func (n *noopRepository) UsageByAttribute(_ context.Context, _ query.MetricsFilter, _ string, _ int) ([]model.AttributeUsage, error) {
 	return nil, nil
 }

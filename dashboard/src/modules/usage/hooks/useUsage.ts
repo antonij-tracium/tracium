@@ -29,3 +29,22 @@ export function useAgentUsage(range: string) {
     queryFn: () => metricsAPI.getAgentUsage(range),
   });
 }
+
+// Custom-attribute allocation. useAttributeKeys discovers the dimensions the
+// instrumentation tags spans with; useAttributeUsage allocates spend by one.
+export function useAttributeKeys(range: string) {
+  const { metricsAPI } = useAPIClient();
+  return useQuery({
+    queryKey: ['usage', 'attribute-keys', range],
+    queryFn: () => metricsAPI.getAttributeKeys(range),
+  });
+}
+
+export function useAttributeUsage(range: string, key: string) {
+  const { metricsAPI } = useAPIClient();
+  return useQuery({
+    queryKey: ['usage', 'attribute-usage', range, key],
+    queryFn: () => metricsAPI.getUsageByAttribute(range, key),
+    enabled: key !== '',
+  });
+}

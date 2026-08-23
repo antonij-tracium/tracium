@@ -232,3 +232,39 @@ func (h *MetricsHandler) AgentUsage(w http.ResponseWriter, r *http.Request) {
 	}
 	respondPage(w, agents, len(agents), 1, len(agents))
 }
+
+// AttributeKeys lists the custom-attribute dimensions available in the window,
+// so the caller can offer them as allocation axes (team, user, environment, …).
+func (h *MetricsHandler) AttributeKeys(w http.ResponseWriter, r *http.Request) {
+	f, ok := h.filter(w, r)
+	if !ok {
+		return
+	}
+	keys, err := h.repo.AttributeKeys(r.Context(), f, agentsLimit)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "INTERNAL", "failed to load attribute keys")
+		return
+	}
+	respondPage(w, keys, len(keys), 1, len(keys))
+}
+
+// UsageByAttribute allocates spend/usage across the values of one custom
+// attribute — e.g. GET /v1/metrics/usage-by-attribute?key=team. The key is
+// required; without it there is no dimension to group by.
+func (h *MetricsHandler) UsageByAttribute(w http.ResponseWriter, r *http.Request) {
+	f, ok := h.filter(w, r)
+	if !ok {
+		return
+	}
+	key := r.URL.Query().Get("key")
+	if key == "" {
+		respondError(w, http.StatusBadRequest, "BAD_REQUEST", "the 'key' query parameter is required")
+		return
+	}
+	usage, err := h.repo.UsageByAttribute(r.Context(), f, key, usageLimit)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "INTERNAL", "failed to load usage by attribute")
+		return
+	}
+	respondPage(w, usage, len(usage), 1, len(usage))
+}

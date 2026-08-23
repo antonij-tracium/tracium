@@ -902,3 +902,73 @@ func sanitize(v float64) float64 {
 	}
 	return v
 }
+
+// AttributeKeys returns the distinct custom-attribute keys seen in the window,
+// so callers can populate an allocation-dimension picker. Bounded by the time
+// window (raw spans) and by limit; custom attributes live only on span rows.
+func (r *ClickHouseRepository) AttributeKeys(ctx context.Context, f MetricsFilter, limit int) ([]string, error) {
+	clause, args := window(f.TenantID, f.Start.UnixMilli(), f.End.UnixMilli(), sourceSpan)
+	q := fmt.Sprintf(`
+SELECT DISTINCT arrayJoin(mapKeys(attributes)) AS key
+FROM tracium.spans
+WHERE %s
+ORDER BY key
+LIMIT ?`, clause)
+
+	rows, err := r.db.QueryContext(ctx, q, append(args, limit)...)
+	if err != nil {
+		return nil, fmt.Errorf("clickhouse: attribute keys: %w", err)
+	}
+	defer rows.Close()
+
+	keys := []string{}
+	for rows.Next() {
+		var k string
+		if err := rows.Scan(&k); err != nil {
+			return nil, fmt.Errorf("clickhouse: scan attribute key: %w", err)
+		}
+		keys = append(keys, k)
+	}
+	return keys, rows.Err()
+}
+
+// UsageByAttribute groups spend/usage by the value of one custom attribute key —
+// the allocation primitive that splits AI cost across teams, users, or any
+// dimension the instrumentation tags. Rows missing the key are excluded. Custom
+// attributes exist only on span rows, so this reads the span source over the
+// time window (metric rows carry no custom attributes).
+func (r *ClickHouseRepository) UsageByAttribute(ctx context.Context, f MetricsFilter, key string, limit int) ([]model.AttributeUsage, error) {
+	clause, args := window(f.TenantID, f.Start.UnixMilli(), f.End.UnixMilli(), sourceSpan)
+	q := fmt.Sprintf(`
+SELECT
+    attributes[?]               AS value,
+    sum(cost_usd)               AS cost,
+    toInt64(count())            AS calls,
+    toInt64(uniq(trace_id))     AS runs,
+    toInt64(sum(input_tokens))  AS input_tokens,
+    toInt64(sum(output_tokens)) AS output_tokens
+FROM tracium.spans
+WHERE %s AND attributes[?] != ''
+GROUP BY value
+ORDER BY cost DESC
+LIMIT ?`, clause)
+
+	qArgs := append([]any{key}, args...)
+	qArgs = append(qArgs, key, limit)
+	rows, err := r.db.QueryContext(ctx, q, qArgs...)
+	if err != nil {
+		return nil, fmt.Errorf("clickhouse: usage by attribute: %w", err)
+	}
+	defer rows.Close()
+
+	usage := []model.AttributeUsage{}
+	for rows.Next() {
+		var u model.AttributeUsage
+		if err := rows.Scan(&u.Value, &u.Cost, &u.Calls, &u.Runs, &u.InputTokens, &u.OutputTokens); err != nil {
+			return nil, fmt.Errorf("clickhouse: scan attribute usage: %w", err)
+		}
+		u.Cost = sanitize(u.Cost)
+		usage = append(usage, u)
+	}
+	return usage, rows.Err()
+}

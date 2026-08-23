@@ -81,4 +81,15 @@ type Span struct {
 	// when the span could not be classified; the API omits the empty value and
 	// the dashboard infers the role from the span's position in the trace.
 	Kind string
+
+	// Attributes carries the span's custom key-value attributes — everything the
+	// instrumentation attached that Tracium does not promote to a typed column:
+	// business tags the operator allocates by (team, user.id, environment,
+	// customer, cost_center, …). Merged from resource- and span-level OTLP
+	// attributes, with the promoted/content namespaces (gen_ai.*, tracium.*,
+	// llm.*, traceloop.*, service.name) excluded so they are not duplicated.
+	// Stored as a ClickHouse Map(String,String) so the query layer can group and
+	// filter by any key without a schema change — the "send a tag, slice by it"
+	// contract every observability tool provides.
+	Attributes map[string]string
 }

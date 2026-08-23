@@ -31,6 +31,12 @@ type MetricsRepository interface {
 	ModelCosts(ctx context.Context, f MetricsFilter, limit int) ([]model.ModelCost, error)
 	TenantUsage(ctx context.Context, f MetricsFilter, limit int) ([]model.TenantUsage, error)
 	AgentUsage(ctx context.Context, f MetricsFilter, limit int) ([]model.AgentUsage, error)
+	// AttributeKeys lists the distinct custom-attribute keys present in the
+	// window, so a caller can discover which dimensions it can allocate by.
+	AttributeKeys(ctx context.Context, f MetricsFilter, limit int) ([]string, error)
+	// UsageByAttribute groups spend/usage by the value of one custom attribute
+	// key — the allocation primitive: cost by team, by user, by environment, …
+	UsageByAttribute(ctx context.Context, f MetricsFilter, key string, limit int) ([]model.AttributeUsage, error)
 }
 
 // Repository is the full data-access surface a backend must provide. Concrete
