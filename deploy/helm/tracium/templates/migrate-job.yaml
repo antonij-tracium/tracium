@@ -1,0 +1,66 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "tracium.fullname" . }}-migrate
+  labels:
+    {{- include "tracium.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migrate
+  annotations:
+    # Create the ClickHouse schema and apply pending migrations on every release,
+    # mirroring the docker-compose `migrate` one-shot.
+    #
+    # Hook phases are post-install + pre-upgrade (NOT pre-install): on a fresh
+    # install the chart's ClickHouse/Postgres are created during the main release
+    # phase, so a pre-install hook would deadlock waiting for databases that do
+    # not exist yet. post-install runs after they are up; pre-upgrade runs before
+    # the new api/collector roll out, so queries never hit a stale schema.
+    #
+    # before-hook-creation deletes the prior Job (and ConfigMap) so the hook
+    # re-runs cleanly each release. run-migrations.sh is idempotent.
+    "helm.sh/hook": post-install,pre-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  # Retry until ClickHouse/Postgres are reachable; the script also polls for them.
+  backoffLimit: 6
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: migrate
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: migrate
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: "{{ .Values.migrate.image.repository }}:{{ include "tracium.imageTag" (dict "component" .Values.migrate "global" .Values.global) }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          # Mirrors the env consumed by run-migrations.sh in docker-compose.
+          env:
+            - name: CLICKHOUSE_HTTP
+              value: "http://{{ include "tracium.fullname" . }}-clickhouse:8123"
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.clickhouse.existingSecret }}
+                  key: {{ .Values.clickhouse.existingSecretKey }}
+            - name: POSTGRES_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "tracium.fullname" . }}-db
+                  key: postgres-dsn
+            - name: MIGRATIONS_DIR
+              value: /migrations
+            # Span retention in days; 0 keeps data forever (no TTL).
+            - name: RETENTION_DAYS
+              value: {{ .Values.retention.days | quote }}
+          resources:
+            {{- toYaml .Values.migrate.resources | nindent 12 }}
+          volumeMounts:
+            - name: migrations
+              mountPath: /migrations
+              readOnly: true
+      volumes:
+        - name: migrations
+          configMap:
+            name: {{ include "tracium.fullname" . }}-migrations

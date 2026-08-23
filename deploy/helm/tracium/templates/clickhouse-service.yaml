@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "tracium.fullname" . }}-clickhouse
+  labels:
+    {{- include "tracium.labels" . | nindent 4 }}
+    app.kubernetes.io/component: clickhouse
+spec:
+  # Headless service — pods connect directly via DNS; no load balancing needed
+  # for a single-replica stateful service.
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: clickhouse
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  ports:
+    - name: http
+      port: 8123
+      targetPort: http
+      protocol: TCP
+    - name: native
+      port: 9000
+      targetPort: native
+      protocol: TCP

@@ -1,0 +1,114 @@
+# StatefulSet, not Deployment: the exporter's durable sending queue
+# (sending_queue.storage in collector.yaml) holds spans already ACKed to the
+# client while ClickHouse is unreachable. Each replica therefore needs its own
+# persistent volume that survives pod replacement — a rolling update of a
+# Deployment replaces pods and would destroy exactly the spans the queue
+# exists to protect. Everything else about the collector is still stateless:
+# scaling out remains safe, each replica just brings its own queue.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "tracium.fullname" . }}-collector
+  labels:
+    {{- include "tracium.labels" . | nindent 4 }}
+    app.kubernetes.io/component: collector
+spec:
+  replicas: {{ .Values.collector.replicaCount }}
+  serviceName: {{ include "tracium.fullname" . }}-collector
+  # Parallel keeps scale-up/down behaving like the Deployment this replaced;
+  # the ordered default only matters for clustered stores, which this is not.
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: collector
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: collector
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: collector
+    spec:
+      containers:
+        - name: collector
+          image: "{{ .Values.collector.image.repository }}:{{ include "tracium.imageTag" (dict "component" .Values.collector "global" .Values.global) }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - name: grpc-otlp
+              containerPort: {{ .Values.collector.service.grpcPort }}
+              protocol: TCP
+            - name: http-otlp
+              containerPort: {{ .Values.collector.service.httpPort }}
+              protocol: TCP
+            - name: health
+              containerPort: {{ .Values.collector.service.healthPort }}
+              protocol: TCP
+          env:
+            - name: CLICKHOUSE_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "tracium.fullname" . }}-db
+                  key: clickhouse-dsn
+            - name: POSTGRES_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "tracium.fullname" . }}-db
+                  key: postgres-dsn
+            # The collector does not authenticate OTLP. To require a bearer token,
+            # use the [ingest-auth] block in collector.yaml (mounted via the config
+            # ConfigMap) and supply INGEST_TOKEN here from a secret.
+            - name: GRPC_ADDR
+              value: ":{{ .Values.collector.service.grpcPort }}"
+            - name: HTTP_ADDR
+              value: ":{{ .Values.collector.service.httpPort }}"
+            - name: HEALTH_ADDR
+              value: ":{{ .Values.collector.service.healthPort }}"
+            - name: PRICING_SOURCE
+              value: static
+            - name: PRICING_STATIC_PATH
+              value: /etc/tracium/pricing.json
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: health
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            failureThreshold: 5
+          resources:
+            {{- toYaml .Values.collector.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/tracium/collector.yaml
+              subPath: collector.yaml
+              readOnly: true
+            - name: pricing
+              mountPath: /etc/tracium/pricing.json
+              subPath: pricing.json
+              readOnly: true
+            - name: queue
+              mountPath: /var/lib/tracium/queue
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "tracium.fullname" . }}-config
+        - name: pricing
+          configMap:
+            name: {{ include "tracium.fullname" . }}-pricing
+  volumeClaimTemplates:
+    - metadata:
+        name: queue
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with .Values.collector.queue.storageClass }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.collector.queue.storageSize | default "5Gi" }}

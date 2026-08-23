@@ -1,0 +1,28 @@
+.container {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.lineFirst {
+  position: absolute;
+  right: -256px;
+  top: 0;
+  height: 150%;
+  width: 800px;
+  border-left: 4px solid color-mix(in srgb, var(--auth-decorative) 55%, transparent);
+  transform: rotate(25deg);
+  transform-origin: top right;
+}
+
+.lineSecond {
+  position: absolute;
+  right: -300px;
+  top: -10%;
+  height: 150%;
+  width: 1000px;
+  border-left: 4px solid color-mix(in srgb, var(--auth-decorative) 25%, transparent);
+  transform: rotate(25deg);
+  transform-origin: top right;
+}

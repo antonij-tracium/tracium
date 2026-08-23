@@ -1,0 +1,99 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Detect which components changed so slow jobs (npm, helm) only run when relevant.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      go: ${{ steps.f.outputs.go }}
+      dashboard: ${{ steps.f.outputs.dashboard }}
+      spec: ${{ steps.f.outputs.spec }}
+      helm: ${{ steps.f.outputs.helm }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: f
+        with:
+          filters: |
+            go: ['collector/**', 'api/**', 'go.work']
+            dashboard: ['dashboard/**']
+            spec: ['spec/**']
+            helm: ['deploy/**']
+
+  go-test:
+    needs: changes
+    if: ${{ needs.changes.outputs.go == 'true' || needs.changes.outputs.spec == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.work
+          cache-dependency-path: |
+            collector/go.sum
+            api/go.sum
+      - name: Test every Go module
+        run: |
+          set -e
+          for mod in $(find collector api -name go.mod -not -path '*/_build/*'); do
+            dir=$(dirname "$mod")
+            echo "::group::go test $dir"
+            (cd "$dir" && go test ./...)
+            echo "::endgroup::"
+          done
+
+  dashboard:
+    needs: changes
+    if: ${{ needs.changes.outputs.dashboard == 'true' || needs.changes.outputs.spec == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - run: npm ci
+      - run: npm run build   # tsc typecheck + vite build
+      - run: npm test
+
+  # Informational: surfaces spec -> dashboard type drift. Non-blocking because
+  # openapi-typescript version differences can produce cosmetic diffs. Only the
+  # TS generator runs — the Go models are hand-written (gen-go-models.sh is not run).
+  codegen-sync:
+    needs: changes
+    if: ${{ needs.changes.outputs.spec == 'true' }}
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: bash spec/codegen/gen-ts-types.sh
+      - name: Fail if generated types are stale
+        run: git diff --exit-code -- dashboard/src/types
+
+  helm-lint:
+    needs: changes
+    if: ${{ needs.changes.outputs.helm == 'true' || needs.changes.outputs.spec == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - run: make sync-generated   # single-source pricing/schema into the chart
+      - run: helm lint deploy/helm/tracium

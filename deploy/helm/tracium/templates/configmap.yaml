@@ -1,0 +1,108 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "tracium.fullname" . }}-config
+  labels:
+    {{- include "tracium.labels" . | nindent 4 }}
+data:
+  # OpenTelemetry Collector format — the collector is a generic OTel Collector
+  # plus the tracium processor and clickhousespan exporter. Keep this in sync
+  # with collector/config/collector.yaml (the compose deployment mounts
+  # that file directly; this block is its Helm-templated twin).
+  collector.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:{{ .Values.collector.service.grpcPort }}
+          http:
+            endpoint: 0.0.0.0:{{ .Values.collector.service.httpPort }}
+
+    processors:
+      tracium:
+        pricing:
+          source: static
+          static_file_path: /etc/tracium/pricing.json
+        tenant:
+          source: passthrough
+        capture_content: true
+
+      batch:
+        send_batch_size: 5000
+        send_batch_max_size: 10000
+        timeout: 5s
+
+    exporters:
+      clickhousespan:
+        dsn: ${env:CLICKHOUSE_DSN}
+        sending_queue:
+          # Durable queue on the per-pod PVC (see collector-statefulset.yaml).
+          # Without it a pod replacement during a ClickHouse outage destroys
+          # spans already ACKed to the client.
+          storage: file_storage
+          # In batches: 200 x 5000 spans x ~2KB = ~2GB ceiling, on disk.
+          queue_size: 200
+        retry_on_failure:
+          enabled: true
+          # Retry indefinitely — safe only because the queue is durable and
+          # bounded. The upstream 5m default drops batches across any longer
+          # outage (a ClickHouse upgrade routinely exceeds it).
+          max_elapsed_time: 0
+
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:{{ .Values.collector.service.healthPort }}
+      file_storage:
+        directory: /var/lib/tracium/queue
+        compaction:
+          on_start: true
+          directory: /var/lib/tracium/queue
+
+    service:
+      extensions: [health_check, file_storage]
+      telemetry:
+        metrics:
+          # All interfaces, so the span-drop counters are scrapable in-cluster.
+          address: 0.0.0.0:8888
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [tracium, batch]
+          exporters: [clickhousespan]
+        metrics:
+          receivers: [otlp]
+          processors: [tracium, batch]
+          exporters: [clickhousespan]
+
+  api.yaml: |
+    server:
+      addr: "0.0.0.0:{{ .Values.api.service.port }}"
+      read_timeout_seconds: 30
+      write_timeout_seconds: 30
+
+    storage:
+      clickhouse_dsn: "${CLICKHOUSE_DSN}"
+
+    auth:
+      enabled: true
+      token_header: "Authorization"
+
+    telemetry:
+      log_level: "info"
+      log_format: "json"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "tracium.fullname" . }}-pricing
+  labels:
+    {{- include "tracium.labels" . | nindent 4 }}
+data:
+  # Model pricing table read by the collector's static pricing resolver
+  # (static_file_path: /etc/tracium/pricing.json below). The collector image does
+  # NOT bake pricing in, so the file must be supplied to the pod — here, embedded
+  # from files/pricing/pricing.json (vendored from tracium-spec). Refresh with
+  # spec/pricing/refresh-pricing.sh, then re-copy into files/pricing/.
+  pricing.json: |
+{{ .Files.Get "files/pricing/pricing.json" | indent 4 }}

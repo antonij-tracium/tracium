@@ -1,0 +1,121 @@
+# Tracium collector runtime configuration (OpenTelemetry Collector format).
+#
+# This replaces the old bespoke config.yaml. The receiver, batch, queue, retry,
+# and health-check behaviour are now standard OTel Collector features; only the
+# `tracium` processor and `clickhousespan` exporter are Tracium-specific.
+#
+# Override values via env vars using ${ENV:VAR} expansion (built into the
+# collector). Run with:  ./tracium-collector --config config/collector.yaml
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: ${env:GRPC_ADDR:-0.0.0.0:4317}
+        # [ingest-auth] require a bearer token on gRPC ingest (see extensions below):
+        # auth: { authenticator: bearertokenauth }
+      http:
+        endpoint: ${env:HTTP_ADDR:-0.0.0.0:4318}
+        # [ingest-auth] require a bearer token on HTTP ingest (see extensions below):
+        # auth: { authenticator: bearertokenauth }
+
+processors:
+  # Tracium LLM-span enrichment. OSS sources only; the Enterprise build accepts
+  # additional pricing/tenant sources here.
+  tracium:
+    pricing:
+      source: static
+      static_file_path: ${env:PRICING_STATIC_PATH:-/etc/tracium/pricing.json}
+    tenant:
+      source: passthrough
+    # Persist raw prompt/completion text to storage. Off by default since this
+    # content may be sensitive; enabled here so input/output land on spans.
+    capture_content: true
+    # allowed_models: [gpt-4o, claude-3-5-sonnet]   # empty = allow all
+
+  batch:
+    # ClickHouse ingests far more efficiently in large batches (fewer parts to
+    # merge). Flush at 5k spans or 5s, whichever first; cap any single batch at
+    # 10k so a burst can't build an oversized insert.
+    send_batch_size: 5000
+    send_batch_max_size: 10000
+    timeout: 5s
+
+exporters:
+  clickhousespan:
+    dsn: ${env:CLICKHOUSE_DSN}
+    sending_queue:
+      # storage points the queue at the file_storage extension below, so it
+      # survives a process restart. Without it the queue is memory-only and any
+      # restart during a ClickHouse outage — rolling update, OOM kill, redeploy,
+      # node drain — destroys spans the client was already told (HTTP 200) were
+      # delivered. OTLP cannot un-acknowledge, so the sender has discarded them.
+      storage: file_storage
+      # queue_size is in BATCHES, not spans. Upstream's default of 1000 is
+      # 1000 x send_batch_size(5000) = 5M spans; at ~2 KB/span (more with
+      # capture_content on) that is ~10 GB. Sized here for a ~2 GB ceiling:
+      #   200 batches x 5000 spans x ~2 KB = ~2 GB.
+      # With storage set this is bounded by DISK, not RAM, so it no longer
+      # inflates the collector toward an OOM the way the in-memory default did.
+      queue_size: ${env:QUEUE_SIZE:-200}
+    retry_on_failure:
+      enabled: true
+      # 0 = retry indefinitely. The upstream default of 5m drops batches
+      # permanently across any longer outage, and a ClickHouse upgrade routinely
+      # exceeds 5 minutes. Indefinite retry is only safe because the queue above
+      # is durable and bounded — the two settings go together.
+      max_elapsed_time: ${env:RETRY_MAX_ELAPSED:-0}
+  # Uncomment for local dev without ClickHouse:
+  # debug:
+  #   verbosity: detailed
+
+extensions:
+  health_check:
+    endpoint: ${env:HEALTH_ADDR:-0.0.0.0:8080}
+  # Backs sending_queue.storage above. The directory MUST be a persistent
+  # volume: a path that lives only inside the container is wiped on restart,
+  # which defeats the whole point of a durable queue.
+  file_storage:
+    directory: ${env:QUEUE_STORAGE_DIR:-/var/lib/tracium/queue}
+    # The queue is the collector's memory of un-flushed spans; reclaiming it on
+    # a timer would silently discard telemetry, so compaction only defragments.
+    compaction:
+      on_start: true
+      directory: ${env:QUEUE_STORAGE_DIR:-/var/lib/tracium/queue}
+  # [ingest-auth] OPT-IN ingest authentication. The OTLP ports are UNAUTHENTICATED
+  # by default: anyone who can reach :4317/:4318 can send spans. That is safe only
+  # when the collector sits on a trusted network — the intended posture is to keep
+  # these ports off the public internet (the Helm chart already does: OTLP is not
+  # in the ingress). To instead require a shared bearer token, set INGEST_TOKEN and
+  # uncomment the block below plus the [ingest-auth] lines on both receivers and in
+  # service.extensions. Clients then send:
+  #   OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer <token>"
+  # A shared token is one secret for everyone; for rotatable per-client identity use
+  # oidcauth or an authenticating gateway in front of the collector. Leaving this
+  # commented out changes nothing — ingest stays open, as before.
+  # bearertokenauth:
+  #   token: ${env:INGEST_TOKEN}
+
+service:
+  # [ingest-auth] add bearertokenauth to this list to turn ingest auth on.
+  extensions: [health_check, file_storage]
+  telemetry:
+    metrics:
+      # Bound to all interfaces so the collector's own metrics — including the
+      # span-drop counters the tracium processor emits — are scrapable from
+      # outside the container. localhost would make drops invisible in practice.
+      address: ${env:TELEMETRY_ADDR:-0.0.0.0:8888}
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [tracium, batch]
+      exporters: [clickhousespan]
+    # Metrics path: OpenLLMetry's gen_ai.client.token.usage points are priced by
+    # the tracium processor and written as source="metric" rows into the same
+    # tracium.spans table the traces path uses. Disabling this pipeline (or
+    # simply receiving no metrics) leaves the system span-only — no metric rows
+    # are written and all dashboard numbers fall back to spans.
+    metrics:
+      receivers: [otlp]
+      processors: [tracium, batch]
+      exporters: [clickhousespan]

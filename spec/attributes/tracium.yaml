@@ -1,0 +1,47 @@
+# Tracium-specific attributes written by the collector pipeline.
+# These attributes do NOT come from the upstream OTel signal — they are
+# computed and attached by Tracium's collector stages before the span
+# is written to ClickHouse.
+
+attributes:
+  - name: tracium.cost_usd
+    description: >
+      Computed cost in USD for this span, derived from token counts and the
+      pricing table. Calculated as:
+      (input_tokens / 1000) * input_cost_per_1k + (output_tokens / 1000) * output_cost_per_1k.
+    type: float
+    added_in_schema: 1
+
+  - name: tracium.tenant.id
+    description: >
+      Tenant identifier extracted from the authenticated request context.
+      Used for row-level multi-tenant isolation in ClickHouse.
+    type: string
+    added_in_schema: 1
+
+  - name: tracium.model_normalized
+    description: >
+      The canonical model id after alias resolution against the pricing table.
+      For example, a span reporting "gpt-4o-2024-08-06" is normalised to "gpt-4o".
+      Falls back to the raw gen_ai.request.model value if no alias match is found.
+    type: string
+    added_in_schema: 1
+
+  - name: tracium.available_tools
+    description: >
+      JSON-encoded array of the tools made available to the model on this span,
+      each as {"name", "description", "used"}. Computed by the collector from the
+      upstream tool-definition attributes (OpenLLMetry's llm.request.functions.*),
+      with "used" derived from tool-call signals in the completion. Stored as
+      Span.available_tools. Tool metadata only — not raw content — so it is
+      captured regardless of the capture_content setting.
+    type: string
+    added_in_schema: 3
+
+  - name: tracium.schema_version
+    description: >
+      Schema version of this span record at the time it was written.
+      Consumers must use this value when reading fields that were added in
+      later schema versions (e.g. error_type and error_message added in v2).
+    type: integer
+    added_in_schema: 1

@@ -1,0 +1,1007 @@
+openapi: "3.1.0"
+
+info:
+  title: Tracium API
+  version: 0.1.0
+  description: >
+    REST API for querying traces and spans collected by the Tracium
+    OpenTelemetry-native LLM observability platform. All timestamps are
+    Unix epoch milliseconds. All monetary values are USD.
+
+servers:
+  - url: "http://localhost:8090"
+    description: Local development server
+
+security:
+  - bearerAuth: []
+
+paths:
+  /v1/traces:
+    get:
+      operationId: listTraces
+      summary: List traces
+      description: >
+        Returns a paginated list of traces for the authenticated tenant.
+        Results are ordered by start_time_ms descending.
+      tags:
+        - Traces
+      parameters:
+        - name: tenant_id
+          in: query
+          description: Filter by tenant ID (admin use — regular callers are scoped to their own tenant).
+          schema:
+            type: string
+        - name: model
+          in: query
+          description: Filter traces that contain at least one span using this model (normalized model id).
+          schema:
+            type: string
+        - name: agent
+          in: query
+          description: Filter to traces belonging to a single agent (the trace root name) — powers an agent's recent runs.
+          schema:
+            type: string
+        - name: has_error
+          in: query
+          description: Filter to traces that have at least one error span.
+          schema:
+            type: boolean
+        - name: start_after
+          in: query
+          description: Return traces whose start_time_ms is after this ISO 8601 date-time.
+          schema:
+            type: string
+            format: date-time
+        - name: start_before
+          in: query
+          description: Return traces whose start_time_ms is before this ISO 8601 date-time.
+          schema:
+            type: string
+            format: date-time
+        - name: page
+          in: query
+          description: Page number (1-based).
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: page_size
+          in: query
+          description: Number of results per page.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: Paginated list of traces.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedTraceResponse"
+        "401":
+          description: Missing or invalid bearer token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/traces/{id}:
+    get:
+      operationId: getTrace
+      summary: Get a trace by ID
+      description: Returns a single trace including its full span list.
+      tags:
+        - Traces
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The trace_id of the trace to retrieve.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The requested trace with all spans.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TraceDetail"
+        "404":
+          description: Trace not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid bearer token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/metrics/kpis:
+    get:
+      operationId: getOverviewKpis
+      summary: Overview KPIs
+      description: >
+        Returns the four headline metrics (total cost, agent runs, p95 latency,
+        error rate) for the selected range, each with its change versus the
+        equal-length preceding period.
+      tags:
+        - Metrics
+      parameters:
+        - $ref: "#/components/parameters/Range"
+        - $ref: "#/components/parameters/TenantFilter"
+      responses:
+        "200":
+          description: The overview KPI set.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KpiSet"
+        "400":
+          description: Invalid range.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid bearer token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/metrics/cost-series:
+    get:
+      operationId: getCostSeries
+      summary: Cost over time
+      description: Total cost per time bucket across the range.
+      tags:
+        - Metrics
+      parameters:
+        - $ref: "#/components/parameters/Range"
+        - $ref: "#/components/parameters/TenantFilter"
+        - $ref: "#/components/parameters/AgentFilter"
+      responses:
+        "200":
+          description: Cost buckets ordered by bucket_ms ascending.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedCostBucketResponse"
+        "400":
+          description: Invalid range.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/metrics/latency-series:
+    get:
+      operationId: getLatencySeries
+      summary: Latency over time
+      description: p50/p95/p99 of span duration (ms) per time bucket across the range.
+      tags:
+        - Metrics
+      parameters:
+        - $ref: "#/components/parameters/Range"
+        - $ref: "#/components/parameters/TenantFilter"
+        - $ref: "#/components/parameters/AgentFilter"
+      responses:
+        "200":
+          description: Latency buckets ordered by bucket_ms ascending.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedLatencyBucketResponse"
+        "400":
+          description: Invalid range.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/metrics/error-series:
+    get:
+      operationId: getErrorSeries
+      summary: Failures over time
+      description: Failed-vs-total run counts per time bucket across the range — the "Failures by day" strip.
+      tags:
+        - Metrics
+      parameters:
+        - $ref: "#/components/parameters/Range"
+        - $ref: "#/components/parameters/TenantFilter"
+        - $ref: "#/components/parameters/AgentFilter"
+      responses:
+        "200":
+          description: Error buckets ordered by bucket_ms ascending.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedErrorBucketResponse"
+        "400":
+          description: Invalid range.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/metrics/top-agents:
+    get:
+      operationId: getTopAgents
+      summary: Top agents by cost
+      description: The highest-spending agents (trace root names) in the range, ordered by cost descending.
+      tags:
+        - Metrics
+      parameters:
+        - $ref: "#/components/parameters/Range"
+        - $ref: "#/components/parameters/TenantFilter"
+      responses:
+        "200":
+          description: Agents ordered by cost descending.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedAgentCostResponse"
+        "400":
+          description: Invalid range.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/metrics/agents:
+    get:
+      operationId: listAgents
+      summary: Agent activity list
+      description: >
+        Every active agent in the range with its run count, total spend, mean
+        run latency, error rate, and call-count sparkline — the data behind the
+        Agents page. Ordered by call count descending; sorting and filtering are
+        done client-side. avg_latency_ms is 0 for long windows served from the
+        daily rollup, where per-trace durations are not retained.
+      tags:
+        - Metrics
+      parameters:
+        - $ref: "#/components/parameters/Range"
+        - $ref: "#/components/parameters/TenantFilter"
+      responses:
+        "200":
+          description: Agents ordered by call count descending.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedAgentResponse"
+        "400":
+          description: Invalid range.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/metrics/agents/{name}:
+    get:
+      operationId: getAgentDetail
+      summary: Agent detail
+      description: >
+        One agent's detail-page payload: its headline metrics over the range
+        plus the tool surface from its most recent run. Span-backed only — there
+        is no agent-config store, so runtime params (temperature, retries,
+        version, owner, …) are not served. A raw-window feature: ranges longer
+        than 30d (90d, 1y) are rejected with a 400, since per-agent latency
+        cannot be derived from the daily rollup.
+      tags:
+        - Metrics
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: The agent name (the trace root span name).
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Range"
+        - $ref: "#/components/parameters/TenantFilter"
+      responses:
+        "200":
+          description: The agent's detail payload.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentDetail"
+        "400":
+          description: Invalid range, or a range longer than 30d.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No agent with that name has runs in the window.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/metrics/failures:
+    get:
+      operationId: getFailures
+      summary: Recent failures
+      description: >
+        The agents with the most errored runs in the range. The response total
+        counts every failed run in the window, not just the listed agents.
+      tags:
+        - Metrics
+      parameters:
+        - $ref: "#/components/parameters/Range"
+        - $ref: "#/components/parameters/TenantFilter"
+      responses:
+        "200":
+          description: Failed agents ordered by failure count descending.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedFailureResponse"
+        "400":
+          description: Invalid range.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/health:
+    get:
+      operationId: healthCheck
+      summary: Liveness check
+      description: >
+        Returns 200 when the API process is running. Does not verify
+        downstream dependencies (use /v1/ready for that).
+      tags:
+        - Operations
+      security: []
+      responses:
+        "200":
+          description: Service is alive.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+
+  /v1/ready:
+    get:
+      operationId: readinessCheck
+      summary: Readiness check
+      description: >
+        Returns 200 when the API is ready to serve traffic (database
+        connections healthy). Returns 503 when not ready.
+      tags:
+        - Operations
+      security: []
+      responses:
+        "200":
+          description: Service is ready.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                properties:
+                  status:
+                    type: string
+                    example: "ready"
+        "503":
+          description: Service is not ready (e.g. database unavailable).
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                properties:
+                  status:
+                    type: string
+                    example: "not_ready"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: JWT or opaque bearer token issued by the Tracium auth service.
+
+  parameters:
+    Range:
+      name: range
+      in: query
+      description: >-
+        Time window for the metric. Defaults to 7d. 24h is bucketed hourly;
+        7d/30d/90d/1y daily. Ranges longer than 30d (90d, 1y) are served from the
+        daily rollup, so latency percentiles are not available for them.
+      schema:
+        type: string
+        enum: ["24h", "7d", "30d", "90d", "1y"]
+        default: "7d"
+    TenantFilter:
+      name: tenant_id
+      in: query
+      description: Optional business filter (the operator's end-client). Empty means all clients.
+      schema:
+        type: string
+    AgentFilter:
+      name: agent
+      in: query
+      description: >-
+        Optional: restrict the metric to a single agent (the trace root name),
+        powering the agent detail page's charts. Agent-scoped metrics are a
+        raw-window feature — ranges longer than 30d (90d, 1y) are rejected with a
+        400, since per-agent latency cannot be derived from the daily rollup.
+      schema:
+        type: string
+
+  schemas:
+    Span:
+      type: object
+      required:
+        - trace_id
+        - span_id
+        - name
+      properties:
+        trace_id:
+          type: string
+          description: Globally unique identifier for the trace this span belongs to.
+        span_id:
+          type: string
+          description: Globally unique identifier for this span.
+        parent_span_id:
+          type: string
+          description: span_id of the parent span, if this is a child span.
+        name:
+          type: string
+          description: Human-readable name for this span.
+        start_time_ms:
+          type: integer
+          description: Unix epoch milliseconds when the span started.
+        end_time_ms:
+          type: integer
+          description: Unix epoch milliseconds when the span ended.
+        duration_ms:
+          type: integer
+          description: Duration of the span in milliseconds.
+        model:
+          type: string
+          description: The model name as reported in gen_ai.request.model.
+        finish_reason:
+          type: string
+          description: Why the model stopped generating.
+        input_tokens:
+          type: integer
+          minimum: 0
+          description: Number of input tokens consumed.
+        output_tokens:
+          type: integer
+          minimum: 0
+          description: Number of output tokens generated.
+        cost_usd:
+          type: number
+          minimum: 0
+          description: Computed cost in USD for this span.
+        tenant_id:
+          type: string
+          description: Tenant identifier.
+        model_normalized:
+          type: string
+          description: Canonical model id after alias resolution.
+        schema_version:
+          type: integer
+          minimum: 1
+          description: Schema version of this span record.
+        error_type:
+          type: string
+          description: "Added in schema v2. Short error class or type."
+        error_message:
+          type: string
+          description: "Added in schema v2. Human-readable error message if the span failed."
+        kind:
+          type: string
+          enum: ["agent", "llm", "tool", "chain", "retriever", "embedding"]
+          description: >
+            Normalized span role, derived by the collector from instrumentation
+            attributes (OpenInference openinference.span.kind, Traceloop
+            traceloop.span.kind, or the OTel GenAI gen_ai.operation.name).
+            Optional: omitted when the collector could not classify the span,
+            in which case consumers infer the role from the span's context.
+
+    Trace:
+      type: object
+      required:
+        - trace_id
+      properties:
+        trace_id:
+          type: string
+          description: Globally unique identifier for this trace.
+        name:
+          type: string
+          description: Human-readable name for the trace.
+        start_time_ms:
+          type: integer
+          description: Unix epoch milliseconds when the trace started.
+        end_time_ms:
+          type: integer
+          description: Unix epoch milliseconds when the trace ended.
+        duration_ms:
+          type: integer
+          description: Total duration in milliseconds.
+        tenant_id:
+          type: string
+          description: Tenant identifier.
+        span_count:
+          type: integer
+          minimum: 0
+          description: Total number of spans in this trace.
+        has_error:
+          type: boolean
+          description: True if any span in this trace recorded an error.
+        total_cost_usd:
+          type: number
+          minimum: 0
+          description: Sum of cost_usd across all spans in this trace.
+        schema_version:
+          type: integer
+          minimum: 1
+          description: Schema version of this trace record.
+
+    TraceDetail:
+      allOf:
+        - $ref: "#/components/schemas/Trace"
+        - type: object
+          required:
+            - spans
+          properties:
+            spans:
+              type: array
+              description: All spans belonging to this trace, ordered by start_time_ms ascending.
+              items:
+                $ref: "#/components/schemas/Span"
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: "Machine-readable error code (e.g. NOT_FOUND, UNAUTHORIZED, INVALID_REQUEST)."
+        message:
+          type: string
+          description: Human-readable description of the error.
+
+    PaginatedTraceResponse:
+      type: object
+      required:
+        - items
+        - total
+        - page
+        - page_size
+        - has_more
+      properties:
+        items:
+          type: array
+          description: The traces on this page.
+          items:
+            $ref: "#/components/schemas/Trace"
+        total:
+          type: integer
+          minimum: 0
+          description: Total number of matching traces across all pages.
+        page:
+          type: integer
+          minimum: 1
+          description: Current page number (1-based).
+        page_size:
+          type: integer
+          minimum: 1
+          description: Number of items per page.
+        has_more:
+          type: boolean
+          description: True if there are more pages after this one.
+
+    Kpi:
+      type: object
+      required:
+        - value
+        - delta
+        - delta_type
+      properties:
+        value:
+          type: number
+          description: Raw metric value (USD, count, ms, or fraction depending on the KPI).
+        delta:
+          type: number
+          description: Fractional change versus the preceding period (0.12 == +12%).
+        delta_type:
+          type: string
+          enum: ["good", "bad", "neutral"]
+          description: Whether the change is favourable, given the metric's direction.
+
+    KpiSet:
+      type: object
+      required:
+        - cost
+        - runs
+        - latency_p95
+        - error_rate
+      properties:
+        cost:
+          allOf: [{ $ref: "#/components/schemas/Kpi" }]
+          description: Total cost in USD.
+        runs:
+          allOf: [{ $ref: "#/components/schemas/Kpi" }]
+          description: Agent runs (distinct traces).
+        latency_p95:
+          allOf: [{ $ref: "#/components/schemas/Kpi" }]
+          description: p95 trace duration in ms.
+        error_rate:
+          allOf: [{ $ref: "#/components/schemas/Kpi" }]
+          description: Fraction of traces with an error.
+
+    CostBucket:
+      type: object
+      required:
+        - bucket_ms
+        - value
+        - anomaly
+      properties:
+        bucket_ms:
+          type: integer
+          description: Bucket start, Unix epoch milliseconds.
+        value:
+          type: number
+          minimum: 0
+          description: Total cost in USD within the bucket.
+        anomaly:
+          type: boolean
+          description: True if the bucket exceeds three times the window's median.
+
+    ErrorBucket:
+      type: object
+      required:
+        - bucket_ms
+        - errors
+        - total
+      properties:
+        bucket_ms:
+          type: integer
+          description: Bucket start, Unix epoch milliseconds.
+        errors:
+          type: integer
+          minimum: 0
+          description: Runs that errored within the bucket.
+        total:
+          type: integer
+          minimum: 0
+          description: Total runs that started within the bucket.
+
+    LatencyBucket:
+      type: object
+      required:
+        - bucket_ms
+        - p50
+        - p95
+        - p99
+      properties:
+        bucket_ms:
+          type: integer
+          description: Bucket start, Unix epoch milliseconds.
+        p50:
+          type: number
+          nullable: true
+          description: >
+            Median span duration in the bucket, ms. Null when no runs fell in the
+            bucket (latency is undefined rather than 0).
+        p95:
+          type: number
+          nullable: true
+          description: >
+            95th-percentile span duration in the bucket, ms. Null when no runs
+            fell in the bucket.
+        p99:
+          type: number
+          nullable: true
+          description: >
+            99th-percentile span duration in the bucket, ms. Null when no runs
+            fell in the bucket.
+
+    AgentCost:
+      type: object
+      required:
+        - name
+        - cost
+        - calls
+        - trend
+      properties:
+        name:
+          type: string
+          description: Agent name (the trace root span name).
+        cost:
+          type: number
+          minimum: 0
+          description: Total cost in USD over the window.
+        calls:
+          type: integer
+          minimum: 0
+          description: Number of runs (traces) for this agent.
+        trend:
+          type: array
+          items:
+            type: integer
+            minimum: 0
+          description: >-
+            Call count per time bucket across the window, oldest first and
+            zero-filled, aligned to a shared axis for the usage sparkline.
+
+    Agent:
+      type: object
+      required:
+        - name
+        - calls
+        - cost
+        - avg_latency_ms
+        - error_rate
+        - trend
+        - last_trace_id
+      properties:
+        name:
+          type: string
+          description: Agent name (the trace root span name).
+        calls:
+          type: integer
+          minimum: 0
+          description: Number of runs (traces) for this agent over the window.
+        cost:
+          type: number
+          minimum: 0
+          description: Total cost in USD over the window.
+        avg_latency_ms:
+          type: number
+          minimum: 0
+          description: >-
+            Mean end-to-end run duration in milliseconds. 0 for long windows
+            served from the daily rollup, where per-trace durations are not
+            retained.
+        error_rate:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Fraction of the agent's runs that errored (0–1).
+        trend:
+          type: array
+          items:
+            type: integer
+            minimum: 0
+          description: >-
+            Call count per time bucket across the window, oldest first and
+            zero-filled, aligned to a shared axis for the row sparkline.
+        last_trace_id:
+          type: string
+          description: >-
+            The agent's most recent trace in the window, for deep-linking a row
+            to its trace detail. Empty for long windows served from the daily
+            rollup, which does not retain trace identity.
+
+    AvailableTool:
+      type: object
+      required:
+        - name
+        - used
+      properties:
+        name:
+          type: string
+          description: Tool name as offered to the model.
+        used:
+          type: boolean
+          description: Whether the agent invoked this tool in the sampled run.
+        description:
+          type: string
+          description: Human-readable description of what the tool does.
+
+    AgentDetail:
+      type: object
+      required:
+        - name
+        - calls
+        - cost
+        - avg_latency_ms
+        - p95_latency_ms
+        - error_rate
+        - input_tokens
+        - output_tokens
+        - model
+        - provider
+        - tools
+        - last_trace_id
+      properties:
+        name:
+          type: string
+          description: Agent name (the trace root span name).
+        calls:
+          type: integer
+          minimum: 0
+          description: Number of runs (traces) for this agent over the window.
+        cost:
+          type: number
+          minimum: 0
+          description: Total cost in USD over the window.
+        avg_latency_ms:
+          type: number
+          minimum: 0
+          description: Mean end-to-end run duration in milliseconds.
+        p95_latency_ms:
+          type: number
+          nullable: true
+          minimum: 0
+          description: >-
+            p95 end-to-end run duration in milliseconds, or null when undefined
+            (no runs in the window).
+        error_rate:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Fraction of the agent's runs that errored (0–1).
+        input_tokens:
+          type: integer
+          minimum: 0
+          description: Total input tokens across the agent's runs over the window.
+        output_tokens:
+          type: integer
+          minimum: 0
+          description: Total output tokens across the agent's runs over the window.
+        model:
+          type: string
+          description: The agent's most-used normalized model id over the window.
+        provider:
+          type: string
+          description: Provider inferred from the model id; empty when unrecognised.
+        tools:
+          type: array
+          items:
+            $ref: "#/components/schemas/AvailableTool"
+          description: >-
+            The agent's tool surface — the union of available_tools from its most
+            recent run. Empty when content/tool capture is disabled.
+        last_trace_id:
+          type: string
+          description: The agent's most recent trace in the window, for deep-linking.
+
+    Failure:
+      type: object
+      required:
+        - agent
+        - count
+        - pct
+        - top_error
+      properties:
+        agent:
+          type: string
+          description: Agent name (the trace root span name).
+        count:
+          type: integer
+          minimum: 0
+          description: Number of failed runs.
+        pct:
+          type: number
+          description: Fraction of this agent's runs that failed.
+        top_error:
+          type: string
+          description: Most common error_type among this agent's failed runs.
+
+    PaginatedCostBucketResponse:
+      type: object
+      required: [items, total, page, page_size]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CostBucket"
+        total:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+
+    PaginatedErrorBucketResponse:
+      type: object
+      required: [items, total, page, page_size]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ErrorBucket"
+        total:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+
+    PaginatedLatencyBucketResponse:
+      type: object
+      required: [items, total, page, page_size]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/LatencyBucket"
+        total:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+
+    PaginatedAgentCostResponse:
+      type: object
+      required: [items, total, page, page_size]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentCost"
+        total:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+
+    PaginatedAgentResponse:
+      type: object
+      required: [items, total, page, page_size]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Agent"
+        total:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+
+    PaginatedFailureResponse:
+      type: object
+      required: [items, total, page, page_size]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Failure"
+        total:
+          type: integer
+          description: Total failed runs in the window (not just the listed agents).
+        page:
+          type: integer
+        page_size:
+          type: integer

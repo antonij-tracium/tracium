@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "tracium.fullname" . }}-collector
+  labels:
+    {{- include "tracium.labels" . | nindent 4 }}
+    app.kubernetes.io/component: collector
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: collector
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  ports:
+    - name: grpc-otlp
+      port: {{ .Values.collector.service.grpcPort }}
+      targetPort: grpc-otlp
+      protocol: TCP
+    - name: http-otlp
+      port: {{ .Values.collector.service.httpPort }}
+      targetPort: http-otlp
+      protocol: TCP
+    - name: health
+      port: {{ .Values.collector.service.healthPort }}
+      targetPort: health
+      protocol: TCP

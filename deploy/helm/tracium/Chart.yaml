@@ -1,0 +1,16 @@
+apiVersion: v2
+name: tracium
+description: OpenTelemetry-native LLM observability platform
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - observability
+  - llm
+  - opentelemetry
+  - tracing
+home: https://github.com/tracium
+sources:
+  - https://github.com/tracium
+maintainers:
+  - name: Tracium Team

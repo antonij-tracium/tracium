@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://tracium.io/schemas/error.json",
+  "title": "ErrorResponse",
+  "description": "Standard error response envelope returned by the Tracium API on failure.",
+  "type": "object",
+  "required": ["code", "message"],
+  "properties": {
+    "code": {
+      "type": "string",
+      "description": "Machine-readable error code (e.g. 'NOT_FOUND', 'UNAUTHORIZED', 'INVALID_REQUEST')."
+    },
+    "message": {
+      "type": "string",
+      "description": "Human-readable description of the error."
+    }
+  },
+  "additionalProperties": false
+}

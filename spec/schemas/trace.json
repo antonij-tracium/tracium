@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://tracium.io/schemas/trace.json",
+  "title": "Trace",
+  "description": "A complete trace representing one logical request or workflow, composed of one or more Spans.",
+  "type": "object",
+  "required": ["trace_id"],
+  "properties": {
+    "trace_id": {
+      "type": "string",
+      "description": "Globally unique identifier for this trace."
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable name for the trace (typically the root span name)."
+    },
+    "start_time_ms": {
+      "type": "integer",
+      "description": "Unix epoch milliseconds when the trace started (earliest span start)."
+    },
+    "end_time_ms": {
+      "type": "integer",
+      "description": "Unix epoch milliseconds when the trace ended (latest span end)."
+    },
+    "duration_ms": {
+      "type": "integer",
+      "description": "Total duration of the trace in milliseconds."
+    },
+    "tenant_id": {
+      "type": "string",
+      "description": "Tenant identifier, used for multi-tenant isolation."
+    },
+    "span_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total number of spans in this trace."
+    },
+    "has_error": {
+      "type": "boolean",
+      "description": "True if any span in this trace recorded an error."
+    },
+    "total_cost_usd": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Sum of cost_usd across all spans in this trace."
+    },
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Schema version of this trace record."
+    }
+  },
+  "additionalProperties": false
+}

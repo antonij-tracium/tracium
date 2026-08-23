@@ -1,0 +1,15 @@
+server:
+  addr: "0.0.0.0:8090"
+  read_timeout_seconds: 30
+  write_timeout_seconds: 30
+
+storage:
+  clickhouse_dsn: "${CLICKHOUSE_DSN}"
+
+auth:
+  enabled: true
+  token_header: "Authorization"
+
+telemetry:
+  log_level: "info"
+  log_format: "json"

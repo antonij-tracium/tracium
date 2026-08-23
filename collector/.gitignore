@@ -1,0 +1,49 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+/collector
+
+# Test binaries
+*.test
+*.out
+
+# Go build cache
+/vendor/
+
+# Module download cache (keep go.sum, ignore local cache)
+# go.sum is intentionally tracked
+
+# Environment files
+.env
+.env.*
+*.env
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage output
+coverage.out
+coverage.html
+
+# Profiling
+*.prof
+*.pprof
+
+# Logs
+*.log
+dead-letter/
+
+# Build output
+dist/

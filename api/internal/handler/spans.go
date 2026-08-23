@@ -1,0 +1,50 @@
+package handler
+
+import (
+	"errors"
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+
+	"github.com/tracium/api/internal/model"
+	"github.com/tracium/api/internal/query"
+)
+
+// SpanHandler handles span-related endpoints.
+type SpanHandler struct {
+	repo query.TraceRepository
+}
+
+// NewSpanHandler constructs a SpanHandler with the given repository.
+func NewSpanHandler(repo query.TraceRepository) *SpanHandler {
+	return &SpanHandler{repo: repo}
+}
+
+// ListSpans handles GET /v1/traces/{traceId}/spans.
+func (h *SpanHandler) ListSpans(w http.ResponseWriter, r *http.Request) {
+	traceID := chi.URLParam(r, "traceId")
+	if traceID == "" {
+		respondError(w, http.StatusBadRequest, "BAD_REQUEST", "traceId is required")
+		return
+	}
+
+	spans, err := h.repo.GetSpans(r.Context(), traceID)
+	if err != nil {
+		if errors.Is(err, query.ErrNotFound) {
+			respondError(w, http.StatusNotFound, "TRACE_NOT_FOUND", "trace not found")
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "INTERNAL", "failed to list spans")
+		return
+	}
+
+	// Rule 5: never serve a row a newer collector wrote — its fields may mean
+	// something else. Checked here rather than in one repository so it holds for
+	// every TraceRepository implementation.
+	if err := model.CheckSchemaCompatibility(spans); err != nil {
+		respondError(w, http.StatusInternalServerError, "SCHEMA_INCOMPATIBLE", err.Error())
+		return
+	}
+
+	respondPage(w, spans, len(spans), 1, len(spans))
+}

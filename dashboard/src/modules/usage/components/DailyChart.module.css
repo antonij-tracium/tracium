@@ -1,0 +1,200 @@
+.chart {
+  --runs-line: #f5a524;
+  position: relative;
+  height: 200px;
+}
+
+/* Legend — flows in the panel header (see DailyChartLegend), so it carries its
+   own runs-line color rather than inheriting it from .chart. */
+.legend {
+  --runs-line: #f5a524;
+  display: flex;
+  gap: 14px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.legendBar {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: var(--accent);
+  opacity: 0.6;
+}
+
+.legendLine {
+  width: 12px;
+  height: 0;
+  border-top: 1.5px solid var(--runs-line);
+}
+
+.grid {
+  position: absolute;
+  inset: 0 48px 24px 0;
+  pointer-events: none;
+}
+
+.gridLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed color-mix(in srgb, var(--border) 40%, transparent);
+}
+
+.gridLine.base {
+  border-top: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+}
+
+.yAxis {
+  position: absolute;
+  right: 0;
+  top: -4px;
+  bottom: 24px;
+  width: 44px;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.yTop {
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+
+.yMid {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.yZero {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+}
+
+/* Shared plot region for the bars and the runs-line overlay. */
+.plot {
+  position: absolute;
+  inset: 0 48px 24px 0;
+}
+
+.bars {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.bar {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  position: relative;
+  cursor: pointer;
+}
+
+.barFill {
+  min-height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--accent);
+  opacity: 0.5;
+  transition: opacity 0.12s;
+  height: var(--h);
+}
+
+.bar:hover .barFill {
+  opacity: 1;
+}
+
+.runsOverlay {
+  position: absolute;
+  inset: 0;
+  /* Explicit size: an <svg> is a replaced element with an intrinsic aspect
+     ratio from its viewBox, so inset:0 alone lets it grow to its intrinsic
+     height and overflow the chart. width/height:100% pins it to the plot. */
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.runsLine {
+  fill: none;
+  stroke: var(--runs-line);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  opacity: 0.85;
+}
+
+.tooltip {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: var(--tip-bottom);
+  z-index: 5;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 7px 10px;
+  font-size: 11.5px;
+  white-space: nowrap;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+.tipLabel {
+  margin-bottom: 2px;
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.tipCost {
+  font-weight: 500;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.tipRuns {
+  margin-top: 1px;
+  font-size: 10.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.xAxis {
+  position: absolute;
+  left: 0;
+  right: 48px;
+  bottom: 0;
+  height: 18px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.xTick {
+  flex: 1;
+}
+
+.xTick.start {
+  text-align: left;
+}
+.xTick.mid {
+  text-align: center;
+}
+.xTick.end {
+  text-align: right;
+}

@@ -1,0 +1,72 @@
+package traciumprocessor
+
+import "fmt"
+
+// Config is the traciumprocessor configuration block, set under
+// processors.tracium in the collector config.
+type Config struct {
+	// AllowedModels optionally restricts which models are kept. Empty = allow all.
+	AllowedModels []string `mapstructure:"allowed_models"`
+
+	// Pricing controls how per-span cost is computed.
+	Pricing PricingConfig `mapstructure:"pricing"`
+
+	// Tenant controls tenant resolution. When unset, the tenant carried in the
+	// span/resource attributes (if any) is used as-is.
+	Tenant TenantConfig `mapstructure:"tenant"`
+
+	// DeadLetter controls where spans the enrichment chain rejects are kept.
+	// Drops are always counted and logged; a path additionally persists the
+	// whole span so it can be recovered.
+	DeadLetter DeadLetterConfig `mapstructure:"dead_letter"`
+
+	// CaptureContent persists raw prompt/completion content (the OTel
+	// gen_ai.input.messages / gen_ai.output.messages and OpenLLMetry indexed
+	// gen_ai.prompt.* / gen_ai.completion.* attributes) to storage. Off by
+	// default: this text may contain sensitive data, so operators must opt in.
+	// When false, the processor strips those attributes (see genai.IsContentKey)
+	// before the span reaches the exporter.
+	CaptureContent bool `mapstructure:"capture_content"`
+}
+
+// PricingConfig selects a pricing source. The OSS edition ships the "static"
+// source; the Enterprise edition registers additional sources (e.g. "dynamic").
+type PricingConfig struct {
+	// Source is the pricing strategy. OSS supports "static" (the default).
+	Source string `mapstructure:"source"`
+	// StaticFilePath is a JSON price table for Source=="static". When empty,
+	// built-in DefaultPrices are used.
+	StaticFilePath string `mapstructure:"static_file_path"`
+}
+
+// TenantConfig selects a tenant-resolution source. OSS supports "passthrough"
+// (use the attribute value as the tenant ID); Enterprise adds e.g. "postgres".
+type TenantConfig struct {
+	// Source is the tenant strategy. OSS supports "passthrough" (the default).
+	Source string `mapstructure:"source"`
+}
+
+// DeadLetterConfig selects the dead-letter sink for rejected spans. With no
+// path they are logged (visible and countable, but not recoverable); with a
+// path they are also appended to that file as NDJSON.
+type DeadLetterConfig struct {
+	// Path is a file the collector appends rejected spans to as NDJSON. Empty
+	// (the default) uses the log store. A path that cannot be opened fails at
+	// startup, not on the first dropped span.
+	Path string `mapstructure:"path"`
+}
+
+// Validate implements component.ConfigValidator.
+func (c *Config) Validate() error {
+	switch c.Pricing.Source {
+	case "", "static":
+	default:
+		return fmt.Errorf("pricing.source %q is not supported in this edition", c.Pricing.Source)
+	}
+	switch c.Tenant.Source {
+	case "", "passthrough":
+	default:
+		return fmt.Errorf("tenant.source %q is not supported in this edition", c.Tenant.Source)
+	}
+	return nil
+}

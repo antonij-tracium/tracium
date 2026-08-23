@@ -1,0 +1,52 @@
+# OpenTelemetry Collector Builder (OCB) manifest — Tracium OSS edition.
+#
+# Build:
+#   go install go.opentelemetry.io/collector/cmd/builder@v0.116.0
+#   builder --config builder/oss.builder.yaml
+#
+# This assembles a *generic* OpenTelemetry Collector from upstream components
+# (OTLP receiver, batch processor, health-check extension) plus the two Tracium
+# components that carry all domain logic:
+#   - processors.tracium       — LLM-span enrichment (cost, tenant, filter)
+#   - exporters.clickhousespan — writes the tracium.spans schema to ClickHouse
+#
+# The Enterprise edition adds one more processor module via its own OCB manifest,
+# kept in the separate (private) enterprise repo. That is the entire open-core seam.
+
+dist:
+  name: tracium-collector
+  description: Tracium OSS collector — generic OTel Collector + Tracium enrichment.
+  output_path: ./_build
+  version: 0.1.0
+
+receivers:
+  - gomod: go.opentelemetry.io/collector/receiver/otlpreceiver v0.116.0
+
+processors:
+  - gomod: go.opentelemetry.io/collector/processor/batchprocessor v0.116.0
+  - gomod: github.com/tracium/collector/processor/traciumprocessor v0.0.0
+    path: ./processor/traciumprocessor
+
+exporters:
+  - gomod: go.opentelemetry.io/collector/exporter/debugexporter v0.116.0
+  - gomod: github.com/tracium/collector/exporter/clickhousespanexporter v0.0.0
+    path: ./exporter/clickhousespanexporter
+
+extensions:
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/extension/healthcheckextension v0.116.0
+  # Durable exporter queue. Without this compiled in, sending_queue.storage
+  # cannot reference a storage extension and the queue stays in memory only —
+  # any collector restart destroys spans already ACKed to the client.
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/extension/storage/filestorage v0.116.0
+  # Optional ingest authentication. Compiled in so operators can require a bearer
+  # token on the OTLP ports purely from config (collector.yaml, the [ingest-auth]
+  # block) without a rebuild. Inert unless referenced under service.extensions, so
+  # it changes nothing by default — ingest stays open until a token is configured.
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/extension/bearertokenauthextension v0.116.0
+
+# The Tracium components import shared domain logic (enrich, pricing, tenant,
+# spanmodel) from the parent module. `replace` directives in the component
+# go.mod files are ignored by Go in non-main modules, so the parent module
+# must be wired in here — relative to the generated build dir (output_path).
+replaces:
+  - github.com/tracium/collector => ../

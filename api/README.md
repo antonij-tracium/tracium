@@ -1,0 +1,84 @@
+# api
+
+The read half of Tracium. It serves trace and metric data to the dashboard over
+a versioned REST API (`/v1/…`). It reads span data from ClickHouse and
+config/accounts from Postgres. It never ingests spans and never writes to the
+span store — that's [`collector`](../collector).
+
+## The one rule that shapes everything
+
+**Every read is bounded to a time window.** The `spans` table is ordered by
+`start_time_ms`, so a windowed query prunes to its granules instead of scanning
+the table; an unbounded read would get slower for every user as the table grows.
+Concretely:
+
+- Trace listings without an explicit lower bound default to the last 30 days
+  (`internal/query/filters.go`), and page size is capped at 200.
+- Metrics windows of 24h/7d/30d read raw spans; 90d/1y are served from the daily
+  rollup (`tracium.metrics_daily`) so their cost tracks cardinality, not span
+  volume.
+
+If you add a query, it must fit this shape. There is no code path that scans the
+span table unbounded, and there must never be one.
+
+## Design
+
+Handlers depend on the `TraceRepository` / `MetricsRepository` **interfaces**, not
+on ClickHouse. The concrete store is wired once in `cmd/api/main.go`; swapping it
+(or the no-op stub used in tests) is a one-line change. Errors are typed —
+`ErrNotFound` maps to 404, everything else to 500 — so handlers never string-match
+on error text.
+
+```
+cmd/api/main.go        wiring only (config → stores → handlers → router)
+internal/handler/      HTTP handlers (traces, spans, metrics, auth, workspaces)
+internal/query/        ClickHouse repository + the windowing/rollup logic
+internal/auth/         accounts, password hashing, JWT issuing (Postgres-backed)
+internal/middleware/   CORS, API version prefix, auth, tenant scoping
+internal/model/        response types (mirrors spec)
+testing/mocks/         interface mocks — the only backend unit tests touch
+```
+
+## Run
+
+```bash
+go run ./cmd/api      # needs CLICKHOUSE_DSN, POSTGRES_DSN, JWT_SECRET
+go test ./...
+```
+
+Config comes from env vars and is validated at startup — a missing DSN or
+`JWT_SECRET` exits the process with a listed error rather than starting in a
+degraded state. Copy [`.env.example`](.env.example) to `.env` for local dev.
+
+| Env | Required | Notes |
+|---|---|---|
+| `CLICKHOUSE_DSN` | yes | span data (HTTP scheme selects the HTTP protocol) |
+| `POSTGRES_DSN` | yes | accounts/config; auth cannot run without it |
+| `JWT_SECRET` | yes | signs **and** verifies admin tokens — never a shared default |
+| `LISTEN_ADDR` | no | defaults to `:8090` |
+
+**Auth fails closed.** With both DSNs and a secret set, auth is on. The only way
+to disable it is an explicit `auth.mode=none`, which logs a loud warning and is
+for local dev only — there is no silent fallback to an open API.
+
+## Routes
+
+All prefixed `/v1`. Health and auth are unauthenticated; everything else requires
+a bearer token, and the data routes additionally require a tenant.
+
+```
+GET  /health  /ready
+POST /auth/register  /auth/login
+GET|POST|DELETE /workspaces[/{id}]                         (auth only)
+GET  /traces  /traces/{id}  /traces/{traceId}/spans        (auth + tenant)
+GET  /metrics/kpis  /cost-series  /latency-series  /error-series
+GET  /metrics/top-agents  /agents  /agents/{name}  /failures
+GET  /metrics/model-costs  /usage-tenants  /usage-agents
+```
+
+The canonical request/response shapes live in
+[`spec/api/openapi.yaml`](../spec/api/openapi.yaml), not here.
+
+## License
+
+Apache 2.0 — see [LICENSE](LICENSE).

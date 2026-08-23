@@ -1,0 +1,350 @@
+// ---------------------------------------------------------------------------
+// AgentsPage — sortable, filterable agent list (from the agents.html design).
+//
+// Pure presentational component: it renders whatever `agents` it is handed. The
+// demo/embedded app passes the mock AGENTS; the signed-in app passes the live
+// list via AgentsLivePage. Health/status and "needs attention" features are
+// intentionally omitted: no status column, no status filter pills, no "needs
+// attention" stat tile.
+// ---------------------------------------------------------------------------
+
+import React, { useMemo, useState } from 'react';
+import {
+  IconArrowDown,
+  IconArrowUp,
+  IconSearch,
+  LastUpdated,
+  Sparkline,
+  fmtCost,
+  fmtNum,
+  fmtMs,
+} from '../../../common';
+import type { Agent } from '../interfaces';
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export interface AgentsPageProps {
+  agents: Agent[];
+  setView: (v: string) => void;
+  setSelected: (updater: (prev: Record<string, string>) => Record<string, string>) => void;
+  /** Active workspace name, shown in the page eyebrow. */
+  workspaceName?: string;
+  /** Epoch ms of the last successful fetch; drives the live "Updated …" label. Omitted for demo data. */
+  updatedAt?: number;
+}
+
+type SortKey = keyof Pick<Agent, 'name' | 'calls' | 'cost' | 'avg_latency_ms' | 'error_rate'>;
+type SortDir = 'asc' | 'desc';
+
+// [Agent, Trend, Calls, Cost, Avg latency, Error] — the status column is dropped.
+const GRID_COLS = '2fr 1fr 100px 100px 100px 80px';
+
+// Error-rate thresholds (fractions): above 2% reads as an error, above 0.5% as a warning.
+const ERR_BAD = 0.02;
+const ERR_WARN = 0.005;
+
+// ---------------------------------------------------------------------------
+// SmallStat — a single tile in the summary strip
+// ---------------------------------------------------------------------------
+
+function SmallStat({
+  label,
+  value,
+  sub,
+  isFirst,
+}: {
+  label: string;
+  value: React.ReactNode;
+  sub?: string;
+  isFirst?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        padding: '18px 22px 20px',
+        borderLeft: isFirst ? 'none' : '1px solid var(--border)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8,
+      }}
+    >
+      <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 500 }}>{label}</span>
+      <span
+        title={typeof value === 'string' ? value : undefined}
+        style={{
+          fontSize: 22,
+          fontWeight: 500,
+          letterSpacing: '-0.02em',
+          color: 'var(--foreground)',
+          fontVariantNumeric: 'tabular-nums',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          lineHeight: 1,
+        }}
+      >
+        {value}
+      </span>
+      {sub && <span style={{ fontSize: 12, color: 'var(--muted)' }}>{sub}</span>}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// SortHeader — a clickable, sortable column header
+// ---------------------------------------------------------------------------
+
+function SortHeader({
+  label,
+  k,
+  sortKey,
+  sortDir,
+  onSort,
+  align = 'left',
+}: {
+  label: string;
+  k: SortKey;
+  sortKey: SortKey;
+  sortDir: SortDir;
+  onSort: (k: SortKey) => void;
+  align?: 'left' | 'right';
+}) {
+  const active = sortKey === k;
+  return (
+    <button
+      onClick={() => onSort(k)}
+      style={{
+        background: 'transparent',
+        border: 'none',
+        padding: 0,
+        fontSize: 12,
+        color: active ? 'var(--foreground)' : 'var(--muted)',
+        fontWeight: 500,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 4,
+        justifyContent: align === 'right' ? 'flex-end' : 'flex-start',
+        width: '100%',
+      }}
+    >
+      {label} {active && (sortDir === 'asc' ? <IconArrowUp size={11} /> : <IconArrowDown size={11} />)}
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// AgentsPage
+// ---------------------------------------------------------------------------
+
+export function AgentsPage({ agents, setView, setSelected, workspaceName, updatedAt }: AgentsPageProps) {
+  const [sortKey, setSortKey] = useState<SortKey>('calls');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [q, setQ] = useState('');
+
+  const filtered = useMemo(() => {
+    let data = agents;
+    if (q) data = data.filter(a => a.name.toLowerCase().includes(q.toLowerCase()));
+    return [...data].sort((a, b) => {
+      const av = a[sortKey];
+      const bv = b[sortKey];
+      if (typeof av === 'string' && typeof bv === 'string') {
+        return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+      }
+      return sortDir === 'asc' ? (av as number) - (bv as number) : (bv as number) - (av as number);
+    });
+  }, [agents, sortKey, sortDir, q]);
+
+  const toggleSort = (k: SortKey) => {
+    if (sortKey === k) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
+    else {
+      setSortKey(k);
+      setSortDir('desc');
+    }
+  };
+
+  const totalCalls = agents.reduce((s, a) => s + a.calls, 0);
+  const totalCost = agents.reduce((s, a) => s + a.cost, 0);
+  const topVolume = agents.reduce<Agent | null>((m, a) => (!m || a.calls > m.calls ? a : m), null);
+  const topCost = agents.reduce<Agent | null>((m, a) => (!m || a.cost > m.cost ? a : m), null);
+
+  // Drill into the agent's detail page (charts, recent runs, config, tools).
+  const openAgent = (a: Agent) => {
+    setSelected(prev => ({ ...prev, agent: a.name }));
+    setView('agents');
+  };
+
+  return (
+    <div style={{ padding: '32px 40px 64px', maxWidth: 1480, margin: '0 auto' }}>
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-end',
+          justifyContent: 'space-between',
+          marginBottom: 24,
+        }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 500,
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
+              color: 'var(--muted)',
+            }}
+          >
+            {workspaceName ? `${workspaceName} · Workspace` : 'Workspace'}
+          </span>
+          <h1 style={{ fontSize: 26, fontWeight: 600, letterSpacing: '-0.02em', margin: 0 }}>Agents</h1>
+          <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0 }}>
+            {agents.length} active agents · {fmtNum(totalCalls)} runs · {fmtCost(totalCost)} spend
+          </p>
+        </div>
+        {updatedAt != null && <LastUpdated at={updatedAt} />}
+      </div>
+
+      {/* ── Summary strip ──────────────────────────────────────────────── */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          borderTop: '1px solid var(--border)',
+          borderBottom: '1px solid var(--border)',
+          margin: '4px 0 28px',
+        }}
+      >
+        <SmallStat isFirst label="Active agents" value={agents.length} sub="deployed" />
+        <SmallStat label="Highest volume" value={topVolume?.name ?? '—'} sub={topVolume ? `${fmtNum(topVolume.calls)} runs` : undefined} />
+        <SmallStat label="Most expensive" value={topCost?.name ?? '—'} sub={topCost ? fmtCost(topCost.cost) : undefined} />
+      </div>
+
+      {/* ── Search ─────────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '7px 12px',
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            borderRadius: 8,
+            flex: 1,
+            maxWidth: 320,
+          }}
+        >
+          <IconSearch size={14} style={{ color: 'var(--muted)', flexShrink: 0 }} />
+          <input
+            value={q}
+            onChange={e => setQ(e.target.value)}
+            placeholder="Filter agents..."
+            style={{
+              flex: 1,
+              background: 'transparent',
+              border: 'none',
+              outline: 'none',
+              color: 'var(--foreground)',
+              fontSize: 13,
+            }}
+          />
+        </div>
+      </div>
+
+      {/* ── Table ──────────────────────────────────────────────────────── */}
+      <div>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: GRID_COLS,
+            gap: 14,
+            padding: '10px 4px',
+            borderBottom: '1px solid var(--border)',
+          }}
+        >
+          <SortHeader label="Agent" k="name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+          <span style={{ fontSize: 12, color: 'var(--muted)' }}>Trend (7d)</span>
+          <SortHeader label="Calls" k="calls" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" />
+          <SortHeader label="Cost" k="cost" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" />
+          <SortHeader label="Avg latency" k="avg_latency_ms" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" />
+          <SortHeader label="Error" k="error_rate" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" />
+        </div>
+
+        {filtered.length === 0 ? (
+          <div style={{ padding: '60px 4px', textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>
+            No agents match.
+          </div>
+        ) : (
+          filtered.map((a, i) => (
+            <AgentRow
+              key={a.name}
+              agent={a}
+              isLast={i === filtered.length - 1}
+              onOpen={() => openAgent(a)}
+            />
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// AgentRow — isolated so hover state is per-row
+// ---------------------------------------------------------------------------
+
+function AgentRow({ agent: a, isLast, onOpen }: { agent: Agent; isLast: boolean; onOpen: () => void }) {
+  const [hovered, setHovered] = useState(false);
+  const errColor =
+    a.error_rate > ERR_BAD ? 'var(--error)' : a.error_rate > ERR_WARN ? 'var(--warning)' : 'var(--muted)';
+
+  return (
+    <button
+      onClick={onOpen}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: 'grid',
+        gridTemplateColumns: GRID_COLS,
+        gap: 14,
+        alignItems: 'center',
+        width: '100%',
+        padding: '14px 4px',
+        border: 'none',
+        textAlign: 'left',
+        cursor: 'pointer',
+        borderBottom: isLast
+          ? 'none'
+          : '1px solid color-mix(in srgb, var(--border) 55%, transparent)',
+        background: hovered
+          ? 'color-mix(in srgb, var(--surface-alt) 60%, transparent)'
+          : 'transparent',
+      }}
+    >
+      <span style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--foreground)' }}>{a.name}</span>
+      <Sparkline data={a.trend} width={140} height={26} color="var(--accent)" fillOpacity={0.1} />
+      <span style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums', textAlign: 'right', color: 'var(--foreground)' }}>
+        {fmtNum(a.calls)}
+      </span>
+      <span style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums', textAlign: 'right', color: 'var(--foreground)' }}>
+        {fmtCost(a.cost)}
+      </span>
+      <span style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums', textAlign: 'right', color: 'var(--muted)' }}>
+        {a.avg_latency_ms > 0 ? fmtMs(a.avg_latency_ms) : '—'}
+      </span>
+      <span
+        style={{
+          fontSize: 13,
+          fontVariantNumeric: 'tabular-nums',
+          textAlign: 'right',
+          color: errColor,
+          fontWeight: a.error_rate > ERR_WARN ? 500 : 400,
+        }}
+      >
+        {(a.error_rate * 100).toFixed(1)}%
+      </span>
+    </button>
+  );
+}

@@ -1,0 +1,144 @@
+/* Design tokens — sourced from tracium-frontend themeTokens.ts / globals.css */
+
+:root {
+  /* Surfaces */
+  --background:    #0b0d0c;
+  --surface:       #111413;
+  --surface-alt:   #171b19;
+  --surface-active: #1c2120;
+  --sidebar-bg:    #0d100f;
+
+  /* Text */
+  --foreground:        #e8efeb;
+  --muted-foreground:  #7a8782;
+  --muted:             #7a8782;
+
+  /* Borders */
+  --border:        rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.12);
+
+  /* Charts */
+  --chart-grid:       rgba(255, 255, 255, 0.06);
+  --chart-tooltip-bg: #171b19;
+
+  /* Brand / accent */
+  --accent:              #59f7c0;
+  --accent-hover:        #7affd8;
+  --accent-soft:         rgba(89, 247, 192, 0.10);
+  --accent-contrast:     #041a14;
+  --accent-glow:         rgba(89, 247, 192, 0.05);
+  --accent-border:       rgba(89, 247, 192, 0.35);
+  --accent-border-hover: rgba(110, 255, 209, 0.55);
+  --accent-strong:       #59f7c0;
+
+  /* Semantic */
+  --success:    #59f7c0;
+  --warning:    #f5a524;
+  --error:      #ef5e5e;
+  --info:       #7aa5ff;
+
+  /* Shadows */
+  --shadow:        rgba(0, 0, 0, 0.15);
+  --shadow-accent: rgba(89, 247, 192, 0.20);
+  --shadow-accent-btn:       rgba(89, 247, 192, 0.18);
+  --shadow-accent-btn-hover: rgba(89, 247, 192, 0.22);
+  --focus-ring: rgba(89, 247, 192, 0.30);
+
+  /* Auth page */
+  --auth-bg:          #131313;
+  --auth-decorative:  #3d7360;
+
+  /* Scrollbar */
+  --scrollbar-thumb:       rgba(255, 255, 255, 0.08);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.14);
+}
+
+/* ── Resets & base ─────────────────────────────────────────────────────────── */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* Always reserve room for the window scrollbar so the viewport width stays
+   constant whether or not the page overflows. Without this, collapsing a tall
+   view (e.g. a trace timeline) can drop the page below the viewport height,
+   the scrollbar disappears, and the centred, percentage-laid-out content
+   reflows sideways — a jarring blink. (No-op under overlay scrollbars.) */
+html {
+  scrollbar-gutter: stable;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.005em;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--accent);
+}
+
+button:not(:disabled), [role="button"] {
+  cursor: pointer;
+}
+
+/* ── Scrollbar ─────────────────────────────────────────────────────────────── */
+
+* {
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+  scrollbar-width: thin;
+}
+
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* ── Agent detail layout ─────────────────────────────────────────────────────
+   Two side-by-side charts split by a divider, and a content/aside split. Both
+   collapse to a single column on narrow viewports. */
+
+.ad-charts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.ad-chart-cell {
+  border-left: 1px solid var(--border);
+}
+.ad-chart-cell--first {
+  border-left: none;
+}
+.ad-split {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 32px;
+  align-items: start;
+}
+
+@media (max-width: 1180px) {
+  .ad-charts {
+    grid-template-columns: 1fr;
+  }
+  .ad-chart-cell {
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+  .ad-split {
+    grid-template-columns: 1fr;
+  }
+}

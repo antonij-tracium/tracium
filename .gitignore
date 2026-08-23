@@ -1,0 +1,33 @@
+# Secrets — only .env.example is committed
+.env
+.env.*
+!.env.example
+
+# Go
+/collector/_build/
+/collector/_build-ee/
+*.test
+*.out
+
+# Node / dashboard
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Python examples
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# OS / editor
+.DS_Store
+
+# Local Claude settings (personal, absolute paths)
+.claude/settings.local.json
+
+# AI assistant tooling — not part of the product
+CLAUDE.md
+**/CLAUDE.md
+.claude/

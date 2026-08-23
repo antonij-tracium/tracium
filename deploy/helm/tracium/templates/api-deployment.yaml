@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "tracium.fullname" . }}-api
+  labels:
+    {{- include "tracium.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  replicas: {{ .Values.api.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: api
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: api
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: api
+    spec:
+      containers:
+        - name: api
+          image: "{{ .Values.api.image.repository }}:{{ include "tracium.imageTag" (dict "component" .Values.api "global" .Values.global) }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.api.service.port }}
+              protocol: TCP
+            - name: health
+              containerPort: {{ .Values.api.service.healthPort }}
+              protocol: TCP
+          env:
+            - name: CLICKHOUSE_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "tracium.fullname" . }}-db
+                  key: clickhouse-dsn
+            - name: POSTGRES_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "tracium.fullname" . }}-db
+                  key: postgres-dsn
+            # Required: the API validates this at startup and exits without it.
+            # HS256 signs and verifies with the same key, so it must be unique per
+            # install and kept secret. Operator-created (see values.yaml api.jwt).
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.jwt.existingSecret }}
+                  key: {{ .Values.api.jwt.existingSecretKey }}
+            - name: LISTEN_ADDR
+              value: ":{{ .Values.api.service.port }}"
+            - name: HEALTH_ADDR
+              value: ":{{ .Values.api.service.healthPort }}"
+          readinessProbe:
+            httpGet:
+              path: /v1/ready
+              port: health
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /v1/health
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            failureThreshold: 5
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/tracium/api.yaml
+              subPath: api.yaml
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "tracium.fullname" . }}-config

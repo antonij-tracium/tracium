@@ -1,0 +1,55 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write   # create the GitHub Release + upload the chart
+  packages: write   # push images to GHCR
+
+jobs:
+  images:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { name: collector, context: collector }
+          - { name: api,        context: api }
+          # NOTE: the dashboard bakes VITE_API_URL at build time (defaults to
+          # http://localhost:8090). A published image therefore has a fixed API
+          # URL; runtime-configurable API URL (nginx env substitution) is a
+          # follow-up before this image is generically reusable.
+          - { name: dashboard,  context: dashboard }
+          - { name: migrate,    context: deploy/docker/migrate }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}:${{ github.ref_name }}
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  chart:
+    needs: images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: Package the Helm chart (version = tag without the leading v)
+        run: |
+          make sync-generated
+          V="${GITHUB_REF_NAME#v}"
+          helm package deploy/helm/tracium --version "$V" --app-version "$V"
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: tracium-*.tgz
