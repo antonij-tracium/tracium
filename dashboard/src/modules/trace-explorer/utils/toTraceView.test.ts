@@ -10,7 +10,7 @@ function span(partial: Partial<Record<keyof Span, unknown>>): Span {
     trace_id: 't1', span_id: 's', parent_span_id: '', name: 'span',
     start_time_ms: 1000, end_time_ms: 1000, duration_ms: 0,
     model: '', finish_reason: '', input_tokens: 0, output_tokens: 0,
-    cost_usd: 0, tenant_id: '', model_normalized: '', schema_version: 3,
+    cost_usd: 0, user_id: '', model_normalized: '', schema_version: 3,
     error_type: '', error_message: '',
     ...partial,
   } as unknown as Span;
@@ -19,7 +19,7 @@ function span(partial: Partial<Record<keyof Span, unknown>>): Span {
 function trace(spans: Span[]): TraceDetail {
   return {
     trace_id: 't1', name: 'agent', start_time_ms: 1000, end_time_ms: 3000,
-    duration_ms: 2000, tenant_id: '', span_count: spans.length,
+    duration_ms: 2000, user_id: '', span_count: spans.length,
     has_error: spans.some(s => !!s.error_type), total_cost_usd: 0, spans,
   } as unknown as TraceDetail;
 }

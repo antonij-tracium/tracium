@@ -1,17 +1,17 @@
 // ---------------------------------------------------------------------------
-// TenantDetailPage — per-tenant detail: cost chart, health, agents, traces
+// UserDetailPage — per-user detail: cost chart, health, agents, traces
 // Inline styles only (no CSS modules).
 // ---------------------------------------------------------------------------
 
 import React, { useState, useMemo } from 'react';
 import { USAGE_DATA } from '../data';
-import { TENANTS } from './TenantsPage';
+import { USERS } from './UsersPage';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export interface TenantDetailPageProps {
+export interface UserDetailPageProps {
   selected: Record<string, string>;
   setView: (v: string) => void;
 }
@@ -69,7 +69,7 @@ const TD_RECENT_TRACES: RecentTrace[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Cost series generator (deterministic, derived from tenant trend)
+// Cost series generator (deterministic, derived from user trend)
 // ---------------------------------------------------------------------------
 
 interface CostSeriesPoint { day: number; cost: number; runs: number }
@@ -116,13 +116,12 @@ function TdSectionHead({ title, hint, right, first = false }: TdSectionHeadProps
 }
 
 // ---------------------------------------------------------------------------
-// Tenant header
+// User header
 // ---------------------------------------------------------------------------
 
-interface Tenant {
+interface User {
   id: string;
   name: string;
-  plan?: string;
   region?: string;
   cost: number;
   runs: number;
@@ -131,20 +130,19 @@ interface Tenant {
 }
 
 interface TdHeaderProps {
-  tenant: Tenant;
+  user: User;
   setView: (v: string) => void;
 }
 
-function TdHeader({ tenant, setView }: TdHeaderProps) {
-  const planColor = tenant.plan === "Scale" ? "var(--accent)" : tenant.plan === "Pro" ? "#7aa5ff" : "var(--muted)";
-  const initials = tenant.name.split(/\s+/).map((w: string) => w[0]).slice(0, 2).join("");
+function TdHeader({ user, setView }: TdHeaderProps) {
+  const initials = user.name.split(/\s+/).map((w: string) => w[0]).slice(0, 2).join("");
 
   return (
     <div>
       {/* Back breadcrumb */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--muted)", marginBottom: 16 }}>
         <button
-          onClick={() => setView("tenants")}
+          onClick={() => setView("users")}
           style={{
             padding: 0, background: "transparent", border: "none",
             color: "var(--muted)", fontSize: 12, fontFamily: "inherit",
@@ -153,7 +151,7 @@ function TdHeader({ tenant, setView }: TdHeaderProps) {
           onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = "var(--foreground)"; }}
           onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = "var(--muted)"; }}
         >
-          ← All tenants
+          ← All users
         </button>
       </div>
 
@@ -170,26 +168,14 @@ function TdHeader({ tenant, setView }: TdHeaderProps) {
           }}>{initials}</div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
-            <h1 style={{ fontSize: 26, fontWeight: 600, color: "var(--foreground)", margin: 0, letterSpacing: "-0.02em", lineHeight: 1.15 }}>{tenant.name}</h1>
+            <h1 style={{ fontSize: 26, fontWeight: 600, color: "var(--foreground)", margin: 0, letterSpacing: "-0.02em", lineHeight: 1.15 }}>{user.name}</h1>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <span style={{
                 fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--muted)",
                 padding: "2px 7px", background: "var(--surface-alt)",
                 border: "1px solid var(--border)", borderRadius: 5,
-              }}>{tenant.id}</span>
-              <span style={{
-                display: "inline-flex", alignItems: "center", gap: 5,
-                padding: "2px 8px 2px 6px", borderRadius: 999,
-                fontSize: 11.5, fontWeight: 500,
-                color: planColor,
-                background: `color-mix(in srgb, ${planColor} 10%, transparent)`,
-                border: `1px solid color-mix(in srgb, ${planColor} 22%, transparent)`,
-              }}>
-                <span style={{ width: 5, height: 5, borderRadius: 999, background: "currentColor" }}/>
-                {tenant.plan}
-              </span>
-              <span style={{ fontSize: 12, color: "var(--muted)" }}>·</span>
-              <span style={{ fontSize: 12, color: "var(--muted)", fontFamily: "var(--font-mono)" }}>{tenant.region ?? "us-west-2"}</span>
+              }}>{user.id}</span>
+              <span style={{ fontSize: 12, color: "var(--muted)", fontFamily: "var(--font-mono)" }}>{user.region ?? "us-west-2"}</span>
               <span style={{ fontSize: 12, color: "var(--muted)" }}>·</span>
               <span style={{ fontSize: 12, color: "var(--muted)" }}>
                 <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: 999, background: "var(--accent)", marginRight: 6, verticalAlign: "1px" }}/>
@@ -216,15 +202,15 @@ function TdHeader({ tenant, setView }: TdHeaderProps) {
 // KPI strip
 // ---------------------------------------------------------------------------
 
-interface TdKpiStripProps { tenant: Tenant }
+interface TdKpiStripProps { user: User }
 
-function TdKpiStrip({ tenant }: TdKpiStripProps) {
+function TdKpiStrip({ user }: TdKpiStripProps) {
   const cells = [
-    { label: "Total runs",  value: tenant.runs.toLocaleString(),                       delta: "+18%",  good: true,  sub: "vs prior 30d" },
-    { label: "Completed",   value: Math.round(tenant.runs * 0.9962).toLocaleString(),  delta: "99.62%", good: true,  sub: "success rate" },
-    { label: "Failed",      value: Math.round(tenant.runs * 0.0038).toLocaleString(),  delta: "0.38%",  good: false, sub: "of total" },
-    { label: "Total cost",  value: "$" + tenant.cost.toFixed(2),                       delta: "+12%",  good: true,  sub: "vs prior 30d" },
-    { label: "Avg / run",   value: "$" + tenant.avg.toFixed(6),                        delta: "−4%",   good: true,  sub: "trending down" },
+    { label: "Total runs",  value: user.runs.toLocaleString(),                       delta: "+18%",  good: true,  sub: "vs prior 30d" },
+    { label: "Completed",   value: Math.round(user.runs * 0.9962).toLocaleString(),  delta: "99.62%", good: true,  sub: "success rate" },
+    { label: "Failed",      value: Math.round(user.runs * 0.0038).toLocaleString(),  delta: "0.38%",  good: false, sub: "of total" },
+    { label: "Total cost",  value: "$" + user.cost.toFixed(2),                       delta: "+12%",  good: true,  sub: "vs prior 30d" },
+    { label: "Avg / run",   value: "$" + user.avg.toFixed(6),                        delta: "−4%",   good: true,  sub: "trending down" },
     { label: "P95 latency", value: "2.4s",                                              delta: "+0.3s", good: false, sub: "vs prior 30d" },
   ];
   return (
@@ -544,11 +530,11 @@ function TdTracesTable({ setView, setSelected }: TdTracesTableProps) {
 // Connection info
 // ---------------------------------------------------------------------------
 
-interface TdConnectionProps { tenant: Tenant }
+interface TdConnectionProps { user: User }
 
-function TdConnection({ tenant }: TdConnectionProps) {
+function TdConnection({ user }: TdConnectionProps) {
   const fields = [
-    { label: "External ID",  value: tenant.id,       mono: true },
+    { label: "External ID",  value: user.id,       mono: true },
     { label: "SDK version",  value: "py-sdk@2.4.1",  mono: true },
     { label: "First seen",   value: "Jan 14, 2025",  mono: false },
     { label: "Onboarded by", value: "Priya Sharma",  mono: false },
@@ -573,24 +559,24 @@ function TdConnection({ tenant }: TdConnectionProps) {
 // Page
 // ---------------------------------------------------------------------------
 
-export function TenantDetailPage({ selected, setView }: TenantDetailPageProps) {
-  const tenantId = selected.tenant ?? "";
+export function UserDetailPage({ selected, setView }: UserDetailPageProps) {
+  const userId = selected.user ?? "";
 
-  // Find tenant in the richer TENANTS array; fall back to first entry
-  const tenantFull = useMemo(() => {
-    return TENANTS.find(t => t.id === tenantId) ?? TENANTS[0];
-  }, [tenantId]);
+  // Find user in the richer USERS array; fall back to first entry
+  const userFull = useMemo(() => {
+    return USERS.find(t => t.id === userId) ?? USERS[0];
+  }, [userId]);
 
   // Also satisfy USAGE_DATA import requirement from spec
   void USAGE_DATA;
 
-  // Derive a Tenant-compatible object from TENANTS data (already has all fields)
-  const tenant: Tenant = tenantFull;
+  // Derive a User-compatible object from USERS data (already has all fields)
+  const user: User = userFull;
 
   const series = useMemo(
-    () => makeCostSeries(tenant.name.length, tenant.trend),
+    () => makeCostSeries(user.name.length, user.trend),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tenant.id]
+    [user.id]
   );
 
   const [range, setRange] = useState<string>("30d");
@@ -604,9 +590,9 @@ export function TenantDetailPage({ selected, setView }: TenantDetailPageProps) {
 
   return (
     <div style={{ padding: "clamp(20px, 4vw, 32px) clamp(16px, 4vw, 28px) 96px", maxWidth: 1320, margin: "0 auto" }}>
-      <TdHeader tenant={tenant} setView={setView}/>
+      <TdHeader user={user} setView={setView}/>
 
-      <TdKpiStrip tenant={tenant}/>
+      <TdKpiStrip user={user}/>
 
       <TdSectionHead
         title="Cost & runs · last 30 days"
@@ -632,18 +618,18 @@ export function TenantDetailPage({ selected, setView }: TenantDetailPageProps) {
 
       <TdSectionHead
         title="Usage by agent"
-        hint="Per-agent activity within this tenant. Click a row for the agent's full timeline."
+        hint="Per-agent activity within this user. Click a row for the agent's full timeline."
       />
       <TdAgentTable/>
 
       <TdSectionHead
         title="Recent traces"
-        hint="Live tail of this tenant's traffic. Click a row to inspect spans."
+        hint="Live tail of this user's traffic. Click a row to inspect spans."
       />
       <TdTracesTable setView={setView} setSelected={undefined}/>
 
-      <TdSectionHead title="Connection" hint="How this tenant identifies itself to Tracium."/>
-      <TdConnection tenant={tenant}/>
+      <TdSectionHead title="Connection" hint="How this user identifies itself to Tracium."/>
+      <TdConnection user={user}/>
     </div>
   );
 }

@@ -1,9 +1,10 @@
 export type { DailySeriesPoint } from './DailySeriesPoint';
-export type { TenantSummary } from './TenantSummary';
+export type { UserSummary } from './UserSummary';
 export type { AgentSummary } from './AgentSummary';
+export type { AttributeSummary } from './AttributeSummary';
 export type { ModelSummary } from './ModelSummary';
 export type { UsageData } from './UsageData';
 export type { ModelCost } from './ModelCost';
-export type { TenantUsage } from './TenantUsage';
+export type { UserUsage } from './UserUsage';
 export type { AgentUsage } from './AgentUsage';
 export type { AttributeUsage } from './AttributeUsage';

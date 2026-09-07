@@ -1,26 +1,26 @@
 // ---------------------------------------------------------------------------
-// TenantsPage — pure renderer for the tenant list: sortable, filterable table
+// UsersPage — pure renderer for the user list: sortable, filterable table
 // with a cost-share bar. It receives its rows as props (the live wrapper feeds
 // telemetry-derived data, the demo feeds mock data) and never fetches.
 // Inline styles only (no CSS modules).
 //
 // Health, growth ("growing") metrics, the at-risk attention banner, and the
-// Export CSV / Register tenant actions are intentionally omitted from this
+// Export CSV / Register user actions are intentionally omitted from this
 // build.
 //
-// Columns that aren't telemetry-derived (Plan / Region / Success / Last seen)
-// only render when the rows carry that metadata — i.e. the demo dataset. The
-// live, API-backed dataset shows the telemetry columns only.
+// Columns that aren't telemetry-derived (Region / Success / Last seen) only
+// render when the rows carry that metadata — i.e. the demo dataset. The live,
+// API-backed dataset shows the telemetry columns only.
 // ---------------------------------------------------------------------------
 
 import React, { useMemo, useState, type ReactNode } from 'react';
 import { LastUpdated, Sparkline, fmtNum } from '../../../common';
 
 // ---------------------------------------------------------------------------
-// Tenant row shape
+// User row shape
 // ---------------------------------------------------------------------------
 
-export interface Tenant {
+export interface User {
   id: string;
   name: string;
   cost: number;
@@ -28,7 +28,6 @@ export interface Tenant {
   avg: number;
   trend: number[];
   // Non-telemetry metadata — present in the demo dataset only.
-  plan?: string;
   region?: string;
   success?: number;
   lastSeen?: string;
@@ -36,45 +35,26 @@ export interface Tenant {
 
 // ---------------------------------------------------------------------------
 // Demo dataset (used by the embedded auth preview). The signed-in dashboard
-// renders TenantsLivePage, which builds its rows from the metrics API.
+// renders UsersLivePage, which builds its rows from the metrics API.
 // ---------------------------------------------------------------------------
 
-const TENANTS: Tenant[] = [
-  { id: "tn_acme",      name: "Acme Robotics",       cost: 12.4421, runs: 58_022, avg: 0.000214, trend:[0.36,0.42,0.41,0.48,0.51,0.55,0.58,0.61,0.59,0.62,0.66,0.71], plan: "Scale", region: "us-east-1", success: 99.4, lastSeen: "12s ago" },
-  { id: "tn_northwind", name: "Northwind Logistics", cost:  8.9024, runs: 41_318, avg: 0.000216, trend:[0.18,0.22,0.27,0.31,0.34,0.39,0.41,0.44,0.45,0.49,0.52,0.55], plan: "Scale", region: "us-east-1", success: 98.1, lastSeen: "1m ago" },
-  { id: "tn_helix",     name: "Helix Health",        cost:  6.1102, runs: 28_104, avg: 0.000217, trend:[0.32,0.30,0.28,0.27,0.26,0.25,0.24,0.23,0.22,0.21,0.21,0.22], plan: "Pro",   region: "eu-west-2", success: 99.6, lastSeen: "3m ago" },
-  { id: "tn_lumen",     name: "Lumen Studio",        cost:  4.4081, runs: 21_890, avg: 0.000201, trend:[0.14,0.15,0.16,0.16,0.18,0.19,0.18,0.18,0.19,0.20,0.20,0.20], plan: "Pro",   region: "us-west-2", success: 99.2, lastSeen: "8m ago" },
-  { id: "tn_kestrel",   name: "Kestrel Finance",     cost:  3.2204, runs: 15_842, avg: 0.000203, trend:[0.10,0.12,0.13,0.14,0.14,0.15,0.16,0.16,0.17,0.18,0.18,0.19], plan: "Pro",   region: "us-east-1", success: 99.0, lastSeen: "22m ago" },
-  { id: "tn_polar",     name: "Polar Research",      cost:  1.8714, runs:  9_204, avg: 0.000203, trend:[0.07,0.08,0.08,0.08,0.09,0.08,0.09,0.08,0.08,0.09,0.09,0.09], plan: "Free",  region: "eu-west-2", success: 97.6, lastSeen: "1h ago" },
-  { id: "tn_orbit",     name: "Orbit Labs",          cost:  0.9842, runs:  5_420, avg: 0.000182, trend:[0.13,0.12,0.11,0.10,0.09,0.08,0.07,0.06,0.06,0.05,0.05,0.04], plan: "Pro",   region: "us-west-2", success: 94.2, lastSeen: "2h ago" },
-  { id: "tn_sable",     name: "Sable Studios",       cost:  0.4830, runs:  4_423, avg: 0.000109, trend:[0.02,0.02,0.03,0.03,0.04,0.04,0.05,0.05,0.05,0.06,0.06,0.06], plan: "Free",  region: "us-east-1", success: 96.8, lastSeen: "5m ago" },
+const USERS: User[] = [
+  { id: "tn_acme",      name: "Acme Robotics",       cost: 12.4421, runs: 58_022, avg: 0.000214, trend:[0.36,0.42,0.41,0.48,0.51,0.55,0.58,0.61,0.59,0.62,0.66,0.71], region: "us-east-1", success: 99.4, lastSeen: "12s ago" },
+  { id: "tn_northwind", name: "Northwind Logistics", cost:  8.9024, runs: 41_318, avg: 0.000216, trend:[0.18,0.22,0.27,0.31,0.34,0.39,0.41,0.44,0.45,0.49,0.52,0.55], region: "us-east-1", success: 98.1, lastSeen: "1m ago" },
+  { id: "tn_helix",     name: "Helix Health",        cost:  6.1102, runs: 28_104, avg: 0.000217, trend:[0.32,0.30,0.28,0.27,0.26,0.25,0.24,0.23,0.22,0.21,0.21,0.22], region: "eu-west-2", success: 99.6, lastSeen: "3m ago" },
+  { id: "tn_lumen",     name: "Lumen Studio",        cost:  4.4081, runs: 21_890, avg: 0.000201, trend:[0.14,0.15,0.16,0.16,0.18,0.19,0.18,0.18,0.19,0.20,0.20,0.20], region: "us-west-2", success: 99.2, lastSeen: "8m ago" },
+  { id: "tn_kestrel",   name: "Kestrel Finance",     cost:  3.2204, runs: 15_842, avg: 0.000203, trend:[0.10,0.12,0.13,0.14,0.14,0.15,0.16,0.16,0.17,0.18,0.18,0.19], region: "us-east-1", success: 99.0, lastSeen: "22m ago" },
+  { id: "tn_polar",     name: "Polar Research",      cost:  1.8714, runs:  9_204, avg: 0.000203, trend:[0.07,0.08,0.08,0.08,0.09,0.08,0.09,0.08,0.08,0.09,0.09,0.09], region: "eu-west-2", success: 97.6, lastSeen: "1h ago" },
+  { id: "tn_orbit",     name: "Orbit Labs",          cost:  0.9842, runs:  5_420, avg: 0.000182, trend:[0.13,0.12,0.11,0.10,0.09,0.08,0.07,0.06,0.06,0.05,0.05,0.04], region: "us-west-2", success: 94.2, lastSeen: "2h ago" },
+  { id: "tn_sable",     name: "Sable Studios",       cost:  0.4830, runs:  4_423, avg: 0.000109, trend:[0.02,0.02,0.03,0.03,0.04,0.04,0.05,0.05,0.05,0.06,0.06,0.06], region: "us-east-1", success: 96.8, lastSeen: "5m ago" },
 ];
 
-// Expose TENANTS so TenantDetailPage and the embedded demo can share the data.
-export { TENANTS };
+// Expose USERS so UserDetailPage and the embedded demo can share the data.
+export { USERS };
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-interface PlanTone { fg: string; border: string }
-
-function planTone(plan: string): PlanTone {
-  if (plan === "Scale") return { fg: "var(--accent)", border: "color-mix(in srgb, var(--accent) 40%, var(--border))" };
-  if (plan === "Pro")   return { fg: "var(--foreground)", border: "var(--border)" };
-  return { fg: "var(--muted)", border: "var(--border)" };
-}
-
-function PlanBadge({ plan }: { plan: string }) {
-  const t = planTone(plan);
-  return (
-    <span style={{
-      padding: "2px 7px", border: `1px solid ${t.border}`, borderRadius: 4,
-      fontSize: 10.5, fontWeight: 500, color: t.fg, letterSpacing: "0.02em",
-      fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap",
-    }}>{plan}</span>
-  );
-}
 
 function successColor(success: number): string {
   return success >= 99 ? "var(--foreground)" : success >= 97 ? "var(--warning)" : "var(--error)";
@@ -122,7 +102,7 @@ function Kpi({ label, value, delta, deltaTone = "neutral", hint, last = false }:
 
 const SHARE_PALETTE = ["var(--accent)", "#7aa5ff", "#c08aff", "#f5a524", "#5ec8b4", "#e76e8b", "#8b95a8", "color-mix(in srgb, var(--muted) 50%, transparent)"];
 
-function ShareBar({ tenants, totalCost }: { tenants: Tenant[]; totalCost: number }) {
+function ShareBar({ users, totalCost }: { users: User[]; totalCost: number }) {
   return (
     <div>
       <div style={{
@@ -131,7 +111,7 @@ function ShareBar({ tenants, totalCost }: { tenants: Tenant[]; totalCost: number
         border: "1px solid color-mix(in srgb, var(--border) 60%, transparent)",
         background: "var(--surface-alt)",
       }}>
-        {tenants.map((t, i) => {
+        {users.map((t, i) => {
           const pct = totalCost > 0 ? (t.cost / totalCost) * 100 : 0;
           if (pct < 0.5) return null;
           return (
@@ -139,14 +119,14 @@ function ShareBar({ tenants, totalCost }: { tenants: Tenant[]; totalCost: number
               width: pct + "%",
               background: SHARE_PALETTE[i % SHARE_PALETTE.length],
               opacity: 0.85,
-              borderRight: i < tenants.length - 1 ? "1px solid color-mix(in srgb, #000 30%, transparent)" : "none",
+              borderRight: i < users.length - 1 ? "1px solid color-mix(in srgb, #000 30%, transparent)" : "none",
               cursor: "pointer",
             }}/>
           );
         })}
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: "10px 18px", marginTop: 14, fontSize: 11.5 }}>
-        {tenants.slice(0, 6).map((t, i) => {
+        {users.slice(0, 6).map((t, i) => {
           const pct = totalCost > 0 ? (t.cost / totalCost) * 100 : 0;
           return (
             <span key={t.id} style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "var(--muted)" }}>
@@ -156,10 +136,10 @@ function ShareBar({ tenants, totalCost }: { tenants: Tenant[]; totalCost: number
             </span>
           );
         })}
-        {tenants.length > 6 && (
+        {users.length > 6 && (
           <span style={{ color: "var(--muted)", display: "inline-flex", alignItems: "center", gap: 6 }}>
             <span style={{ width: 8, height: 8, borderRadius: 2, background: "color-mix(in srgb, var(--muted) 50%, transparent)" }}/>
-            +{tenants.length - 6} smaller
+            +{users.length - 6} smaller
           </span>
         )}
       </div>
@@ -168,71 +148,32 @@ function ShareBar({ tenants, totalCost }: { tenants: Tenant[]; totalCost: number
 }
 
 // ---------------------------------------------------------------------------
-// Filter pill
-// ---------------------------------------------------------------------------
-
-interface PillProps {
-  active: boolean;
-  onClick: () => void;
-  children: ReactNode;
-  count?: number;
-}
-
-function Pill({ active, onClick, children, count }: PillProps) {
-  return (
-    <button onClick={onClick} style={{
-      display: "inline-flex", alignItems: "center", gap: 6,
-      padding: "5px 10px",
-      borderRadius: 5,
-      border: "1px solid " + (active ? "color-mix(in srgb, var(--accent) 50%, var(--border))" : "var(--border)"),
-      background: active ? "color-mix(in srgb, var(--accent) 10%, transparent)" : "transparent",
-      color: active ? "var(--foreground)" : "var(--muted)",
-      fontSize: 12, fontWeight: 500, cursor: "pointer",
-    }}>
-      {children}
-      {count != null && (
-        <span style={{
-          fontSize: 10.5, padding: "1px 5px", borderRadius: 3,
-          background: active ? "color-mix(in srgb, var(--accent) 18%, transparent)" : "var(--surface-alt)",
-          color: active ? "var(--accent)" : "var(--muted)",
-          fontVariantNumeric: "tabular-nums",
-        }}>{count}</span>
-      )}
-    </button>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Columns
 // ---------------------------------------------------------------------------
 
-type TenantSortKey = 'name' | 'plan' | 'region' | 'runs' | 'cost' | 'avg' | 'success' | 'lastSeen';
+type UserSortKey = 'name' | 'region' | 'runs' | 'cost' | 'avg' | 'success' | 'lastSeen';
 
-interface SortState { key: TenantSortKey; dir: 'asc' | 'desc' }
+interface SortState { key: UserSortKey; dir: 'asc' | 'desc' }
 
 interface ColDef {
-  key: TenantSortKey | 'trend';
+  key: UserSortKey | 'trend';
   label: string;
   width: string;
   align: 'left' | 'right';
-  sortKey?: TenantSortKey;
+  sortKey?: UserSortKey;
   meta?: boolean; // requires non-telemetry metadata to render
-  cell: (t: Tenant) => ReactNode;
+  cell: (t: User) => ReactNode;
 }
 
 const COLUMNS: ColDef[] = [
   {
-    key: "name", label: "Tenant", width: "minmax(180px, 1.4fr)", align: "left", sortKey: "name",
+    key: "name", label: "User", width: "minmax(180px, 1.4fr)", align: "left", sortKey: "name",
     cell: t => (
       <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}>
         <span style={{ fontSize: 13.5, fontWeight: 500, color: "var(--foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.name}</span>
         <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--muted)" }}>{t.id}</span>
       </div>
     ),
-  },
-  {
-    key: "plan", label: "Plan", width: "60px", align: "left", sortKey: "plan", meta: true,
-    cell: t => <div>{t.plan ? <PlanBadge plan={t.plan} /> : null}</div>,
   },
   {
     key: "region", label: "Region", width: "84px", align: "left", sortKey: "region", meta: true,
@@ -265,7 +206,7 @@ const COLUMNS: ColDef[] = [
 ];
 
 function SortableHeader({ label, sortKey, current, onSort, align }: {
-  label: string; sortKey: TenantSortKey; current: SortState; onSort: (k: TenantSortKey) => void; align: 'left' | 'right';
+  label: string; sortKey: UserSortKey; current: SortState; onSort: (k: UserSortKey) => void; align: 'left' | 'right';
 }) {
   const active = current.key === sortKey;
   return (
@@ -284,7 +225,7 @@ function SortableHeader({ label, sortKey, current, onSort, align }: {
   );
 }
 
-function HeaderCell({ col, sort, onSort }: { col: ColDef; sort: SortState; onSort: (k: TenantSortKey) => void }) {
+function HeaderCell({ col, sort, onSort }: { col: ColDef; sort: SortState; onSort: (k: UserSortKey) => void }) {
   if (col.sortKey) {
     return <SortableHeader label={col.label} sortKey={col.sortKey} current={sort} onSort={onSort} align={col.align} />;
   }
@@ -294,17 +235,11 @@ function HeaderCell({ col, sort, onSort }: { col: ColDef; sort: SortState; onSor
 }
 
 // ---------------------------------------------------------------------------
-// Plan filter
-// ---------------------------------------------------------------------------
-
-type FilterKey = 'all' | 'scale' | 'pro' | 'free';
-
-// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
-export interface TenantsPageProps {
-  tenants: Tenant[];
+export interface UsersPageProps {
+  users: User[];
   /** Human label for the period the data covers, e.g. "Apr 1 – Apr 30". */
   periodLabel: string;
   /** Previous-period totals; when present, the KPI strip shows deltas. */
@@ -315,15 +250,14 @@ export interface TenantsPageProps {
   setSelected: (updater: (prev: Record<string, string>) => Record<string, string>) => void;
 }
 
-export function TenantsPage({ tenants, periodLabel, comparison, updatedAt, setView, setSelected }: TenantsPageProps) {
-  const hasMeta = tenants.some(t => t.plan != null);
+export function UsersPage({ users, periodLabel, comparison, updatedAt, setView, setSelected }: UsersPageProps) {
+  const hasMeta = users.some(t => t.region != null);
 
-  const [filter, setFilter] = useState<FilterKey>("all");
   const [search, setSearch] = useState<string>("");
   const [sort, setSort] = useState<SortState>({ key: "cost", dir: "desc" });
   const [hoverId, setHoverId] = useState<string | null>(null);
 
-  const handleSort = (key: TenantSortKey) => {
+  const handleSort = (key: UserSortKey) => {
     setSort(s => s.key === key ? { key, dir: s.dir === "desc" ? "asc" : "desc" } : { key, dir: "desc" });
   };
 
@@ -332,16 +266,13 @@ export function TenantsPage({ tenants, periodLabel, comparison, updatedAt, setVi
   const minWidth = hasMeta ? 900 : 560;
 
   const filtered = useMemo(() => {
-    let r = tenants;
-    if (hasMeta && filter === "scale") r = r.filter(t => t.plan === "Scale");
-    if (hasMeta && filter === "pro")   r = r.filter(t => t.plan === "Pro");
-    if (hasMeta && filter === "free")  r = r.filter(t => t.plan === "Free");
+    let r = users;
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       r = r.filter(t => t.name.toLowerCase().includes(q) || t.id.toLowerCase().includes(q));
     }
     return r;
-  }, [tenants, hasMeta, filter, search]);
+  }, [users, search]);
 
   const sorted = useMemo(() => {
     const arr = [...filtered];
@@ -359,25 +290,18 @@ export function TenantsPage({ tenants, periodLabel, comparison, updatedAt, setVi
     return arr;
   }, [filtered, sort]);
 
-  const totalCost = tenants.reduce((s, t) => s + t.cost, 0);
-  const totalRuns = tenants.reduce((s, t) => s + t.runs, 0);
-  const sortedByCost = useMemo(() => [...tenants].sort((a, b) => b.cost - a.cost), [tenants]);
-
-  const counts: Record<FilterKey, number> = {
-    all:   tenants.length,
-    scale: tenants.filter(t => t.plan === "Scale").length,
-    pro:   tenants.filter(t => t.plan === "Pro").length,
-    free:  tenants.filter(t => t.plan === "Free").length,
-  };
+  const totalCost = users.reduce((s, t) => s + t.cost, 0);
+  const totalRuns = users.reduce((s, t) => s + t.runs, 0);
+  const sortedByCost = useMemo(() => [...users].sort((a, b) => b.cost - a.cost), [users]);
 
   return (
     <div style={{ padding: "clamp(20px, 4vw, 32px) clamp(16px, 4vw, 36px) 64px", maxWidth: 1440, margin: "0 auto" }}>
       {/* Header */}
       <header style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 24, paddingBottom: 28, flexWrap: "wrap" }}>
         <div style={{ minWidth: 0 }}>
-          <h1 style={{ fontSize: 28, fontWeight: 600, letterSpacing: "-0.02em", margin: 0, color: "var(--foreground)" }}>Tenants</h1>
+          <h1 style={{ fontSize: 28, fontWeight: 600, letterSpacing: "-0.02em", margin: 0, color: "var(--foreground)" }}>Users</h1>
           <p style={{ fontSize: 13.5, color: "var(--muted)", margin: "2px 0 0" }}>
-            {periodLabel} · {tenants.length} active tenants · ${totalCost.toFixed(2)} this period
+            {periodLabel} · {users.length} active users · ${totalCost.toFixed(2)} this period
           </p>
         </div>
         {updatedAt != null && <LastUpdated at={updatedAt} />}
@@ -385,7 +309,7 @@ export function TenantsPage({ tenants, periodLabel, comparison, updatedAt, setVi
 
       {/* KPI strip */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 28, paddingTop: 4, paddingBottom: 28, borderBottom: "1px solid color-mix(in srgb, var(--border) 50%, transparent)" }}>
-        <Kpi label="Active tenants" value={tenants.length.toString()} hint="this period" />
+        <Kpi label="Active users" value={users.length.toString()} hint="this period" />
         <Kpi
           label="Total runs"
           value={fmtNum(totalRuns)}
@@ -398,7 +322,7 @@ export function TenantsPage({ tenants, periodLabel, comparison, updatedAt, setVi
           value={"$" + totalCost.toFixed(2)}
           delta={comparison ? pctDelta(totalCost, comparison.cost) : undefined}
           deltaTone={comparison && totalCost > comparison.cost ? "bad" : "good"}
-          hint={"$" + (tenants.length > 0 ? totalCost / tenants.length : 0).toFixed(2) + " / tenant"}
+          hint={"$" + (users.length > 0 ? totalCost / users.length : 0).toFixed(2) + " / user"}
           last
         />
       </div>
@@ -410,17 +334,17 @@ export function TenantsPage({ tenants, periodLabel, comparison, updatedAt, setVi
       }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 20 }}>
           <h2 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "var(--foreground)" }}>Cost share</h2>
-          <p style={{ fontSize: 12.5, color: "var(--muted)", margin: 0 }}>Top 3 tenants drive {totalCost > 0 ? ((sortedByCost.slice(0, 3).reduce((s, t) => s + t.cost, 0) / totalCost) * 100).toFixed(0) : "0"}% of spend this period.</p>
+          <p style={{ fontSize: 12.5, color: "var(--muted)", margin: 0 }}>Top 3 users drive {totalCost > 0 ? ((sortedByCost.slice(0, 3).reduce((s, t) => s + t.cost, 0) / totalCost) * 100).toFixed(0) : "0"}% of spend this period.</p>
         </div>
-        <ShareBar tenants={sortedByCost} totalCost={totalCost} />
+        <ShareBar users={sortedByCost} totalCost={totalCost} />
       </div>
 
       {/* Table section */}
       <section style={{ paddingTop: 44 }}>
         <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 24, paddingBottom: 18, flexWrap: "wrap" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-            <h2 style={{ fontSize: 19, fontWeight: 600, letterSpacing: "-0.018em", margin: 0, color: "var(--foreground)" }}>All tenants</h2>
-            <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>{sorted.length} of {tenants.length} shown · click a row to drill in.</p>
+            <h2 style={{ fontSize: 19, fontWeight: 600, letterSpacing: "-0.018em", margin: 0, color: "var(--foreground)" }}>All users</h2>
+            <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>{sorted.length} of {users.length} shown · click a row to drill in.</p>
           </div>
           {/* Search */}
           <div style={{
@@ -434,7 +358,7 @@ export function TenantsPage({ tenants, periodLabel, comparison, updatedAt, setVi
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search tenant name or ID…"
+              placeholder="Search user name or ID…"
               style={{
                 flex: 1, background: "transparent", border: "none", outline: "none",
                 color: "var(--foreground)", fontSize: 12.5,
@@ -446,16 +370,6 @@ export function TenantsPage({ tenants, periodLabel, comparison, updatedAt, setVi
             )}
           </div>
         </header>
-
-        {/* Plan filter pills — only meaningful when rows carry plan metadata */}
-        {hasMeta && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, paddingBottom: 18 }}>
-            <Pill active={filter === "all"}   onClick={() => setFilter("all")}   count={counts.all}>All</Pill>
-            <Pill active={filter === "scale"} onClick={() => setFilter("scale")} count={counts.scale}>Scale</Pill>
-            <Pill active={filter === "pro"}   onClick={() => setFilter("pro")}   count={counts.pro}>Pro</Pill>
-            <Pill active={filter === "free"}  onClick={() => setFilter("free")}  count={counts.free}>Free</Pill>
-          </div>
-        )}
 
         {/* Table */}
         <div style={{ overflowX: "auto" }}>
@@ -471,14 +385,14 @@ export function TenantsPage({ tenants, periodLabel, comparison, updatedAt, setVi
           {/* Rows */}
           {sorted.length === 0 ? (
             <div style={{ padding: "60px 0", textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
-              No tenants match this filter.
+              No users match this filter.
             </div>
           ) : sorted.map(t => (
             <div
               key={t.id}
               onMouseEnter={() => setHoverId(t.id)}
               onMouseLeave={() => setHoverId(null)}
-              onClick={() => { setSelected(s => ({ ...s, tenant: t.id })); setView("tenant"); }}
+              onClick={() => { setSelected(s => ({ ...s, user: t.id })); setView("user"); }}
               style={{
                 display: "grid", gridTemplateColumns: cols, minWidth, gap: 16,
                 alignItems: "center", padding: "14px 4px",
@@ -494,7 +408,7 @@ export function TenantsPage({ tenants, periodLabel, comparison, updatedAt, setVi
 
         {/* Footer */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 16, fontSize: 12, color: "var(--muted)" }}>
-          <span>Showing {sorted.length} of {tenants.length} tenants</span>
+          <span>Showing {sorted.length} of {users.length} users</span>
         </div>
       </section>
     </div>

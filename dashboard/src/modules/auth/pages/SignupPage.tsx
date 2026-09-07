@@ -1,13 +1,5 @@
 import { FormEvent, useState } from 'react';
-import { Link } from 'react-router-dom';
-import {
-  AuthBackground,
-  AuthCard,
-  AuthButton,
-  AuthDivider,
-  GoogleOAuthButton,
-  AuthPreview,
-} from '../components';
+import { AuthShell } from '../components';
 import { registerUser, AuthError } from '../api';
 import styles from './LoginPage.module.css';
 
@@ -50,71 +42,53 @@ export default function SignupPage({ onLogin }: SignupPageProps) {
   };
 
   return (
-    <div className={styles.page}>
-      <AuthBackground />
-
-      <div className={styles.layout}>
-        <div className={styles.previewPanel}>
-          <AuthPreview />
+    <AuthShell
+      active="signup"
+      title="Start tracing"
+      subtitle="Free and open source. Self-host in minutes — no limits, no lock-in."
+      footnote={{ text: 'Already have an account?', linkText: 'Sign in', to: '/login' }}
+    >
+      <form onSubmit={handleSubmit} className={styles.form}>
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor="email">
+            Email address
+          </label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            required
+            autoComplete="email"
+            className={styles.input}
+            placeholder="you@example.com"
+          />
         </div>
 
-        <AuthCard>
-          <div className={styles.heading}>
-            <h1 className={styles.formTitle}>Create your account</h1>
-            <p className={styles.formSubtitle}>Start tracing with Tracium</p>
+        <div className={styles.field}>
+          <div className={styles.labelRow}>
+            <label className={styles.label} htmlFor="password">
+              Password
+            </label>
+            <span className={`${styles.hint} ${styles.hintStatic}`}>12+ characters</span>
           </div>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            required
+            minLength={12}
+            autoComplete="new-password"
+            className={`${styles.input} ${styles.password}`}
+            placeholder="••••••••••••"
+          />
+        </div>
 
-          <GoogleOAuthButton mode="signup" />
+        {formError ? <div className={styles.errorBanner}>{formError}</div> : null}
 
-          <AuthDivider text="Or sign up with email" />
-
-          <form onSubmit={handleSubmit} className={styles.form}>
-            <div className={styles.field}>
-              <label className={styles.label} htmlFor="email">
-                Email address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                required
-                autoComplete="email"
-                className={styles.input}
-                placeholder="you@company.com"
-              />
-            </div>
-
-            <div className={styles.field}>
-              <label className={styles.label} htmlFor="password">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                autoComplete="new-password"
-                className={styles.input}
-                placeholder="••••••••"
-              />
-            </div>
-
-            {formError ? (
-              <div className={styles.errorBanner}>{formError}</div>
-            ) : null}
-
-            <AuthButton type="submit" variant="primary" disabled={submitting}>
-              {submitting ? 'Creating account…' : 'Create account'}
-            </AuthButton>
-          </form>
-
-          <AuthDivider text="Already have an account?" />
-
-          <AuthButton href="/login" variant="secondary">
-            Sign in
-          </AuthButton>
-        </AuthCard>
-      </div>
-    </div>
+        <button type="submit" className={styles.submit} disabled={submitting}>
+          {submitting ? 'Creating account…' : 'Create free account'}
+        </button>
+      </form>
+    </AuthShell>
   );
 }

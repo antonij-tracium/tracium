@@ -1,20 +1,20 @@
 // ---------------------------------------------------------------------------
-// TenantsLivePage — the signed-in Tenants view, fed by GET /v1/metrics/
-// usage-tenants (range-bounded; cost scales with the query window, not the
-// total tenant count). It owns the data fetch and hands telemetry-derived rows
-// to the pure TenantsPage. Loading / error / empty are handled here.
+// UsersLivePage — the signed-in Users view, fed by GET /v1/metrics/
+// usage-users (range-bounded; cost scales with the query window, not the
+// total user count). It owns the data fetch and hands telemetry-derived rows
+// to the pure UsersPage. Loading / error / empty are handled here.
 //
 // Only telemetry-derived fields are available from the metrics endpoint
-// (tenant id, runs, cost, trend). Plan / region / success rate / last-seen are
-// not telemetry, so the live table shows the telemetry columns only.
+// (user id, runs, cost, trend). Region / success rate / last-seen are not
+// telemetry, so the live table shows the telemetry columns only.
 // ---------------------------------------------------------------------------
 
 import type { ReactNode } from 'react';
 import { EmptyState, Spinner } from '../../../common';
-import { useTenantUsage } from '../hooks/useUsage';
-import { TenantsPage, type Tenant } from './TenantsPage';
+import { useUserUsage } from '../hooks/useUsage';
+import { UsersPage, type User } from './UsersPage';
 
-interface TenantsLivePageProps {
+interface UsersLivePageProps {
   range: string;
   setView: (v: string) => void;
   setSelected: (updater: (prev: Record<string, string>) => Record<string, string>) => void;
@@ -45,8 +45,8 @@ function Centered({ children }: { children: ReactNode }) {
   );
 }
 
-export function TenantsLivePage({ range, setView, setSelected }: TenantsLivePageProps) {
-  const { data, isLoading, isError, dataUpdatedAt } = useTenantUsage(range);
+export function UsersLivePage({ range, setView, setSelected }: UsersLivePageProps) {
+  const { data, isLoading, isError, dataUpdatedAt } = useUserUsage(range);
 
   if (isLoading) {
     return (
@@ -56,22 +56,22 @@ export function TenantsLivePage({ range, setView, setSelected }: TenantsLivePage
     );
   }
   if (isError) {
-    return <Centered>Failed to load tenants</Centered>;
+    return <Centered>Failed to load users</Centered>;
   }
 
   const items = data?.items ?? [];
   if (items.length === 0) {
     return (
       <EmptyState
-        message="No tenants yet"
-        description="Tenants appear as your agents report tenant-scoped activity."
+        message="No users yet"
+        description="Users appear as your agents report user-scoped activity."
       />
     );
   }
 
-  const tenants: Tenant[] = items.map((t) => ({
-    id: t.tenant_id || '—',
-    name: t.tenant_id || 'default',
+  const users: User[] = items.map((t) => ({
+    id: t.user_id || '—',
+    name: t.user_id || 'default',
     cost: t.cost,
     runs: t.runs,
     avg: t.runs > 0 ? t.cost / t.runs : 0,
@@ -84,8 +84,8 @@ export function TenantsLivePage({ range, setView, setSelected }: TenantsLivePage
   };
 
   return (
-    <TenantsPage
-      tenants={tenants}
+    <UsersPage
+      users={users}
       periodLabel={RANGE_LABEL[range] ?? RANGE_LABEL['7d']}
       comparison={comparison}
       updatedAt={dataUpdatedAt}
@@ -95,4 +95,4 @@ export function TenantsLivePage({ range, setView, setSelected }: TenantsLivePage
   );
 }
 
-export default TenantsLivePage;
+export default UsersLivePage;

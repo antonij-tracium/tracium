@@ -1,150 +1,102 @@
-.page {
-  min-height: 100vh;
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: var(--auth-bg);
-}
-
-.layout {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  max-width: 1200px;
-  display: grid;
-  grid-template-columns: 3fr 1fr;
-  gap: 48px;
-  align-items: center;
-}
-
-@media (max-width: 900px) {
-  .layout {
-    grid-template-columns: 1fr;
-    max-width: 480px;
-  }
-
-  .previewPanel {
-    display: none;
-  }
-}
-
-.previewPanel {
-  min-width: 0;
-}
-
-.heading {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.formTitle {
-  font-size: 26px;
-  font-weight: 700;
-  color: var(--foreground);
-  margin: 0 0 4px;
-  letter-spacing: -0.01em;
-}
-
-.formSubtitle {
-  font-size: 14px;
-  color: var(--muted-foreground);
-  margin: 0;
-}
-
-.banner {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  border-radius: 12px;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.bannerSuccess {
-  border: 1px solid var(--accent-border);
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-
-.bannerWarn {
-  border: 1px solid color-mix(in srgb, var(--warning) 40%, transparent);
-  background: color-mix(in srgb, var(--warning) 10%, transparent);
-  color: var(--warning);
-}
-
-.bannerIcon {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-}
-
 .form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
 }
 
-.fieldHeader {
+.labelRow {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
+  gap: 12px;
 }
 
 .label {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--foreground);
-}
-
-.forgotLink {
   font-size: 12px;
-  color: var(--accent);
-  text-decoration: none;
-  transition: color 0.1s;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, var(--foreground) 75%, var(--muted-foreground));
 }
 
-.forgotLink:hover {
+.hint {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--accent);
+}
+
+.hint:hover {
   color: var(--accent-hover);
 }
 
+.hintStatic {
+  color: var(--muted-foreground);
+  cursor: default;
+}
+
 .input {
+  height: 44px;
+  padding: 0 14px;
   width: 100%;
-  padding: 11px 14px;
-  font-size: 14px;
-  color: var(--foreground);
-  background: var(--surface);
+  border-radius: 10px;
+  background: var(--background);
   border: 1px solid var(--border-strong);
-  border-radius: 12px;
+  color: var(--foreground);
+  font-size: 14px;
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
-  box-sizing: border-box;
 }
 
 .input::placeholder {
-  color: var(--muted-foreground);
+  color: color-mix(in srgb, var(--muted-foreground) 65%, transparent);
 }
 
 .input:focus {
-  border-color: var(--accent);
+  border-color: var(--accent-border-hover);
   box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.password {
+  letter-spacing: 0.08em;
 }
 
 .errorBanner {
   padding: 10px 14px;
-  border-radius: 12px;
+  border-radius: 10px;
   border: 1px solid color-mix(in srgb, var(--error) 40%, transparent);
   background: color-mix(in srgb, var(--error) 8%, transparent);
   font-size: 13px;
   color: var(--error);
+}
+
+.submit {
+  position: relative;
+  height: 46px;
+  margin-top: 2px;
+  border: none;
+  cursor: pointer;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: 10px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 14px) 100%, 0 100%);
+  box-shadow: 0 8px 24px -10px var(--shadow-accent);
+  transition: background-color 0.15s, opacity 0.15s;
+}
+
+.submit:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }

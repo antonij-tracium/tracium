@@ -1,0 +1,157 @@
+.page {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.shell {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 452px;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.logo {
+  display: block;
+  width: auto;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+.statusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 80%, transparent);
+}
+
+.card {
+  background: linear-gradient(180deg, var(--surface), #101413);
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  box-shadow:
+    0 24px 60px -20px rgba(0, 0, 0, 0.8),
+    0 0 0 1px var(--accent-glow) inset;
+  overflow: hidden;
+}
+
+.tabs {
+  display: flex;
+  padding: 6px;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--border);
+}
+
+.tab {
+  flex: 1;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--muted-foreground);
+  border: 1px solid transparent;
+  background: transparent;
+  transition: all 0.16s ease;
+}
+
+.tab:hover {
+  color: var(--foreground);
+}
+
+.tabActive,
+.tabActive:hover {
+  font-weight: 600;
+  color: var(--accent);
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+}
+
+.body {
+  padding: 30px 30px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.title {
+  margin: 0;
+  font-size: 23px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  /* Reserve two lines so the card keeps a constant height when switching
+     between the sign-in (one line) and sign-up (two lines) copy. */
+  min-height: 3em;
+  color: var(--muted-foreground);
+  text-wrap: pretty;
+}
+
+.divider {
+  height: 1px;
+  background: var(--border);
+}
+
+.footnote {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+  text-wrap: pretty;
+}
+
+.footlink {
+  color: var(--accent);
+}
+
+.footlink:hover {
+  color: var(--accent-hover);
+}
+
+.legal {
+  margin: 0;
+  text-align: center;
+  font-size: 11.5px;
+  color: color-mix(in srgb, var(--muted-foreground) 70%, transparent);
+}

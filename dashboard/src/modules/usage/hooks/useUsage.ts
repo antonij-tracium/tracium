@@ -7,25 +7,25 @@ import { useAPIClient } from '../../../common/providers/APIProvider';
 // refetches everything.
 
 export function useModelCosts(range: string) {
-  const { metricsAPI } = useAPIClient();
+  const { metricsAPI, workspaceId } = useAPIClient();
   return useQuery({
-    queryKey: ['usage', 'model-costs', range],
+    queryKey: ['usage', 'model-costs', workspaceId, range],
     queryFn: () => metricsAPI.getModelCosts(range),
   });
 }
 
-export function useTenantUsage(range: string) {
-  const { metricsAPI } = useAPIClient();
+export function useUserUsage(range: string) {
+  const { metricsAPI, workspaceId } = useAPIClient();
   return useQuery({
-    queryKey: ['usage', 'tenants', range],
-    queryFn: () => metricsAPI.getTenantUsage(range),
+    queryKey: ['usage', 'users', workspaceId, range],
+    queryFn: () => metricsAPI.getUserUsage(range),
   });
 }
 
 export function useAgentUsage(range: string) {
-  const { metricsAPI } = useAPIClient();
+  const { metricsAPI, workspaceId } = useAPIClient();
   return useQuery({
-    queryKey: ['usage', 'agents', range],
+    queryKey: ['usage', 'agents', workspaceId, range],
     queryFn: () => metricsAPI.getAgentUsage(range),
   });
 }
@@ -33,17 +33,17 @@ export function useAgentUsage(range: string) {
 // Custom-attribute allocation. useAttributeKeys discovers the dimensions the
 // instrumentation tags spans with; useAttributeUsage allocates spend by one.
 export function useAttributeKeys(range: string) {
-  const { metricsAPI } = useAPIClient();
+  const { metricsAPI, workspaceId } = useAPIClient();
   return useQuery({
-    queryKey: ['usage', 'attribute-keys', range],
+    queryKey: ['usage', 'attribute-keys', workspaceId, range],
     queryFn: () => metricsAPI.getAttributeKeys(range),
   });
 }
 
 export function useAttributeUsage(range: string, key: string) {
-  const { metricsAPI } = useAPIClient();
+  const { metricsAPI, workspaceId } = useAPIClient();
   return useQuery({
-    queryKey: ['usage', 'attribute-usage', range, key],
+    queryKey: ['usage', 'attribute-usage', workspaceId, range, key],
     queryFn: () => metricsAPI.getUsageByAttribute(range, key),
     enabled: key !== '',
   });

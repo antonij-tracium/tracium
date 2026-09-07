@@ -71,6 +71,13 @@ export abstract class BaseAPIClient {
       }
     }
 
+    // Scope every read to the active workspace, when one is selected. Applied
+    // here so callers never have to thread workspace_id through each method;
+    // an explicit workspace_id in `params` (should one ever be passed) wins.
+    if (this.config.workspaceId && !url.searchParams.has('workspace_id')) {
+      url.searchParams.set('workspace_id', this.config.workspaceId);
+    }
+
     return this.request<T>(url.toString(), {
       method: 'GET',
     });

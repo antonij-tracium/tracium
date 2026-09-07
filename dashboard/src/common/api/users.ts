@@ -1,7 +1,7 @@
 import { BaseAPIClient } from './client';
 
-export class TenantsAPI extends BaseAPIClient {
-  async listTenants(): Promise<{ id: string; name: string }[]> {
-    return this.get('/tenants');
+export class UsersAPI extends BaseAPIClient {
+  async listUsers(): Promise<{ id: string; name: string }[]> {
+    return this.get('/users');
   }
 }

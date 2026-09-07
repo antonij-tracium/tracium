@@ -31,7 +31,7 @@ src/
     overview/         KPI cards + cost/latency/error series
     trace-explorer/   the trace list (paginated, windowed) + Gantt trace detail
     trace-inspector/  deep span inspector: attributes, tool calls, I/O
-    agents/  usage/    per-agent and per-tenant breakdowns
+    agents/  usage/    per-agent and per-user breakdowns
     auth/  api-keys/  settings/  shell/   account + app chrome
   common/             api client, shared hooks/components, providers
   types/              types generated from spec (do not hand-edit)
@@ -44,21 +44,53 @@ edit it by hand.
 
 ```bash
 npm install
-npm run dev        # Vite dev server on :5173, calls the API at VITE_API_URL
+npm run dev        # Vite dev server on :5173, proxies /v1 to localhost:8090
 npm run build      # tsc typecheck, then production bundle → dist/
 npm test           # vitest
 ```
 
-The API base URL comes from `VITE_API_URL` (defaults to `http://localhost:8090`).
-Set it at build time for a real deployment:
+The browser calls `/v1` on the dashboard's own origin by default. Vite proxies
+those requests to `http://localhost:8090` during development. Container images
+use nginx to proxy them to `API_UPSTREAM` (runtime environment variable, default
+`http://api:8090`). Helm sets that internal upstream to the API Service. This
+supports custom domains and HTTPS without rebuilding the dashboard.
+
+For a deliberately separate browser-accessible API, set `VITE_API_URL` at build
+time. That optional override must be a public URL, not a Kubernetes Service name.
+
+The signed-in UI uses real user details. Simulated API-key creation and editable
+settings are confined to the embedded demo; unavailable alpha controls are
+explained or omitted in the signed-in app.
+
+## Seed demo data
+
+With the stack running (`docker compose up`), one command populates everything —
+a login account, its workspaces, and realistic telemetry:
 
 ```bash
-VITE_API_URL=https://api.tracium.example.com npm run build
+npm run seed
 ```
 
-The [Dockerfile](Dockerfile) builds the bundle and serves it with nginx on port
-3000 with SPA fallback (see [nginx.conf](nginx.conf)); the compose stack passes
-`VITE_API_URL` as a build arg.
+It (1) registers `demo@tracium.ai` / `tracium-demo-1234` and makes it **owner**
+of three workspaces (Production, Staging, Development), then (2) sends ~520
+complex multi-step agent traces (tool-calling ReAct loops, parallel fan-out,
+nested sub-agents, retries, successes and failures, full prompt/completion
+content and custom business attributes) over OTLP so the collector prices and
+stores them. Timestamps are relative to now, spread over the last ~14 days, so
+the data always lands in the dashboard's 24h/7d/30d windows. Sign in with the
+credentials above and switch workspaces to see reads re-scope.
+
+| command | does |
+|---|---|
+| `npm run seed` | account + workspaces + telemetry (everything) |
+| `npm run seed:account` | just the account + its workspaces |
+| `npm run seed:data` | just telemetry (no account changes) |
+
+Overrides via env: `SEED_EMAIL`, `SEED_PASSWORD`, `N_TRACES`, `SEED` (fixed RNG
+seed for a reproducible run), `OTLP_ENDPOINT`, `API_ENDPOINT`. The seeders are
+idempotent — re-running reuses the account and adds more telemetry. `seed:account`
+writes workspace rows via `docker compose exec postgres`, so it needs the stack
+up and Docker on your PATH. The scripts live in [`scripts/`](scripts).
 
 ## License
 

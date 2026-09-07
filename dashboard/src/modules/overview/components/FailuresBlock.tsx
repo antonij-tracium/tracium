@@ -4,7 +4,7 @@
 // shortcut into the agents view.
 
 import { HorizonStrip, IconArrowRight } from '../../../common';
-import type { ErrorPoint } from '../../../common/interfaces';
+import type { ErrorPoint, ChartMarker } from '../../../common/interfaces';
 import { SectionRule } from './SectionRule';
 
 interface FailuresBlockProps {
@@ -13,6 +13,8 @@ interface FailuresBlockProps {
   worstAgent: string;
   onViewAgents: () => void;
   range?: string;
+  // Optional in-place error/volume anomaly highlights (design 1c).
+  errorMarkers?: ChartMarker[];
 }
 
 function SummaryStat({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
@@ -30,7 +32,7 @@ function Divider() {
   return <div style={{ width: 1, height: 14, background: 'var(--border)' }} />;
 }
 
-export function FailuresBlock({ series, totalFailed, worstAgent, onViewAgents, range }: FailuresBlockProps) {
+export function FailuresBlock({ series, totalFailed, worstAgent, onViewAgents, range, errorMarkers }: FailuresBlockProps) {
   const hourly = range === '24h';
   return (
     <div style={{ marginBottom: 44 }}>
@@ -58,7 +60,7 @@ export function FailuresBlock({ series, totalFailed, worstAgent, onViewAgents, r
           </button>
         }
       />
-      {series && series.length > 0 && <HorizonStrip data={series} />}
+      {series && series.length > 0 && <HorizonStrip data={series} markers={errorMarkers} />}
       <div style={{ display: 'flex', gap: 36, alignItems: 'center', marginTop: series && series.length > 0 ? 20 : 0, fontSize: 12.5 }}>
         <SummaryStat label="Total failed" value={String(totalFailed)} valueColor="var(--error)" />
         <Divider />

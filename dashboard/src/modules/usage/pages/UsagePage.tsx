@@ -58,7 +58,7 @@ function kpiItems(data: typeof USAGE_DATA): KpiItem[] {
 
 export default function UsagePage({ range: _range }: UsagePageProps) {
   const data = USAGE_DATA;
-  const [tab, setTab] = useState<BreakdownTab>('tenant');
+  const [tab, setTab] = useState<BreakdownTab>('user');
   const [sortBy, setSortBy] = useState<SortKey>('cost');
   const items = useMemo(() => kpiItems(data), [data]);
 
@@ -76,7 +76,7 @@ export default function UsagePage({ range: _range }: UsagePageProps) {
       }}
     >
       <UsageMasthead
-        subtitle={`${data.range.start} – ${data.range.end} · ${data.tenants.length} active tenants, ${data.agents.length} agents`}
+        subtitle={`${data.range.start} – ${data.range.end} · ${data.users.length} active users, ${data.agents.length} agents`}
       />
 
       <div style={{ paddingBottom: 8 }}>
@@ -106,17 +106,17 @@ export default function UsagePage({ range: _range }: UsagePageProps) {
             tab={tab}
             setTab={handleTabChange}
             tabs={[
-              { id: 'tenant', label: 'By tenant', count: data.tenants.length },
+              { id: 'user', label: 'By user', count: data.users.length },
               { id: 'agent', label: 'By agent', count: data.agents.length },
             ]}
           />
         }
       />
-      {tab === 'tenant' ? (
+      {tab === 'user' ? (
         <Breakdown
-          rows={data.tenants}
+          rows={data.users}
           totalCost={data.totalCost}
-          kind="tenant"
+          kind="user"
           sortBy={sortBy}
           setSortBy={setSortBy}
         />

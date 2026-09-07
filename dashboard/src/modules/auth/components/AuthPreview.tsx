@@ -4,7 +4,7 @@ import { QueryProvider } from '../../../common/providers/QueryProvider';
 import { APIProvider } from '../../../common/providers/APIProvider';
 
 const PREVIEW_CONFIG = {
-  baseUrl: import.meta.env.VITE_API_URL ?? 'http://localhost:8090',
+  baseUrl: import.meta.env.VITE_API_URL || window.location.origin,
   apiKey: 'demo',
 };
 

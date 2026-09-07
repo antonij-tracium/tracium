@@ -1,1 +1,1 @@
-export type TenantId = string & { readonly __brand: 'TenantId' };
+export type UserId = string & { readonly __brand: 'UserId' };

@@ -1,13 +1,15 @@
 import React, { useRef, useState } from 'react';
-import type { ErrorPoint } from '../../interfaces';
+import type { ErrorPoint, ChartMarker } from '../../interfaces';
 import { useResize } from '../../hooks/useResize';
 
 export interface HorizonStripProps {
   data: ErrorPoint[];
   height?: number;
+  // Optional in-place anomaly flags: each draws a highlight box around its cell.
+  markers?: ChartMarker[];
 }
 
-export function HorizonStrip({ data, height = 40 }: HorizonStripProps) {
+export function HorizonStrip({ data, height = 40, markers = [] }: HorizonStripProps) {
   const ref = useRef<HTMLDivElement>(null);
   const width = useResize(ref);
   const [hover, setHover] = useState<number | null>(null);
@@ -85,6 +87,27 @@ export function HorizonStrip({ data, height = 40 }: HorizonStripProps) {
             </g>
           );
         })}
+        {width > 0 &&
+          markers.map((m) => {
+            if (m.index < 0 || m.index >= data.length) return null;
+            return (
+              <rect
+                key={`mk-${m.index}`}
+                x={m.index * cellW + 2}
+                y={-1}
+                width={cellW - 4}
+                height={height + 2}
+                rx={6}
+                fill="none"
+                stroke={m.color}
+                strokeWidth={1.5}
+                style={{ cursor: m.onClick ? 'pointer' : 'default' }}
+                onClick={m.onClick}
+              >
+                {m.label && <title>{m.label}</title>}
+              </rect>
+            );
+          })}
       </svg>
       <div style={{ display: 'flex', marginTop: 6 }}>
         {data.map((d, i) => (

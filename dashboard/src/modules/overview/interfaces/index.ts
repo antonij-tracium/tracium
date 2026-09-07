@@ -8,4 +8,9 @@ export type {
   ErrorBucket,
   AgentCost,
   FailureRow,
+  AnomalyMetric,
+  AnomalyScope,
+  AnomalyDirection,
+  AnomalySeverity,
+  Anomaly,
 } from './metrics';

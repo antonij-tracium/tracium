@@ -1,5 +1,5 @@
 import type { DailySeriesPoint } from './DailySeriesPoint';
-import type { TenantSummary } from './TenantSummary';
+import type { UserSummary } from './UserSummary';
 import type { AgentSummary } from './AgentSummary';
 import type { ModelSummary } from './ModelSummary';
 
@@ -15,7 +15,7 @@ export interface UsageData {
   totalRuns: number;
   totalRunsPrev: number;
   dailySeries: DailySeriesPoint[];
-  tenants: TenantSummary[];
+  users: UserSummary[];
   agents: AgentSummary[];
   models: ModelSummary[];
 }

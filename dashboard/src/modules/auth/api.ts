@@ -17,7 +17,7 @@ export class AuthError extends Error {
 }
 
 async function postCredentials(path: string, req: LoginRequest, failureLabel: string): Promise<LoginResponse> {
-  const base = import.meta.env.VITE_API_URL ?? 'http://localhost:8090';
+  const base = import.meta.env.VITE_API_URL || window.location.origin;
   const response = await fetch(`${base}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

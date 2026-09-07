@@ -13,8 +13,12 @@ import {
   TopAgents,
   ActivityFeed,
   OverviewLayout,
+  OutlierChips,
+  OutliersPanel,
 } from '../components';
 import type { KpiItem, TopAgentRow } from '../components';
+import type { Anomaly } from '../interfaces';
+import { anomalyKey, anomalyValue, toChartMarkers } from '../utils/anomalies';
 import { fmtNum } from '../../../common';
 import { AGENTS } from '../../agents';
 import {
@@ -53,6 +57,37 @@ const TOP_AGENTS: TopAgentRow[] = AGENTS.slice()
   .sort((a, b) => b.calls - a.calls)
   .slice(0, 6)
   .map((a) => ({ name: a.name, calls: a.calls, cost: a.cost, trend: a.trend }));
+
+// Demo outliers for the logged-out preview — four flagged buckets over a 7-day
+// axis (two cost spikes, one error-rate spike, one volume surge), mirroring the
+// live /metrics/anomalies payload so the outlier surfaces render without a
+// backend. Observed cost values are read off the demo cost series so the flags
+// sit on the right bars.
+const DAY_MS = 86_400_000;
+function buildDemoOutliers(cost: { value: number }[]): { axisMs: number[]; anomalies: Anomaly[] } {
+  const n = cost.length; // 7 for the 7d series
+  const today = Math.floor(Date.now() / DAY_MS) * DAY_MS;
+  const axisMs = Array.from({ length: n }, (_, i) => today - (n - 1 - i) * DAY_MS);
+  // Anchor the cost outliers on the tallest bars so the flags sit on real spikes
+  // and observed > expected holds (the live API guarantees this; the demo has to
+  // arrange it by hand).
+  const byHeight = cost.map((c, i) => ({ i, v: c.value })).sort((a, b) => b.v - a.v);
+  const bigIdx = byHeight[0]?.i ?? n - 1;
+  const midIdx = byHeight[1]?.i ?? Math.max(0, n - 2);
+  const bigVal = cost[bigIdx]?.value ?? 4.71;
+  const midVal = cost[midIdx]?.value ?? 0.34;
+  const anomalies: Anomaly[] = [
+    // Scores match the backend's severity bands (info ≥3, warning ≥4.5, critical
+    // ≥6). checkout-agent trips both cost and errors on the same day so the
+    // grouped view has a multi-flag incident to show; the rest are single flags.
+    { metric: 'cost', scope: 'agent', agent: 'checkout-agent', bucket_ms: axisMs[bigIdx], observed: bigVal, expected: bigVal / 4.6, deviation: bigVal - bigVal / 4.6, score: 6.4, direction: 'spike', severity: 'critical', summary: 'Agent "checkout-agent" cost spiked, 4.6× the typical day.' },
+    { metric: 'error_rate', scope: 'agent', agent: 'checkout-agent', bucket_ms: axisMs[bigIdx], observed: 0.22, expected: 0.05, deviation: 0.17, score: 5.2, direction: 'spike', severity: 'warning', summary: 'Agent "checkout-agent" error rate rose to 22% the same day.' },
+    { metric: 'error_rate', scope: 'agent', agent: 'support-ticket-resolver', bucket_ms: axisMs[Math.min(n - 1, 5)], observed: 0.19, expected: 0.04, deviation: 0.15, score: 7.1, direction: 'spike', severity: 'critical', summary: 'Agent "support-ticket-resolver" error rate rose to 19%.' },
+    { metric: 'runs', scope: 'workspace', agent: '', bucket_ms: axisMs[Math.min(n - 1, 3)], observed: 512, expected: 190, deviation: 322, score: 4.8, direction: 'spike', severity: 'warning', summary: 'Workspace run volume rose to 512, 2.7× the typical day.' },
+    { metric: 'cost', scope: 'agent', agent: 'invoice-parser', bucket_ms: axisMs[midIdx], observed: midVal, expected: midVal / 2.4, deviation: midVal - midVal / 2.4, score: 3.4, direction: 'spike', severity: 'info', summary: 'Agent "invoice-parser" is drifting 2.4× costlier per run.' },
+  ];
+  return { axisMs, anomalies };
+}
 
 // ---------------------------------------------------------------------------
 // Simulated live feed — ages existing rows and prepends a fresh event so the
@@ -96,9 +131,33 @@ function useSimulatedFeed(): ActivityItem[] {
 export function OverviewPage({ range, setView, setSelected, tweaks }: OverviewPageProps) {
   const feedPosition = tweaks.feedPosition ?? 'right';
   const feedItems = useSimulatedFeed();
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [selectedOutlier, setSelectedOutlier] = useState<string | null>(null);
 
   const costSeries = range === '24h' ? COST_SERIES_24H : range === '30d' ? COST_SERIES_30D : COST_SERIES_7D;
   const latSeries = range === '24h' ? LATENCY_SERIES_24H : range === '30d' ? LATENCY_SERIES_30D : LATENCY_SERIES_7D;
+
+  // Demo outliers are wired for the default 7d range (its axis matches the demo
+  // error series), so the outlier surfaces are visible in the logged-out preview.
+  const showOutliers = range === '7d';
+  const demo = showOutliers ? buildDemoOutliers(costSeries) : null;
+  const liveAnoms = demo ? demo.anomalies.filter((a) => !dismissed.has(anomalyKey(a))) : [];
+  const costMarkers = demo
+    ? toChartMarkers(liveAnoms.filter((a) => a.metric === 'cost'), demo.axisMs, {
+        label: (a) => anomalyValue(a.metric, a.observed),
+        onSelect: (a) => setSelectedOutlier(anomalyKey(a)),
+      })
+    : [];
+  const errorMarkers = demo
+    ? toChartMarkers(liveAnoms.filter((a) => a.metric === 'error_rate'), demo.axisMs, {
+        onSelect: (a) => setSelectedOutlier(anomalyKey(a)),
+      })
+    : [];
+  const dismissOutlier = (a: Anomaly) => setDismissed((s) => new Set(s).add(anomalyKey(a)));
+  const inspectOutlier = (a: Anomaly) => {
+    if (a.agent) setSelected((s) => ({ ...s, agent: a.agent }));
+    setView('agents');
+  };
 
   const totalCost = costSeries.reduce((s, d) => s + d.value, 0);
   const allTraces = AGENTS.reduce((s, a) => s + a.calls, 0);
@@ -157,7 +216,22 @@ export function OverviewPage({ range, setView, setSelected, tweaks }: OverviewPa
         />
       }
       kpis={<KpiStrip items={kpis} />}
-      charts={<ChartsRow costSeries={costSeries} latSeries={latSeries} range={range} />}
+      outlierChips={showOutliers ? <OutlierChips anomalies={liveAnoms} /> : undefined}
+      charts={<ChartsRow costSeries={costSeries} latSeries={latSeries} range={range} costMarkers={costMarkers} />}
+      outliers={
+        showOutliers && demo ? (
+          <OutliersPanel
+            anomalies={liveAnoms}
+            range={range}
+            dismissedCount={demo.anomalies.length - liveAnoms.length}
+            selectedKey={selectedOutlier}
+            onSelectKey={setSelectedOutlier}
+            onDismiss={dismissOutlier}
+            onRestoreAll={() => setDismissed(new Set())}
+            onInspect={inspectOutlier}
+          />
+        ) : undefined
+      }
       failures={
         <FailuresBlock
           series={ERROR_SERIES_7D}
@@ -165,6 +239,7 @@ export function OverviewPage({ range, setView, setSelected, tweaks }: OverviewPa
           worstAgent="rewrite-message"
           onViewAgents={() => setView('agents')}
           range={range}
+          errorMarkers={errorMarkers}
         />
       }
       feed={

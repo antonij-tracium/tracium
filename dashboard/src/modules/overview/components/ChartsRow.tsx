@@ -5,12 +5,14 @@
 
 import React from 'react';
 import { CostBarChart, LatencyChart, useMaxWidth, BREAKPOINTS, isLongRange } from '../../../common';
-import type { CostPoint, LatencyPoint } from '../../../common/interfaces';
+import type { CostPoint, LatencyPoint, ChartMarker } from '../../../common/interfaces';
 
 interface ChartsRowProps {
   costSeries: CostPoint[];
   latSeries: LatencyPoint[];
   range?: string;
+  // Optional in-place cost anomaly flags (design 1c).
+  costMarkers?: ChartMarker[];
 }
 
 function PanelHeader({ eyebrow, title, legend }: { eyebrow: string; title: string; legend: React.ReactNode }) {
@@ -46,7 +48,7 @@ function LegendItem({ swatch, children }: { swatch: React.ReactNode; children: R
   );
 }
 
-export function ChartsRow({ costSeries, latSeries, range }: ChartsRowProps) {
+export function ChartsRow({ costSeries, latSeries, range, costMarkers }: ChartsRowProps) {
   const stacked = useMaxWidth(BREAKPOINTS.tablet);
   const costTitle = range === '24h' ? 'Hourly cost' : 'Daily cost';
   // Latency is served from raw spans only; long ranges read the daily rollup,
@@ -72,7 +74,7 @@ export function ChartsRow({ costSeries, latSeries, range }: ChartsRowProps) {
         }}
       >
         <PanelHeader eyebrow="Spend" title={costTitle} legend={null} />
-        <CostBarChart series={costSeries} />
+        <CostBarChart series={costSeries} markers={costMarkers} />
       </div>
 
       {latencyAvailable && (

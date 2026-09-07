@@ -1,7 +1,7 @@
-import type { TenantId } from '../../../common/ids';
+import type { UserId } from '../../../common/ids';
 
-export interface TenantSummary {
-  id: TenantId;
+export interface UserSummary {
+  id: UserId;
   name: string;
   cost: number;
   costPrev: number;
@@ -9,6 +9,4 @@ export interface TenantSummary {
   runsPrev: number;
   avg: number;
   trend: number[];
-  // Billing tier — present in demo data, absent for live telemetry-derived rows.
-  plan?: string;
 }

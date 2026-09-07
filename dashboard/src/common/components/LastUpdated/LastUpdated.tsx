@@ -4,7 +4,7 @@
 //
 // Two usage modes:
 //   • Pass `at` (epoch ms) — renders "Updated <relative>" and self-ticks every
-//     10s so the label stays current between fetches. Used by Agents/Tenants.
+//     10s so the label stays current between fetches. Used by Agents/Users.
 //   • Pass `label` — renders that text verbatim (no ticking). Used by the
 //     overview Masthead, which computes its own "Synced …" label across several
 //     queries.

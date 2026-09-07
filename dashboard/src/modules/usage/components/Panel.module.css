@@ -2,6 +2,11 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  /* Fill the grid cell so a capped content area (scroll) can borrow the height
+     the cell was stretched to by its taller sibling. Auto in a stacked/auto-row
+     layout, so it has no effect there. */
+  height: 100%;
+  min-height: 0;
   padding: 24px 28px 22px;
 }
 
@@ -45,4 +50,20 @@
 .content {
   flex: 1;
   min-width: 0;
+}
+
+/* When capped, the content fills the height the grid gives the panel (matched to
+   its taller sibling) and the scroller inside it takes the overflow, so a long
+   list never grows the panel past its neighbour. */
+.scrollHost {
+  position: relative;
+  min-height: 0;
+}
+
+.scroller {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  /* Keep the scrollbar off the text and preserve the top spacing the list adds. */
+  padding-right: 4px;
 }

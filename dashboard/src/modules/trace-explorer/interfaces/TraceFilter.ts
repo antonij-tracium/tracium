@@ -1,7 +1,7 @@
-import type { TenantId } from '../../../common/ids';
+import type { UserId } from '../../../common/ids';
 
 export interface TraceFilter {
-  tenant_id?: TenantId;
+  user_id?: UserId;
   model?: string;
   /** Restrict to one agent (the trace root name) — powers an agent's recent runs. */
   agent?: string;

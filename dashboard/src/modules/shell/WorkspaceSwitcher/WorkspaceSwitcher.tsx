@@ -68,23 +68,6 @@ export function WorkspaceSwitcher({
           transition: 'all .14s',
         }}
       >
-        <div
-          style={{
-            width: 26,
-            height: 26,
-            borderRadius: 6,
-            background: 'linear-gradient(135deg, var(--accent), #3fdfaa)',
-            display: 'grid',
-            placeItems: 'center',
-            color: 'var(--accent-contrast)',
-            fontSize: 10,
-            fontWeight: 700,
-            flexShrink: 0,
-            letterSpacing: '0.02em',
-          }}
-        >
-          {workspace ? workspace.name.slice(0, 2).toUpperCase() : '+'}
-        </div>
         <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
           <div
             style={{
@@ -125,7 +108,6 @@ export function WorkspaceSwitcher({
                 >
                   {envLabel}
                 </span>
-                <span>{workspace.plan}</span>
               </>
             ) : (
               <span>Create one to get started</span>
