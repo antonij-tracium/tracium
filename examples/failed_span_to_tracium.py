@@ -71,7 +71,13 @@ OTLP_ENDPOINT = os.getenv(
     "http://localhost:4318/v1/traces",
 )
 
-TENANT_ID = os.getenv("TRACIUM_TENANT_ID", "acme-corp")
+USER_ID = os.getenv("TRACIUM_USER_ID", "acme-corp")
+
+# The workspace these spans belong to — the access boundary. The API shows a span
+# only to accounts that are members of its workspace; this defaults to the demo
+# "Production" workspace from `npm run seed:account`. Point it at a workspace your
+# account owns, or the data won't appear in the dashboard.
+WORKSPACE_ID = os.getenv("TRACIUM_WORKSPACE_ID", "c4ef3026-f040-4221-ad58-d6345dd4570c")
 
 # The model an operator *meant* to use for the healthy calls.
 MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
@@ -86,15 +92,17 @@ def configure_tracing() -> None:
     Traceloop.init(
         app_name="invoice-extraction-example",
         exporter=OTLPSpanExporter(endpoint=OTLP_ENDPOINT),
-        # Carry the tenant on the OTel resource so it lands on every span.
-        resource_attributes={"tracium.tenant.id": TENANT_ID},
+        # Carry the user on the OTel resource so it lands on every span.
+        resource_attributes={"tracium.user.id": USER_ID, "tracium.workspace.id": WORKSPACE_ID},
         disable_batch=False,
     )
 
 
-def _tag_tenant() -> None:
-    """Stamp the current span with the tenant so every gen_ai.* span carries it."""
-    trace.get_current_span().set_attribute("tracium.tenant.id", TENANT_ID)
+def _tag_user() -> None:
+    """Stamp the current span with the user + workspace so every gen_ai.* span carries them."""
+    span = trace.get_current_span()
+    span.set_attribute("tracium.user.id", USER_ID)
+    span.set_attribute("tracium.workspace.id", WORKSPACE_ID)
 
 
 # --------------------------------------------------------------------------- #
@@ -138,7 +146,7 @@ def extract_invoice(client: OpenAI, invoice: dict, model: str) -> dict:
     propagate: OpenLLMetry records it on the gen_ai span (exception event +
     status ERROR), and the @task span fails with it.
     """
-    _tag_tenant()
+    _tag_user()
     span = trace.get_current_span()
     span.set_attribute("invoice.id", invoice["invoice_id"])
 
@@ -163,7 +171,7 @@ def extract_invoice(client: OpenAI, invoice: dict, model: str) -> dict:
 @workflow(name="invoice-extraction-batch")
 def run_batch(client: OpenAI) -> list[dict]:
     """Process every invoice; the third one fails on the typo'd model name."""
-    _tag_tenant()
+    _tag_user()
     results: list[dict] = []
     failures = 0
 
@@ -204,7 +212,7 @@ def main() -> None:
 
     # Flush spans before the process exits.
     trace.get_tracer_provider().force_flush()
-    print(f"\nTrace (with failed span) exported to {OTLP_ENDPOINT} (tenant={TENANT_ID}).")
+    print(f"\nTrace (with failed span) exported to {OTLP_ENDPOINT} (user={USER_ID}, workspace={WORKSPACE_ID}).")
 
 
 if __name__ == "__main__":

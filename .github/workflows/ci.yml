@@ -67,18 +67,16 @@ jobs:
           node-version: 20
           cache: npm
           cache-dependency-path: dashboard/package-lock.json
-      - run: npm ci
+      - run: npm ci --no-audit
       - run: npm run build   # tsc typecheck + vite build
       - run: npm test
 
-  # Informational: surfaces spec -> dashboard type drift. Non-blocking because
-  # openapi-typescript version differences can produce cosmetic diffs. Only the
-  # TS generator runs — the Go models are hand-written (gen-go-models.sh is not run).
+  # The pinned TypeScript generator makes contract drift a release-blocking error.
+  # Go models remain hand-written; gen-go-models.sh is not run.
   codegen-sync:
     needs: changes
     if: ${{ needs.changes.outputs.spec == 'true' }}
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -97,3 +95,11 @@ jobs:
       - uses: azure/setup-helm@v4
       - run: make sync-generated   # single-source pricing/schema into the chart
       - run: helm lint deploy/helm/tracium
+
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and exercise a fresh isolated stack
+        run: bash deploy/tests/smoke.sh

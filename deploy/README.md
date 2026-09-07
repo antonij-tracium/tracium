@@ -10,7 +10,7 @@ deploy/
   helm/tracium/     Helm chart (StatefulSets, PVCs, ConfigMaps, Ingress)
   docker/migrate/   migration-runner image (also used by the root compose)
   config/           default collector.yaml / api.yaml
-  scripts/          wait-for-db, run-migrations
+  scripts/          wait-for-db (rollup repair is now the repair-rollup command in the API image)
   docs/             collector-auth, rollup-repair runbooks
 ```
 
@@ -26,8 +26,9 @@ helm install tracium ./helm/tracium
 ```
 
 Every tunable is documented in [`helm/tracium/values.yaml`](helm/tracium/values.yaml).
-Only the collector OTLP ports, the API, and the dashboard are exposed via ingress;
-databases never are.
+Ingress exposes the API and dashboard. OTLP and database services stay internal.
+
+Existing installations: follow [the workspace upgrade guide](docs/upgrading.md).
 
 ## Notes
 
