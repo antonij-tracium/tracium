@@ -16,6 +16,6 @@ mkdir -p "$OUTPUT_DIR"
 
 echo "Generating TypeScript types from $SCRIPT_DIR/../api/openapi.yaml ..."
 
-npx openapi-typescript "$SCRIPT_DIR/../api/openapi.yaml" -o "$OUTPUT_DIR/openapi.d.ts"
+npm_config_audit=false npx --yes openapi-typescript@7.13.0 "$SCRIPT_DIR/../api/openapi.yaml" -o "$OUTPUT_DIR/openapi.d.ts"
 
 echo "Done. Types written to $OUTPUT_DIR/openapi.d.ts"

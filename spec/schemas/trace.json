@@ -26,9 +26,13 @@
       "type": "integer",
       "description": "Total duration of the trace in milliseconds."
     },
-    "tenant_id": {
+    "user_id": {
       "type": "string",
-      "description": "Tenant identifier, used for multi-tenant isolation."
+      "description": "End-client / user identifier — the metering and cost-attribution dimension. A business label, not an access boundary."
+    },
+    "workspace_id": {
+      "type": "string",
+      "description": "Workspace the trace belongs to — the access-control unit (an account reads only workspaces it is a member of)."
     },
     "span_count": {
       "type": "integer",

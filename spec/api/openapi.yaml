@@ -21,16 +21,18 @@ paths:
       operationId: listTraces
       summary: List traces
       description: >
-        Returns a paginated list of traces for the authenticated tenant.
-        Results are ordered by start_time_ms descending.
+        Returns a paginated list of traces, scoped to the workspaces the caller
+        is a member of (see workspace_id). Results are ordered by start_time_ms
+        descending.
       tags:
         - Traces
       parameters:
-        - name: tenant_id
+        - name: user_id
           in: query
-          description: Filter by tenant ID (admin use — regular callers are scoped to their own tenant).
+          description: Optional filter by end-client / user id (a metering label, not an access boundary).
           schema:
             type: string
+        - $ref: "#/components/parameters/WorkspaceFilter"
         - name: model
           in: query
           description: Filter traces that contain at least one span using this model (normalized model id).
@@ -97,10 +99,11 @@ paths:
     get:
       operationId: getTrace
       summary: Get a trace by ID
-      description: Returns a single trace including its full span list.
+      description: Returns a trace and spans from the caller's allowed workspaces. A known trace ID never bypasses workspace membership.
       tags:
         - Traces
       parameters:
+        - $ref: "#/components/parameters/WorkspaceFilter"
         - name: id
           in: path
           required: true
@@ -114,8 +117,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TraceDetail"
+        "403":
+          description: The requested workspace is inaccessible.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
-          description: Trace not found.
+          description: Trace not found in the caller's workspace scope.
           content:
             application/json:
               schema:
@@ -133,6 +142,35 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /v1/traces/{traceId}/spans:
+    get:
+      operationId: listSpans
+      summary: List spans in an accessible trace
+      description: Returns only spans within the caller's workspace scope. A missing or inaccessible trace returns 404.
+      tags: [Traces]
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceFilter"
+        - name: traceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Spans from accessible workspaces.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedSpanResponse"
+        "401":
+          description: Missing or invalid bearer token.
+        "403":
+          description: The requested workspace is inaccessible.
+        "404":
+          description: No accessible spans for that trace ID.
+        "500":
+          description: Internal error or incompatible span schema.
+
   /v1/metrics/kpis:
     get:
       operationId: getOverviewKpis
@@ -145,7 +183,8 @@ paths:
         - Metrics
       parameters:
         - $ref: "#/components/parameters/Range"
-        - $ref: "#/components/parameters/TenantFilter"
+        - $ref: "#/components/parameters/UserFilter"
+        - $ref: "#/components/parameters/WorkspaceFilter"
       responses:
         "200":
           description: The overview KPI set.
@@ -175,7 +214,8 @@ paths:
         - Metrics
       parameters:
         - $ref: "#/components/parameters/Range"
-        - $ref: "#/components/parameters/TenantFilter"
+        - $ref: "#/components/parameters/UserFilter"
+        - $ref: "#/components/parameters/WorkspaceFilter"
         - $ref: "#/components/parameters/AgentFilter"
       responses:
         "200":
@@ -200,7 +240,8 @@ paths:
         - Metrics
       parameters:
         - $ref: "#/components/parameters/Range"
-        - $ref: "#/components/parameters/TenantFilter"
+        - $ref: "#/components/parameters/UserFilter"
+        - $ref: "#/components/parameters/WorkspaceFilter"
         - $ref: "#/components/parameters/AgentFilter"
       responses:
         "200":
@@ -225,7 +266,8 @@ paths:
         - Metrics
       parameters:
         - $ref: "#/components/parameters/Range"
-        - $ref: "#/components/parameters/TenantFilter"
+        - $ref: "#/components/parameters/UserFilter"
+        - $ref: "#/components/parameters/WorkspaceFilter"
         - $ref: "#/components/parameters/AgentFilter"
       responses:
         "200":
@@ -250,7 +292,8 @@ paths:
         - Metrics
       parameters:
         - $ref: "#/components/parameters/Range"
-        - $ref: "#/components/parameters/TenantFilter"
+        - $ref: "#/components/parameters/UserFilter"
+        - $ref: "#/components/parameters/WorkspaceFilter"
       responses:
         "200":
           description: Agents ordered by cost descending.
@@ -279,7 +322,8 @@ paths:
         - Metrics
       parameters:
         - $ref: "#/components/parameters/Range"
-        - $ref: "#/components/parameters/TenantFilter"
+        - $ref: "#/components/parameters/UserFilter"
+        - $ref: "#/components/parameters/WorkspaceFilter"
       responses:
         "200":
           description: Agents ordered by call count descending.
@@ -315,7 +359,8 @@ paths:
           schema:
             type: string
         - $ref: "#/components/parameters/Range"
-        - $ref: "#/components/parameters/TenantFilter"
+        - $ref: "#/components/parameters/UserFilter"
+        - $ref: "#/components/parameters/WorkspaceFilter"
       responses:
         "200":
           description: The agent's detail payload.
@@ -347,7 +392,8 @@ paths:
         - Metrics
       parameters:
         - $ref: "#/components/parameters/Range"
-        - $ref: "#/components/parameters/TenantFilter"
+        - $ref: "#/components/parameters/UserFilter"
+        - $ref: "#/components/parameters/WorkspaceFilter"
       responses:
         "200":
           description: Failed agents ordered by failure count descending.
@@ -357,6 +403,49 @@ paths:
                 $ref: "#/components/schemas/PaginatedFailureResponse"
         "400":
           description: Invalid range.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/metrics/anomalies:
+    get:
+      operationId: getAnomalies
+      summary: Statistical anomalies
+      description: >
+        Buckets that deviated significantly from their own recent history, for
+        cost, error rate, and run volume — workspace-wide and per busy agent.
+        Detection is daily and robust (median + MAD over a trailing 28-day
+        baseline), served entirely from the daily rollup, so a range of 7d or
+        longer is required (24h is rejected with a 400). Results are ordered most
+        severe first.
+      tags:
+        - Metrics
+      parameters:
+        - $ref: "#/components/parameters/Range"
+        - $ref: "#/components/parameters/UserFilter"
+        - $ref: "#/components/parameters/WorkspaceFilter"
+        - name: metric
+          in: query
+          description: Restrict to one metric. Omitted, all three are detected.
+          schema:
+            type: string
+            enum: ["cost", "error_rate", "runs"]
+        - name: min_severity
+          in: query
+          description: Drop anomalies below this severity. Omitted, all severities are returned.
+          schema:
+            type: string
+            enum: ["info", "warning", "critical"]
+      responses:
+        "200":
+          description: Anomalies ordered by severity, then score, then recency.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedAnomalyResponse"
+        "400":
+          description: Invalid range, metric, or severity.
           content:
             application/json:
               schema:
@@ -422,6 +511,181 @@ paths:
                     type: string
                     example: "not_ready"
 
+  /v1/auth/register:
+    post:
+      operationId: register
+      summary: Register an account
+      description: Creates an account and returns a bearer token. Unauthenticated.
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Credentials"
+      responses:
+        "201":
+          description: Account created; token returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Token"
+        "409":
+          description: An account with that email already exists.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/auth/login:
+    post:
+      operationId: login
+      summary: Log in
+      description: Exchanges email + password for a bearer token. Unauthenticated.
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Credentials"
+      responses:
+        "200":
+          description: Authenticated; token returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Token"
+        "401":
+          description: Invalid credentials.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/workspaces:
+    get:
+      operationId: listWorkspaces
+      summary: List the caller's workspaces
+      description: >
+        Every workspace the authenticated account is a member of, with the
+        account's own role in each and the workspace's member count.
+      tags: [Workspaces]
+      responses:
+        "200":
+          description: The caller's workspaces.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Workspace"
+    post:
+      operationId: createWorkspace
+      summary: Create a workspace
+      description: Creates a workspace and makes the caller its owner member.
+      tags: [Workspaces]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkspaceInput"
+      responses:
+        "201":
+          description: The created workspace.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workspace"
+
+  /v1/workspaces/{id}:
+    delete:
+      operationId: deleteWorkspace
+      summary: Delete a workspace
+      description: Deletes a workspace and all its memberships. Owner only.
+      tags: [Workspaces]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted.
+        "404":
+          description: No such workspace owned by the caller.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/workspaces/{id}/members:
+    post:
+      operationId: addWorkspaceMember
+      summary: Add a member
+      description: >
+        Grants another account access to the workspace, named by email. Owner
+        only. The member can then read the workspace's telemetry.
+      tags: [Workspaces]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddMemberInput"
+      responses:
+        "204":
+          description: Member added (idempotent).
+        "404":
+          description: Workspace not owned by the caller, or no account with that email.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/workspaces/{id}/members/{userId}:
+    delete:
+      operationId: removeWorkspaceMember
+      summary: Remove a member
+      description: Revokes an account's access. Owner only; the owner cannot be removed.
+      tags: [Workspaces]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Member removed.
+        "400":
+          description: Attempted to remove the owner.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Workspace not owned by the caller, or member not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -441,10 +705,21 @@ components:
         type: string
         enum: ["24h", "7d", "30d", "90d", "1y"]
         default: "7d"
-    TenantFilter:
-      name: tenant_id
+    UserFilter:
+      name: user_id
       in: query
       description: Optional business filter (the operator's end-client). Empty means all clients.
+      schema:
+        type: string
+    WorkspaceFilter:
+      name: workspace_id
+      in: query
+      description: >-
+        Scope the read to one workspace. This is an access boundary, not just a
+        filter: the caller must be a member of the workspace or the request is
+        refused with 403. Omitted, the read covers every workspace the caller is
+        a member of (an account that is a member of none sees nothing). The
+        dashboard passes the active workspace from its switcher.
       schema:
         type: string
     AgentFilter:
@@ -459,6 +734,67 @@ components:
         type: string
 
   schemas:
+    Credentials:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+    Token:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+          description: "Bearer token to send as the Authorization: Bearer header."
+    Workspace:
+      type: object
+      required: [id, name, slug, env, role, members]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        env:
+          type: string
+          enum: [production, staging, development]
+        role:
+          type: string
+          enum: [owner, member]
+          description: The calling account's role in this workspace.
+        members:
+          type: integer
+          minimum: 1
+          description: Total number of accounts with access to this workspace.
+    WorkspaceInput:
+      type: object
+      required: [name, slug, env]
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        env:
+          type: string
+          enum: [production, staging, development]
+    AddMemberInput:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          description: The account to grant access to.
+        role:
+          type: string
+          enum: [owner, member]
+          default: member
     Span:
       type: object
       required:
@@ -505,9 +841,12 @@ components:
           type: number
           minimum: 0
           description: Computed cost in USD for this span.
-        tenant_id:
+        user_id:
           type: string
-          description: Tenant identifier.
+          description: End-client / user identifier — the metering & cost-attribution label (not an access boundary).
+        workspace_id:
+          type: string
+          description: Workspace the span belongs to — the access-control unit (accounts read only workspaces they are a member of).
         model_normalized:
           type: string
           description: Canonical model id after alias resolution.
@@ -551,9 +890,12 @@ components:
         duration_ms:
           type: integer
           description: Total duration in milliseconds.
-        tenant_id:
+        user_id:
           type: string
-          description: Tenant identifier.
+          description: End-client / user identifier — the metering & cost-attribution label (not an access boundary).
+        workspace_id:
+          type: string
+          description: Workspace the trace belongs to — the access-control unit.
         span_count:
           type: integer
           minimum: 0
@@ -595,6 +937,21 @@ components:
         message:
           type: string
           description: Human-readable description of the error.
+
+    PaginatedSpanResponse:
+      type: object
+      required: [items, total, page, page_size]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Span"
+        total:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
 
     PaginatedTraceResponse:
       type: object
@@ -1001,6 +1358,74 @@ components:
         total:
           type: integer
           description: Total failed runs in the window (not just the listed agents).
+        page:
+          type: integer
+        page_size:
+          type: integer
+
+    Anomaly:
+      type: object
+      required:
+        - metric
+        - scope
+        - agent
+        - bucket_ms
+        - observed
+        - expected
+        - deviation
+        - score
+        - direction
+        - severity
+        - summary
+      properties:
+        metric:
+          type: string
+          enum: ["cost", "error_rate", "runs"]
+          description: The metric that deviated.
+        scope:
+          type: string
+          enum: ["workspace", "agent"]
+          description: Whether this anomaly is workspace-wide or for one agent.
+        agent:
+          type: string
+          description: The agent name when scope is "agent"; empty otherwise.
+        bucket_ms:
+          type: integer
+          description: Anomalous day bucket, Unix epoch milliseconds (UTC midnight).
+        observed:
+          type: number
+          description: The bucket's value (USD, error rate 0–1, or run count).
+        expected:
+          type: number
+          description: Baseline median the value was compared against.
+        deviation:
+          type: number
+          description: observed − expected.
+        score:
+          type: number
+          description: Signed robust z-score (0.6745·deviation/MAD); its sign matches direction.
+        direction:
+          type: string
+          enum: ["spike", "drop"]
+          description: Whether the value rose above or fell below the baseline.
+        severity:
+          type: string
+          enum: ["info", "warning", "critical"]
+          description: Magnitude band of the deviation.
+        summary:
+          type: string
+          description: One-line human-readable description of the anomaly.
+
+    PaginatedAnomalyResponse:
+      type: object
+      required: [items, total, page, page_size]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Anomaly"
+        total:
+          type: integer
         page:
           type: integer
         page_size:
