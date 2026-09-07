@@ -24,7 +24,7 @@ func TestUsageRows_BuildsSyntheticSpans(t *testing.T) {
 	in.Attributes().PutStr(attrMetricTokenType, "input")
 	in.Attributes().PutStr(attrMetricModel, "gpt-4o")
 	in.Attributes().PutStr(attrMetricNormalized, "gpt-4o")
-	in.Attributes().PutStr(attrMetricTenantID, "acme-corp")
+	in.Attributes().PutStr(attrMetricUserID, "acme-corp")
 	in.Attributes().PutDouble(attrMetricCostUSD, 0.005)
 
 	out := h.DataPoints().AppendEmpty()
@@ -50,8 +50,8 @@ func TestUsageRows_BuildsSyntheticSpans(t *testing.T) {
 	if inRow.CostUSD != 0.005 {
 		t.Errorf("input cost = %v, want 0.005", inRow.CostUSD)
 	}
-	if inRow.ModelNormalized != "gpt-4o" || inRow.TenantID != "acme-corp" {
-		t.Errorf("input row = %+v, want model gpt-4o tenant acme-corp", inRow)
+	if inRow.ModelNormalized != "gpt-4o" || inRow.UserID != "acme-corp" {
+		t.Errorf("input row = %+v, want model gpt-4o user acme-corp", inRow)
 	}
 	if inRow.StartTimeMs != bucket.UnixMilli() {
 		t.Errorf("start_time_ms = %d, want %d", inRow.StartTimeMs, bucket.UnixMilli())

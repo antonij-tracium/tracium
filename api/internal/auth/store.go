@@ -91,6 +91,11 @@ func (s *UserStore) ByEmail(ctx context.Context, email string) (*model.User, err
 	return &u, nil
 }
 
+// Ping verifies the Postgres connection is alive. Used by the readiness probe.
+func (s *UserStore) Ping(ctx context.Context) error {
+	return s.pool.Ping(ctx)
+}
+
 // Close releases the underlying connection pool.
 func (s *UserStore) Close() {
 	s.pool.Close()

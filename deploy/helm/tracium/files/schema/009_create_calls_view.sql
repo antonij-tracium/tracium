@@ -1,0 +1,28 @@
+-- Typed read view: real per-call spans only.
+--
+-- tracium.spans is a tagged union — real OTLP spans (source='span') and
+-- token-usage metric points rolled into span-shaped rows (source='metric') share
+-- one table. Every read that reconstructs a trace, agent, latency, or run count
+-- must exclude the metric rows, which carry no trace identity; forgetting the
+-- source predicate collapses them into a phantom trace. That predicate used to be
+-- repeated at ~20 call sites in the API, one omission away from a bug.
+--
+-- This view is the single place that predicate lives now. The API reads
+-- tracium.calls for everything trace/agent/latency/run-shaped, so a query against
+-- it *cannot* see metric rows — the exclusion is structural, not a convention each
+-- query has to remember. Cost is the one figure metered by both sources; it reads
+-- tracium.calls and tracium.usage_metrics explicitly and reconciles them (see the
+-- API's reconciled cost path).
+--
+-- A plain (non-materialized) view stores only this SELECT and copies no data;
+-- reading it is rewritten to the query below at run time, so it costs exactly what
+-- the inline predicate did (source is not in the sort key — it never pruned).
+--
+-- Additive-column caveat (same rule as the table itself, 001): this is CREATE VIEW
+-- IF NOT EXISTS, so on a deployment where the view already exists it is a no-op. If
+-- you ADD COLUMN to tracium.spans and the API must read it, recreate the view:
+--   DROP VIEW IF EXISTS tracium.calls; -- then re-run this migration
+--
+-- Single CREATE statement (the migration runner sends one statement per file).
+CREATE VIEW IF NOT EXISTS tracium.calls AS
+SELECT * FROM tracium.spans WHERE source = 'span';

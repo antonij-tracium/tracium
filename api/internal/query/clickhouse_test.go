@@ -6,32 +6,76 @@ import (
 	"time"
 )
 
-// Every read of tracium.spans that reconstructs a trace must be pinned to the
-// span source. Metric rows carry an empty trace_id, so an unpinned GROUP BY
-// trace_id collapses them all into one phantom trace.
-func TestTraceFilterSQLPinsSpanSource(t *testing.T) {
-	f := TraceFilter{StartAfter: time.UnixMilli(100), StartBefore: time.UnixMilli(200)}
-	clause, args := traceFilterSQL(f)
-
-	if !strings.Contains(clause, "source = ?") {
-		t.Errorf("clause missing source predicate: %q", clause)
-	}
-	// The source arg binds after the two time bounds and before any tenant.
-	if len(args) != 3 || args[2] != sourceSpan {
-		t.Errorf("args = %v, want [100 200 %q]", args, sourceSpan)
-	}
-
-	// A tenant filter still binds after the source, keeping arg order aligned.
-	f.TenantID = "acme"
-	_, args = traceFilterSQL(f)
-	if len(args) != 4 || args[2] != sourceSpan || args[3] != "acme" {
-		t.Errorf("tenant args = %v", args)
+// Trace reconstruction reads the tracium.calls view (per-call spans only), so
+// metric rows — which carry an empty trace_id and would collapse into one phantom
+// trace under GROUP BY trace_id — are excluded structurally, with no source
+// predicate in the query itself.
+func TestTraceQueriesReadCallsView(t *testing.T) {
+	for _, sel := range []struct {
+		name string
+		sql  string
+	}{
+		{"traceSelect", traceSelect},
+		{"spanSelect", spanSelect},
+	} {
+		if !strings.Contains(sel.sql, "tracium.calls") {
+			t.Errorf("%s does not read tracium.calls:\n%s", sel.name, sel.sql)
+		}
+		if strings.Contains(sel.sql, "tracium.spans") {
+			t.Errorf("%s still reads the raw tracium.spans union:\n%s", sel.name, sel.sql)
+		}
 	}
 }
 
-// GetSpans reads by trace_id; it pins the source for the same reason.
-func TestSpanSelectPinsSpanSource(t *testing.T) {
-	if !strings.Contains(spanSelect, "source = ?") {
-		t.Errorf("spanSelect missing source predicate: %q", spanSelect)
+// The trace-list and trace-detail clauses no longer carry a source predicate —
+// the calls view supplies the exclusion — so their bound args are only the time
+// bounds / trace id and the business + access filters, in that order.
+func TestTraceFilterSQLHasNoSourcePredicate(t *testing.T) {
+	f := TraceFilter{StartAfter: time.UnixMilli(100), StartBefore: time.UnixMilli(200)}
+	clause, args := traceFilterSQL(f)
+
+	if strings.Contains(clause, "source") {
+		t.Errorf("clause should not mention source: %q", clause)
+	}
+	// Just the two time bounds, no source arg between them and the user.
+	if len(args) != 2 || args[0] != int64(100) || args[1] != int64(200) {
+		t.Errorf("args = %v, want [100 200]", args)
+	}
+
+	// A user filter binds immediately after the time bounds.
+	f.UserID = "acme"
+	_, args = traceFilterSQL(f)
+	if len(args) != 3 || args[2] != "acme" {
+		t.Errorf("user args = %v, want [100 200 acme]", args)
+	}
+}
+
+func TestTraceDetailScopeHasNoSourcePredicate(t *testing.T) {
+	clause, _ := traceDetailScope("trace", []string{"workspace"})
+	if strings.Contains(clause, "source") {
+		t.Errorf("traceDetailScope should not mention source: %q", clause)
+	}
+}
+
+func TestTraceDetailsRequireWorkspaceScope(t *testing.T) {
+	for _, tc := range []struct {
+		ids       []string
+		predicate string
+		count     int
+	}{
+		{nil, "AND 1 = 0", 1},
+		{[]string{"workspace-a"}, "AND workspace_id = ?", 2},
+		{[]string{"workspace-a", "workspace-b"}, "AND workspace_id IN (?,?)", 3},
+	} {
+		clause, args := traceDetailScope("known-trace", tc.ids)
+		if !strings.Contains(clause, tc.predicate) || len(args) != tc.count {
+			t.Fatalf("unsafe scope: %s %v", clause, args)
+		}
+		// Workspace ids bind after the single trace-id arg (no source arg anymore).
+		for i, id := range tc.ids {
+			if args[i+1] != id {
+				t.Fatalf("scope argument mismatch: %v", args)
+			}
+		}
 	}
 }

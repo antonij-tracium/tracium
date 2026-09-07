@@ -1,0 +1,12 @@
+# Isolated validation: Docker assigns unused loopback ports and separate volumes.
+services:
+  clickhouse:
+    ports: !override ["127.0.0.1::8123"]
+  postgres:
+    ports: !override []
+  collector:
+    ports: !override ["127.0.0.1::4318"]
+  api:
+    ports: !override []
+  dashboard:
+    ports: !override ["127.0.0.1::3000"]

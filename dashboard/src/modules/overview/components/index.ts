@@ -10,3 +10,5 @@ export type { TopAgentRow } from './TopAgents';
 export { ActivityFeed } from './ActivityFeed';
 export { OverviewLayout } from './OverviewLayout';
 export { Section } from './Section';
+export { OutlierChips } from './outliers/OutlierChips';
+export { OutliersPanel } from './outliers/OutliersPanel';

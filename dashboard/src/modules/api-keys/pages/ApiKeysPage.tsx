@@ -1322,7 +1322,7 @@ function KeyStatusPill({ status }: { status: ApiKey['status'] }) {
 // ApiKeysPage
 // ---------------------------------------------------------------------------
 
-export default function ApiKeysPage({ demo = false }: ApiKeysPageProps) {
+function DemoApiKeysPage({ demo = true }: ApiKeysPageProps) {
   const [keys, setKeys] = useState<ApiKey[]>(demo ? API_KEYS : []);
   const [filter, setFilter] = useState<TabId>('active');
   const [envFilter, setEnvFilter] = useState('all');
@@ -1675,35 +1675,6 @@ export default function ApiKeysPage({ demo = false }: ApiKeysPageProps) {
         </div>
       )}
 
-      {/* SDK snippet */}
-      <SectionHead
-        title="Use a key in code"
-        hint="Set the key as an environment variable and pass it to the SDK constructor. Never commit a key to source."
-      />
-      <pre
-        style={{
-          margin: 0,
-          padding: '16px 18px',
-          background: 'var(--surface-alt)',
-          border: '1px solid var(--border)',
-          borderRadius: 8,
-          fontFamily: 'var(--font-mono)',
-          fontSize: 12.5,
-          color: 'var(--foreground)',
-          overflow: 'auto',
-          lineHeight: 1.65,
-        }}
-      >{`import { Tracium } from "@tracium/sdk";
-
-const tracium = new Tracium({
-  apiKey: process.env.TRACIUM_API_KEY,    // tr_live_…
-  workspace: "aqtos",
-});
-
-await tracium.trace("rewrite-message", async (span) => {
-  // your agent code
-});`}</pre>
-
       <CreateKeyModal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
@@ -1717,4 +1688,15 @@ await tracium.trace("rewrite-message", async (span) => {
       />
     </div>
   );
+}
+
+// Simulated credentials are restricted to the embedded preview.
+export default function ApiKeysPage({ demo = false }: ApiKeysPageProps) {
+  if (demo) return <DemoApiKeysPage demo />;
+  return <div style={{ padding: 32, maxWidth: 760, margin: '0 auto' }}>
+    <h1>Ingestion authentication</h1>
+    <p>Per-client API keys are unavailable in this alpha. No keys can be created or revoked here.</p>
+    <p>Keep the collector on a trusted network. To authenticate senders, configure a shared bearer token or mutual TLS on the collector.</p>
+    <p>See <a href="https://github.com/tracium/tracium/blob/main/deploy/docs/collector-auth.md" target="_blank" rel="noreferrer">the collector authentication guide</a> for setup instructions.</p>
+  </div>;
 }

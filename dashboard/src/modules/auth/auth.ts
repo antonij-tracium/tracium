@@ -6,13 +6,13 @@ export const EMAIL_KEY = 'tracium_email';
 export const REDIRECT_KEY = 'tracium_redirect';
 
 export function readInitialToken(): string | null {
-  const params = new URLSearchParams(window.location.search);
-  const urlToken = params.get('token');
-  if (urlToken) {
-    localStorage.setItem(TOKEN_KEY, urlToken);
-    window.history.replaceState({}, '', window.location.pathname);
-    return urlToken;
-  }
+  // Deliberately does NOT accept a token from the URL (e.g. /?token=...).
+  // Doing so let a crafted link silently replace the current session with an
+  // attacker-supplied account (login CSRF / session replacement) — there is no
+  // exchange binding the token to a login initiated by this browser, and the
+  // displayed email would still read from the previous session, hiding the swap.
+  // A session is only ever established through an in-app login (see App.tsx
+  // handleLogin), which sets the token and the matching email together.
   return localStorage.getItem(TOKEN_KEY);
 }
 

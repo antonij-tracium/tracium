@@ -69,15 +69,39 @@ a bearer token, and the data routes additionally require a tenant.
 ```
 GET  /health  /ready
 POST /auth/register  /auth/login
-GET|POST|DELETE /workspaces[/{id}]                         (auth only)
+GET|POST /workspaces        DELETE /workspaces/{id}         (auth only)
+POST /workspaces/{id}/members   DELETE /workspaces/{id}/members/{userId}   (owner only)
 GET  /traces  /traces/{id}  /traces/{traceId}/spans        (auth + tenant)
 GET  /metrics/kpis  /cost-series  /latency-series  /error-series
 GET  /metrics/top-agents  /agents  /agents/{name}  /failures
-GET  /metrics/model-costs  /usage-tenants  /usage-agents
+GET  /metrics/model-costs  /usage-users  /usage-agents
 ```
 
 The canonical request/response shapes live in
 [`spec/api/openapi.yaml`](../spec/api/openapi.yaml), not here.
+
+## Workspace access
+
+Telemetry is scoped by **workspace**, which is the access boundary. A workspace
+has **members** (`workspace_members`): its creator is the `owner`, and the owner
+can add other accounts as `member` via the member endpoints above. Every span
+carries a `workspace_id` (promoted from `tracium.workspace.id`); every read is
+scoped to the workspaces the caller is a member of:
+
+- An optional `workspace_id` query param (on `/traces` and every `/metrics/*`)
+  narrows a read to one workspace — the dashboard passes the active one from its
+  workspace switcher.
+- If the caller is **not** a member of the requested workspace, the read is
+  refused with **403**.
+- With no `workspace_id`, a read returns the union of the caller's workspaces; an
+  account that is a member of none sees nothing (never everything).
+
+`user_id` is a *different* axis — the end-client/metering label the dashboard
+allocates cost by, an optional filter, not an access boundary.
+
+Single-trace reads and their `/spans` endpoint enforce the same membership
+scope in the database. Without access they return 404; explicitly requesting an
+inaccessible workspace returns 403. A trace ID is never an access credential.
 
 ## License
 

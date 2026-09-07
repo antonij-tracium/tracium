@@ -7,7 +7,7 @@ upstream OTel components. Tracium adds exactly two custom components:
 
 | Component | Type | What it does |
 |-----------|------|--------------|
-| `processors.tracium` | processor | LLM-span enrichment: validate → normalise model → resolve tenant → compute cost → filter |
+| `processors.tracium` | processor | LLM-span enrichment: validate → normalise model → resolve user → compute cost → filter |
 | `exporters.clickhousespan` | exporter | Writes the `tracium.spans` ClickHouse schema |
 
 ```
@@ -29,9 +29,9 @@ type Enricher interface {
 ```
 
 - **OSS** registers [`enrich.DefaultChain`](enrich/enrichers.go): static pricing,
-  pass-through tenant, optional model allow-list.
+  pass-through user, optional model allow-list.
 - **Enterprise** ships a second processor that composes on top of the OSS chain
-  with its own enrichers (dynamic per-tenant pricing, real tenant-store lookups,
+  with its own enrichers (dynamic per-user pricing, real user-store lookups,
   quotas, PII redaction) behind the *same* interface. It lives in a separate
   private repo — none of it is in this repo.
 
@@ -51,7 +51,7 @@ own Go module (the standard OTel component layout).
 collector/
 ├── enrich/                       # ← domain logic + open-core seam (framework-free, tested)
 ├── internal/
-│   ├── pricing/  tenant/         # resolvers used by the OSS enrichers
+│   ├── pricing/  user/         # resolvers used by the OSS enrichers
 │   ├── writer/                   # ClickHouse writer reused by the exporter
 │   └── errors/                   # span/transient error taxonomy
 ├── pkg/spanmodel/                # the plain Span struct the chain operates on

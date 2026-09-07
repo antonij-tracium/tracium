@@ -5,13 +5,19 @@
 // presentational components are shared with the demo UsagePage.
 //
 // Spend / Runs reuse the overview KPI + series endpoints; the three breakdowns
-// (models, tenants, agents) have their own usage endpoints. Per-row change vs
+// (models, users, agents) have their own usage endpoints. Per-row change vs
 // the previous period comes straight from the *_prev fields the API returns.
 // ---------------------------------------------------------------------------
 
 import { useState } from 'react';
-import { EmptyState, costFormatter, tokenFormatter } from '../../../common';
-import type { TenantId } from '../../../common/ids';
+import {
+  EmptyState,
+  costFormatter,
+  tokenFormatter,
+  useMaxWidth,
+  BREAKPOINTS,
+} from '../../../common';
+import type { UserId } from '../../../common/ids';
 import { Section } from '../../overview/components';
 import { useKpis, useCostSeries, useErrorSeries } from '../../overview/hooks/useMetrics';
 import type { Kpi, KpiSet, CostBucket, ErrorBucket } from '../../overview/interfaces';
@@ -26,18 +32,25 @@ import {
   UsageMasthead,
   Breakdown,
   TabPill,
-  AllocationPanel,
 } from '../components';
 import type { KpiItem, DeltaTone, BreakdownTab, SortKey } from '../components';
-import { useModelCosts, useTenantUsage, useAgentUsage } from '../hooks/useUsage';
+import {
+  useModelCosts,
+  useUserUsage,
+  useAgentUsage,
+  useAttributeKeys,
+  useAttributeUsage,
+} from '../hooks/useUsage';
 import type {
   DailySeriesPoint,
   ModelSummary,
-  TenantSummary,
+  UserSummary,
   AgentSummary,
+  AttributeSummary,
   ModelCost,
-  TenantUsage,
+  UserUsage,
   AgentUsage,
+  AttributeUsage,
 } from '../interfaces';
 
 interface UsageLivePageProps {
@@ -123,17 +136,16 @@ const toModelSummaries = (models: ModelCost[]): ModelSummary[] =>
     color: MODEL_COLORS[i % MODEL_COLORS.length],
   }));
 
-const toTenantSummaries = (tenants: TenantUsage[]): TenantSummary[] =>
-  tenants.map((t) => ({
-    id: (t.tenant_id || '—') as TenantId,
-    name: t.tenant_id || 'default',
+const toUserSummaries = (users: UserUsage[]): UserSummary[] =>
+  users.map((t) => ({
+    id: (t.user_id || '—') as UserId,
+    name: t.user_id || 'default',
     cost: t.cost,
     costPrev: t.cost_prev,
     runs: t.runs,
     runsPrev: t.runs_prev,
     avg: t.runs > 0 ? t.cost / t.runs : 0,
     trend: t.trend ?? [],
-    // plan is intentionally omitted — it isn't telemetry-derived.
   }));
 
 const toAgentSummaries = (agents: AgentUsage[]): AgentSummary[] =>
@@ -147,23 +159,54 @@ const toAgentSummaries = (agents: AgentUsage[]): AgentSummary[] =>
     avg: a.runs > 0 ? a.cost / a.runs : 0,
   }));
 
+const toAttributeSummaries = (rows: AttributeUsage[]): AttributeSummary[] =>
+  rows.map((r) => ({
+    name: r.value || '—',
+    cost: r.cost,
+    // The attribute endpoint carries no previous-period figures.
+    costPrev: 0,
+    runs: r.runs,
+    runsPrev: 0,
+    avg: r.runs > 0 ? r.cost / r.runs : 0,
+  }));
+
 const sumCost = (rows: { cost: number }[]): number => rows.reduce((s, r) => s + r.cost, 0);
 
 // ── Page ────────────────────────────────────────────────────────────────────
 
 export function UsageLivePage({ range, setView, setSelected }: UsageLivePageProps) {
-  const [tab, setTab] = useState<BreakdownTab>('tenant');
+  const [tab, setTab] = useState<BreakdownTab>('user');
   const [sortBy, setSortBy] = useState<SortKey>('cost');
+
+  // On the wide layout the models panel borrows its height from the chart beside
+  // it and scrolls; stacked, it has no sibling to match, so it grows freely.
+  const stacked = useMaxWidth(BREAKPOINTS.tablet);
+
+  // The attribute view remembers which custom dimension was last picked.
+  const [attrKey, setAttrKey] = useState('');
 
   const kpis = useKpis(range);
   const cost = useCostSeries(range);
   const errors = useErrorSeries(range);
   const models = useModelCosts(range);
-  const tenants = useTenantUsage(range);
+  const users = useUserUsage(range);
   const agents = useAgentUsage(range);
+  const attrKeys = useAttributeKeys(range);
+
+  const attributeKeys = attrKeys.data?.items ?? [];
+  const activeAttr = attrKey || attributeKeys[0] || '';
+  // Only fetch the allocation for the active dimension while the attribute tab
+  // is selected.
+  const attrUsage = useAttributeUsage(range, tab === 'attribute' ? activeAttr : '');
 
   function handleTabChange(t: BreakdownTab) {
     setTab(t);
+    setSortBy('cost');
+  }
+
+  function handleAttrSelect(k: string) {
+    setAttrKey(k);
+    setTab('attribute');
     setSortBy('cost');
   }
 
@@ -183,12 +226,13 @@ export function UsageLivePage({ range, setView, setSelected }: UsageLivePageProp
   const totalTokens = models.data
     ? modelRows.reduce((s, m) => s + m.inputTokens + m.outputTokens, 0)
     : undefined;
-  const tenantRows = tenants.data ? toTenantSummaries(tenants.data.items) : [];
+  const userRows = users.data ? toUserSummaries(users.data.items) : [];
   const agentRows = agents.data ? toAgentSummaries(agents.data.items) : [];
+  const attrRows = attrUsage.data ? toAttributeSummaries(attrUsage.data.items) : [];
 
-  const tenantCount = tenants.data?.items.length ?? 0;
+  const userCount = users.data?.items.length ?? 0;
   const agentCount = agents.data?.items.length ?? 0;
-  const subtitle = `${RANGE_LABEL[range] ?? RANGE_LABEL['7d']} · ${tenantCount} active tenants, ${agentCount} agents`;
+  const subtitle = `${RANGE_LABEL[range] ?? RANGE_LABEL['7d']} · ${userCount} active users, ${agentCount} agents`;
 
   // Freshness reflects the most recent successful fetch across the page's
   // sections; 0 (nothing loaded yet) hides the badge.
@@ -198,7 +242,7 @@ export function UsageLivePage({ range, setView, setSelected }: UsageLivePageProp
       cost.dataUpdatedAt,
       errors.dataUpdatedAt,
       models.dataUpdatedAt,
-      tenants.dataUpdatedAt,
+      users.dataUpdatedAt,
       agents.dataUpdatedAt,
     ) || undefined;
 
@@ -232,7 +276,7 @@ export function UsageLivePage({ range, setView, setSelected }: UsageLivePageProp
             </Panel>
           }
           right={
-            <Panel eyebrow="Models" title="Where it goes">
+            <Panel eyebrow="Models" title="Where it goes" scroll={!stacked}>
               <Section isLoading={models.isLoading} isError={models.isError} minHeight={200}>
                 <ModelsList models={modelRows} />
               </Section>
@@ -249,23 +293,29 @@ export function UsageLivePage({ range, setView, setSelected }: UsageLivePageProp
             tab={tab}
             setTab={handleTabChange}
             tabs={[
-              { id: 'tenant', label: 'By tenant', count: tenantCount },
+              { id: 'user', label: 'By user', count: userCount },
               { id: 'agent', label: 'By agent', count: agentCount },
             ]}
+            attribute={{
+              keys: attributeKeys,
+              value: activeAttr,
+              onSelect: handleAttrSelect,
+            }}
           />
         }
       />
-      {tab === 'tenant' ? (
-        <Section isLoading={tenants.isLoading} isError={tenants.isError}>
+      {tab === 'user' && (
+        <Section isLoading={users.isLoading} isError={users.isError}>
           <Breakdown
-            rows={tenantRows}
-            totalCost={sumCost(tenantRows)}
-            kind="tenant"
+            rows={userRows}
+            totalCost={sumCost(userRows)}
+            kind="user"
             sortBy={sortBy}
             setSortBy={setSortBy}
           />
         </Section>
-      ) : (
+      )}
+      {tab === 'agent' && (
         <Section isLoading={agents.isLoading} isError={agents.isError}>
           <Breakdown
             rows={agentRows}
@@ -276,10 +326,19 @@ export function UsageLivePage({ range, setView, setSelected }: UsageLivePageProp
           />
         </Section>
       )}
-
-      <AllocationPanel range={range} />
+      {tab === 'attribute' && (
+        <Section isLoading={attrUsage.isLoading} isError={attrUsage.isError}>
+          <Breakdown
+            rows={attrRows}
+            totalCost={sumCost(attrRows)}
+            kind="attribute"
+            nameLabel={activeAttr}
+            sortBy={sortBy}
+            setSortBy={setSortBy}
+          />
+        </Section>
+      )}
     </div>
   );
 }
 
-export default UsageLivePage;

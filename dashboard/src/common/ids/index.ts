@@ -1,1 +1,1 @@
-export type { TenantId } from './TenantId';
+export type { UserId } from './UserId';

@@ -13,10 +13,9 @@ internet. The Helm chart already assumes this: the collector is a ClusterIP
 service and the ingress only routes the API (`/v1`) and dashboard (`/`), never
 `4317/4318`. Only workloads inside the cluster can reach it.
 
-In Docker Compose the ports *are* published to the host (`4317:4317`,
-`4318:4318`) for local convenience. If that host is internet-facing, either drop
-the `ports:` mappings (so only other compose services reach the collector) or add
-a token (below).
+In Docker Compose the ports *are* published to the host on loopback (`127.0.0.1:4317:4317`,
+`127.0.0.1:4318:4318`) for local convenience. To accept traffic from other hosts, explicitly configure a trusted bind address
+and require authentication (below).
 
 ## Option A — shared bearer token (built in, opt-in)
 

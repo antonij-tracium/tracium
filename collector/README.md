@@ -1,7 +1,7 @@
 # collector
 
 The ingest half of Tracium. It receives OTLP from your instrumented apps,
-enriches each span with cost/tenant/normalised-model, and writes it to
+enriches each span with cost/user/workspace/normalised-model, and writes it to
 ClickHouse. It does **not** serve queries — that's [`api`](../api).
 It exposes no HTTP API of its own beyond a health check.
 
@@ -11,7 +11,7 @@ queue, retry, and health checks are all upstream OTel components. Tracium adds
 exactly two:
 
 - `processors.tracium` — the enrichment chain (validate → normalise model →
-  resolve tenant → price → filter).
+  resolve user → price → filter).
 - `exporters.clickhousespan` — writes the `tracium.spans` schema.
 
 All domain logic lives behind the `enrich.Enricher` seam in the framework-free
@@ -28,9 +28,9 @@ The binary is assembled by the OpenTelemetry Collector Builder (OCB), pinned to
 the manifest's collector version:
 
 ```bash
-go install go.opentelemetry.io/collector/cmd/builder@v0.116.0
-builder --config builder/oss.builder.yaml          # → ./_build/collector
-./_build/collector --config config/collector.yaml
+GOWORK=off go install go.opentelemetry.io/collector/cmd/builder@v0.116.0
+GOWORK=off builder --config builder/oss.builder.yaml  # → ./_build/tracium-collector
+./_build/tracium-collector --config config/collector.yaml
 ```
 
 Or `docker compose up collector` from the repo root — the Dockerfile runs OCB
@@ -58,7 +58,7 @@ its `${env:VAR}` override.
   with an error code and counted; see `internal/deadletter` and the `dropped`
   counter on `:8888`.
 - **Ingest is bounded on purpose.** The OTLP ports are unauthenticated, so token
-  counts, model names, and tenant labels are capped before they can reach storage
+  counts, model names, and user labels are capped before they can reach storage
   — one span claiming 2^62 tokens would otherwise poison every `sum(cost_usd)`.
   The ceilings live in [`enrich/enrichers.go`](enrich/enrichers.go).
 - **The OTLP ports are unauthenticated by default** — keep them on a trusted

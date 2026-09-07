@@ -8,7 +8,7 @@
 //
 //   - The OSS edition registers DefaultEnrichers (see enrichers.go).
 //   - The Enterprise edition registers the same chain plus its own Enrichers
-//     (dynamic pricing, multi-tenant resolution, quotas, …) behind this same
+//     (dynamic pricing, multi-user resolution, quotas, …) behind this same
 //     interface — no fork of the plumbing required.
 //
 // Because nothing here depends on the collector framework, the whole package

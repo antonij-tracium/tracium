@@ -20,26 +20,30 @@ spec:
     spec:
       containers:
         - name: api
-          image: "{{ .Values.api.image.repository }}:{{ include "tracium.imageTag" (dict "component" .Values.api "global" .Values.global) }}"
+          image: "{{ .Values.api.image.repository }}:{{ include "tracium.imageTag" (dict "component" .Values.api "global" .Values.global "chart" .Chart) }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
           ports:
             - name: http
               containerPort: {{ .Values.api.service.port }}
               protocol: TCP
-            - name: health
-              containerPort: {{ .Values.api.service.healthPort }}
-              protocol: TCP
           env:
+            # Passwords come from the ClickHouse/Postgres Secrets and are woven
+            # into the DSNs below via Kubernetes $(VAR) expansion, so they must be
+            # declared first (see tracium.clickhouseDSN / tracium.postgresDSN).
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.clickhouse.existingSecret }}
+                  key: {{ .Values.clickhouse.existingSecretKey }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.existingSecret }}
+                  key: {{ .Values.postgres.existingSecretKey }}
             - name: CLICKHOUSE_DSN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "tracium.fullname" . }}-db
-                  key: clickhouse-dsn
+              value: {{ include "tracium.clickhouseDSN" . | quote }}
             - name: POSTGRES_DSN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "tracium.fullname" . }}-db
-                  key: postgres-dsn
+              value: {{ include "tracium.postgresDSN" . | quote }}
             # Required: the API validates this at startup and exits without it.
             # HS256 signs and verifies with the same key, so it must be unique per
             # install and kept secret. Operator-created (see values.yaml api.jwt).
@@ -50,19 +54,22 @@ spec:
                   key: {{ .Values.api.jwt.existingSecretKey }}
             - name: LISTEN_ADDR
               value: ":{{ .Values.api.service.port }}"
-            - name: HEALTH_ADDR
-              value: ":{{ .Values.api.service.healthPort }}"
+            # Path to the mounted config file (see volumeMounts below). Without
+            # this the API never reads /etc/tracium/api.yaml and silently runs on
+            # built-in defaults, ignoring everything set in the ConfigMap.
+            - name: CONFIG_FILE
+              value: /etc/tracium/api.yaml
           readinessProbe:
             httpGet:
               path: /v1/ready
-              port: health
+              port: http
             initialDelaySeconds: 5
             periodSeconds: 10
             failureThreshold: 3
           livenessProbe:
             httpGet:
               path: /v1/health
-              port: health
+              port: http
             initialDelaySeconds: 10
             periodSeconds: 30
             failureThreshold: 5

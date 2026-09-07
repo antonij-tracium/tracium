@@ -5,6 +5,7 @@
 // components are shared with the demo OverviewPage.
 // ---------------------------------------------------------------------------
 
+import { useState } from 'react';
 import { EmptyState, fmtCost, fmtNum, fmtMs, fmtPct, isLongRange, RANGE_LABEL, toCostPoints, toLatencyPoints, toErrorPoints } from '../../../common';
 import type { CostPoint, LatencyPoint, ErrorPoint } from '../../../common/interfaces';
 import type { Trace } from '../../trace-explorer/interfaces';
@@ -17,6 +18,8 @@ import {
   ActivityFeed,
   OverviewLayout,
   Section,
+  OutlierChips,
+  OutliersPanel,
 } from '../components';
 import type { KpiItem, TopAgentRow, SyncStatus, SyncTone } from '../components';
 import {
@@ -26,9 +29,11 @@ import {
   useErrorSeries,
   useTopAgents,
   useFailures,
+  useAnomalies,
   useRecentActivity,
 } from '../hooks/useMetrics';
-import type { Kpi, KpiSet, CostBucket, LatencyBucket, ErrorBucket, AgentCost, FailureRow, ActivityItem } from '../interfaces';
+import type { Kpi, KpiSet, CostBucket, LatencyBucket, ErrorBucket, AgentCost, FailureRow, ActivityItem, Anomaly } from '../interfaces';
+import { anomalyKey, anomalyValue, toChartMarkers } from '../utils/anomalies';
 import type { ActivityId } from '../ids';
 import type { Tweaks } from './OverviewPage';
 
@@ -148,7 +153,13 @@ export function OverviewLivePage({ range, setView, setSelected, tweaks }: Overvi
   const agents = useTopAgents(range);
   const failures = useFailures(range);
   const errorSeries = useErrorSeries(range);
+  const anomalies = useAnomalies(range);
   const activity = useRecentActivity();
+
+  // Outliers (design 1b + 1c). Dismissal is session-local (there is no dismiss
+  // endpoint yet); selection is shared so a chart flag and the panel stay in sync.
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [selectedOutlier, setSelectedOutlier] = useState<string | null>(null);
 
   // No runs in the window: either nothing has ever been ingested (onboarding
   // empty state) or there just weren't any traces in the selected range. The
@@ -172,10 +183,15 @@ export function OverviewLivePage({ range, setView, setSelected, tweaks }: Overvi
         description="Your agents haven't reported any activity in this window. Try a wider time range to see earlier traces."
       />
     ) : (
-      <EmptyState
-        message="No data yet"
-        description="Send your first trace and your overview will populate here."
-      />
+      <div>
+        <EmptyState
+          message="Connect your application to see data"
+          description="Add this workspace’s ID to your OpenTelemetry configuration, then send your first trace."
+        />
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '0 24px 40px' }}>
+          <button onClick={() => setView('settings')} style={{ padding: '9px 16px', borderRadius: 7, border: '1px solid var(--accent)', background: 'var(--accent)', color: 'var(--accent-contrast)', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Get workspace ID & setup</button>
+        </div>
+      </div>
     );
   }
 
@@ -185,6 +201,33 @@ export function OverviewLivePage({ range, setView, setSelected, tweaks }: Overvi
   const latencyPoints = latency.data ? toLatencyPoints(latency.data.items, range) : [];
   const summary = failures.data ? failuresSummary(failures.data.items, failures.data.total) : null;
   const errorPoints = errorSeries.data ? toErrorPoints(errorSeries.data.items, range) : [];
+
+  // Detection is daily/rollup-backed, so outliers are unavailable for 24h (the
+  // hook is disabled there); render no outlier UI in that case.
+  const outliersAvailable = range !== '24h';
+  const allAnoms = anomalies.data?.items ?? [];
+  const liveAnoms = allAnoms.filter((a) => !dismissed.has(anomalyKey(a)));
+  const dismissedCount = allAnoms.length - liveAnoms.length;
+  const costAxisMs = cost.data ? cost.data.items.map((b) => b.bucket_ms) : [];
+  const errorAxisMs = errorSeries.data ? errorSeries.data.items.map((b) => b.bucket_ms) : [];
+  const selectOutlier = (a: Anomaly) => setSelectedOutlier(anomalyKey(a));
+  const costMarkers = toChartMarkers(
+    liveAnoms.filter((a) => a.metric === 'cost'),
+    costAxisMs,
+    { label: (a) => anomalyValue(a.metric, a.observed), onSelect: selectOutlier },
+  );
+  // Only error-rate anomalies belong on the failures strip; run-volume shifts
+  // aren't failures, so they surface in the chips and panel instead.
+  const errorMarkers = toChartMarkers(
+    liveAnoms.filter((a) => a.metric === 'error_rate'),
+    errorAxisMs,
+    { onSelect: selectOutlier },
+  );
+  const dismissOutlier = (a: Anomaly) => setDismissed((s) => new Set(s).add(anomalyKey(a)));
+  const inspectOutlier = (a: Anomaly) => {
+    if (a.agent) setSelected((s) => ({ ...s, agent: a.agent }));
+    setView('agents');
+  };
 
   return (
     <OverviewLayout
@@ -202,14 +245,35 @@ export function OverviewLivePage({ range, setView, setSelected, tweaks }: Overvi
           {kpis.data && <KpiStrip items={toKpiItems(kpis.data, costPoints, latencyPoints, errorPoints, range)} />}
         </Section>
       }
+      outlierChips={
+        outliersAvailable && anomalies.data ? <OutlierChips anomalies={liveAnoms} /> : undefined
+      }
       charts={
         <Section
           isLoading={cost.isLoading || latency.isLoading}
           isError={cost.isError || latency.isError}
           minHeight={240}
         >
-          <ChartsRow costSeries={costPoints} latSeries={latencyPoints} range={range} />
+          <ChartsRow costSeries={costPoints} latSeries={latencyPoints} range={range} costMarkers={costMarkers} />
         </Section>
+      }
+      outliers={
+        outliersAvailable ? (
+          <Section isLoading={anomalies.isLoading} isError={anomalies.isError}>
+            {anomalies.data && (
+              <OutliersPanel
+                anomalies={liveAnoms}
+                range={range}
+                dismissedCount={dismissedCount}
+                selectedKey={selectedOutlier}
+                onSelectKey={setSelectedOutlier}
+                onDismiss={dismissOutlier}
+                onRestoreAll={() => setDismissed(new Set())}
+                onInspect={inspectOutlier}
+              />
+            )}
+          </Section>
+        ) : undefined
       }
       failures={
         <Section
@@ -223,6 +287,7 @@ export function OverviewLivePage({ range, setView, setSelected, tweaks }: Overvi
               worstAgent={summary.worstAgent}
               onViewAgents={() => setView('agents')}
               range={range}
+              errorMarkers={errorMarkers}
             />
           )}
         </Section>
@@ -258,4 +323,3 @@ export function OverviewLivePage({ range, setView, setSelected, tweaks }: Overvi
   );
 }
 
-export default OverviewLivePage;

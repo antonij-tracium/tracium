@@ -13,7 +13,7 @@ export interface paths {
         };
         /**
          * List traces
-         * @description Returns a paginated list of traces for the authenticated tenant. Results are ordered by start_time_ms descending.
+         * @description Returns a paginated list of traces, scoped to the workspaces the caller is a member of (see workspace_id). Results are ordered by start_time_ms descending.
          */
         get: operations["listTraces"];
         put?: never;
@@ -33,9 +33,29 @@ export interface paths {
         };
         /**
          * Get a trace by ID
-         * @description Returns a single trace including its full span list.
+         * @description Returns a trace and spans from the caller's allowed workspaces. A known trace ID never bypasses workspace membership.
          */
         get: operations["getTrace"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/traces/{traceId}/spans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List spans in an accessible trace
+         * @description Returns only spans within the caller's workspace scope. A missing or inaccessible trace returns 404.
+         */
+        get: operations["listSpans"];
         put?: never;
         post?: never;
         delete?: never;
@@ -204,6 +224,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/metrics/anomalies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Statistical anomalies
+         * @description Buckets that deviated significantly from their own recent history, for cost, error rate, and run volume — workspace-wide and per busy agent. Detection is daily and robust (median + MAD over a trailing 28-day baseline), served entirely from the daily rollup, so a range of 7d or longer is required (24h is rejected with a 400). Results are ordered most severe first.
+         */
+        get: operations["getAnomalies"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/health": {
         parameters: {
             query?: never;
@@ -244,10 +284,176 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register an account
+         * @description Creates an account and returns a bearer token. Unauthenticated.
+         */
+        post: operations["register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Log in
+         * @description Exchanges email + password for a bearer token. Unauthenticated.
+         */
+        post: operations["login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the caller's workspaces
+         * @description Every workspace the authenticated account is a member of, with the account's own role in each and the workspace's member count.
+         */
+        get: operations["listWorkspaces"];
+        put?: never;
+        /**
+         * Create a workspace
+         * @description Creates a workspace and makes the caller its owner member.
+         */
+        post: operations["createWorkspace"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a workspace
+         * @description Deletes a workspace and all its memberships. Owner only.
+         */
+        delete: operations["deleteWorkspace"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{id}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add a member
+         * @description Grants another account access to the workspace, named by email. Owner only. The member can then read the workspace's telemetry.
+         */
+        post: operations["addWorkspaceMember"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{id}/members/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a member
+         * @description Revokes an account's access. Owner only; the owner cannot be removed.
+         */
+        delete: operations["removeWorkspaceMember"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        Credentials: {
+            /** Format: email */
+            email: string;
+            /** Format: password */
+            password: string;
+        };
+        Token: {
+            /** @description Bearer token to send as the Authorization: Bearer header. */
+            token: string;
+        };
+        Workspace: {
+            id: string;
+            name: string;
+            slug: string;
+            /** @enum {string} */
+            env: "production" | "staging" | "development";
+            /**
+             * @description The calling account's role in this workspace.
+             * @enum {string}
+             */
+            role: "owner" | "member";
+            /** @description Total number of accounts with access to this workspace. */
+            members: number;
+        };
+        WorkspaceInput: {
+            name: string;
+            slug: string;
+            /** @enum {string} */
+            env: "production" | "staging" | "development";
+        };
+        AddMemberInput: {
+            /**
+             * Format: email
+             * @description The account to grant access to.
+             */
+            email: string;
+            /**
+             * @default member
+             * @enum {string}
+             */
+            role: "owner" | "member";
+        };
         Span: {
             /** @description Globally unique identifier for the trace this span belongs to. */
             trace_id: string;
@@ -273,8 +479,10 @@ export interface components {
             output_tokens?: number;
             /** @description Computed cost in USD for this span. */
             cost_usd?: number;
-            /** @description Tenant identifier. */
-            tenant_id?: string;
+            /** @description End-client / user identifier — the metering & cost-attribution label (not an access boundary). */
+            user_id?: string;
+            /** @description Workspace the span belongs to — the access-control unit (accounts read only workspaces they are a member of). */
+            workspace_id?: string;
             /** @description Canonical model id after alias resolution. */
             model_normalized?: string;
             /** @description Schema version of this span record. */
@@ -300,8 +508,10 @@ export interface components {
             end_time_ms?: number;
             /** @description Total duration in milliseconds. */
             duration_ms?: number;
-            /** @description Tenant identifier. */
-            tenant_id?: string;
+            /** @description End-client / user identifier — the metering & cost-attribution label (not an access boundary). */
+            user_id?: string;
+            /** @description Workspace the trace belongs to — the access-control unit. */
+            workspace_id?: string;
             /** @description Total number of spans in this trace. */
             span_count?: number;
             /** @description True if any span in this trace recorded an error. */
@@ -320,6 +530,12 @@ export interface components {
             code: string;
             /** @description Human-readable description of the error. */
             message: string;
+        };
+        PaginatedSpanResponse: {
+            items: components["schemas"]["Span"][];
+            total: number;
+            page: number;
+            page_size: number;
         };
         PaginatedTraceResponse: {
             /** @description The traces on this page. */
@@ -487,13 +703,57 @@ export interface components {
             page: number;
             page_size: number;
         };
+        Anomaly: {
+            /**
+             * @description The metric that deviated.
+             * @enum {string}
+             */
+            metric: "cost" | "error_rate" | "runs";
+            /**
+             * @description Whether this anomaly is workspace-wide or for one agent.
+             * @enum {string}
+             */
+            scope: "workspace" | "agent";
+            /** @description The agent name when scope is "agent"; empty otherwise. */
+            agent: string;
+            /** @description Anomalous day bucket, Unix epoch milliseconds (UTC midnight). */
+            bucket_ms: number;
+            /** @description The bucket's value (USD, error rate 0–1, or run count). */
+            observed: number;
+            /** @description Baseline median the value was compared against. */
+            expected: number;
+            /** @description observed − expected. */
+            deviation: number;
+            /** @description Signed robust z-score (0.6745·deviation/MAD); its sign matches direction. */
+            score: number;
+            /**
+             * @description Whether the value rose above or fell below the baseline.
+             * @enum {string}
+             */
+            direction: "spike" | "drop";
+            /**
+             * @description Magnitude band of the deviation.
+             * @enum {string}
+             */
+            severity: "info" | "warning" | "critical";
+            /** @description One-line human-readable description of the anomaly. */
+            summary: string;
+        };
+        PaginatedAnomalyResponse: {
+            items: components["schemas"]["Anomaly"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
     };
     responses: never;
     parameters: {
         /** @description Time window for the metric. Defaults to 7d. 24h is bucketed hourly; 7d/30d/90d/1y daily. Ranges longer than 30d (90d, 1y) are served from the daily rollup, so latency percentiles are not available for them. */
         Range: "24h" | "7d" | "30d" | "90d" | "1y";
         /** @description Optional business filter (the operator's end-client). Empty means all clients. */
-        TenantFilter: string;
+        UserFilter: string;
+        /** @description Scope the read to one workspace. This is an access boundary, not just a filter: the caller must be a member of the workspace or the request is refused with 403. Omitted, the read covers every workspace the caller is a member of (an account that is a member of none sees nothing). The dashboard passes the active workspace from its switcher. */
+        WorkspaceFilter: string;
         /** @description Optional: restrict the metric to a single agent (the trace root name), powering the agent detail page's charts. Agent-scoped metrics are a raw-window feature — ranges longer than 30d (90d, 1y) are rejected with a 400, since per-agent latency cannot be derived from the daily rollup. */
         AgentFilter: string;
     };
@@ -506,8 +766,10 @@ export interface operations {
     listTraces: {
         parameters: {
             query?: {
-                /** @description Filter by tenant ID (admin use — regular callers are scoped to their own tenant). */
-                tenant_id?: string;
+                /** @description Optional filter by end-client / user id (a metering label, not an access boundary). */
+                user_id?: string;
+                /** @description Scope the read to one workspace. This is an access boundary, not just a filter: the caller must be a member of the workspace or the request is refused with 403. Omitted, the read covers every workspace the caller is a member of (an account that is a member of none sees nothing). The dashboard passes the active workspace from its switcher. */
+                workspace_id?: components["parameters"]["WorkspaceFilter"];
                 /** @description Filter traces that contain at least one span using this model (normalized model id). */
                 model?: string;
                 /** @description Filter to traces belonging to a single agent (the trace root name) — powers an agent's recent runs. */
@@ -560,7 +822,10 @@ export interface operations {
     };
     getTrace: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Scope the read to one workspace. This is an access boundary, not just a filter: the caller must be a member of the workspace or the request is refused with 403. Omitted, the read covers every workspace the caller is a member of (an account that is a member of none sees nothing). The dashboard passes the active workspace from its switcher. */
+                workspace_id?: components["parameters"]["WorkspaceFilter"];
+            };
             header?: never;
             path: {
                 /** @description The trace_id of the trace to retrieve. */
@@ -588,7 +853,16 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Trace not found. */
+            /** @description The requested workspace is inaccessible. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Trace not found in the caller's workspace scope. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -608,13 +882,68 @@ export interface operations {
             };
         };
     };
+    listSpans: {
+        parameters: {
+            query?: {
+                /** @description Scope the read to one workspace. This is an access boundary, not just a filter: the caller must be a member of the workspace or the request is refused with 403. Omitted, the read covers every workspace the caller is a member of (an account that is a member of none sees nothing). The dashboard passes the active workspace from its switcher. */
+                workspace_id?: components["parameters"]["WorkspaceFilter"];
+            };
+            header?: never;
+            path: {
+                traceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Spans from accessible workspaces. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedSpanResponse"];
+                };
+            };
+            /** @description Missing or invalid bearer token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The requested workspace is inaccessible. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No accessible spans for that trace ID. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal error or incompatible span schema. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     getOverviewKpis: {
         parameters: {
             query?: {
                 /** @description Time window for the metric. Defaults to 7d. 24h is bucketed hourly; 7d/30d/90d/1y daily. Ranges longer than 30d (90d, 1y) are served from the daily rollup, so latency percentiles are not available for them. */
                 range?: components["parameters"]["Range"];
                 /** @description Optional business filter (the operator's end-client). Empty means all clients. */
-                tenant_id?: components["parameters"]["TenantFilter"];
+                user_id?: components["parameters"]["UserFilter"];
+                /** @description Scope the read to one workspace. This is an access boundary, not just a filter: the caller must be a member of the workspace or the request is refused with 403. Omitted, the read covers every workspace the caller is a member of (an account that is a member of none sees nothing). The dashboard passes the active workspace from its switcher. */
+                workspace_id?: components["parameters"]["WorkspaceFilter"];
             };
             header?: never;
             path?: never;
@@ -657,7 +986,9 @@ export interface operations {
                 /** @description Time window for the metric. Defaults to 7d. 24h is bucketed hourly; 7d/30d/90d/1y daily. Ranges longer than 30d (90d, 1y) are served from the daily rollup, so latency percentiles are not available for them. */
                 range?: components["parameters"]["Range"];
                 /** @description Optional business filter (the operator's end-client). Empty means all clients. */
-                tenant_id?: components["parameters"]["TenantFilter"];
+                user_id?: components["parameters"]["UserFilter"];
+                /** @description Scope the read to one workspace. This is an access boundary, not just a filter: the caller must be a member of the workspace or the request is refused with 403. Omitted, the read covers every workspace the caller is a member of (an account that is a member of none sees nothing). The dashboard passes the active workspace from its switcher. */
+                workspace_id?: components["parameters"]["WorkspaceFilter"];
                 /** @description Optional: restrict the metric to a single agent (the trace root name), powering the agent detail page's charts. Agent-scoped metrics are a raw-window feature — ranges longer than 30d (90d, 1y) are rejected with a 400, since per-agent latency cannot be derived from the daily rollup. */
                 agent?: components["parameters"]["AgentFilter"];
             };
@@ -693,7 +1024,9 @@ export interface operations {
                 /** @description Time window for the metric. Defaults to 7d. 24h is bucketed hourly; 7d/30d/90d/1y daily. Ranges longer than 30d (90d, 1y) are served from the daily rollup, so latency percentiles are not available for them. */
                 range?: components["parameters"]["Range"];
                 /** @description Optional business filter (the operator's end-client). Empty means all clients. */
-                tenant_id?: components["parameters"]["TenantFilter"];
+                user_id?: components["parameters"]["UserFilter"];
+                /** @description Scope the read to one workspace. This is an access boundary, not just a filter: the caller must be a member of the workspace or the request is refused with 403. Omitted, the read covers every workspace the caller is a member of (an account that is a member of none sees nothing). The dashboard passes the active workspace from its switcher. */
+                workspace_id?: components["parameters"]["WorkspaceFilter"];
                 /** @description Optional: restrict the metric to a single agent (the trace root name), powering the agent detail page's charts. Agent-scoped metrics are a raw-window feature — ranges longer than 30d (90d, 1y) are rejected with a 400, since per-agent latency cannot be derived from the daily rollup. */
                 agent?: components["parameters"]["AgentFilter"];
             };
@@ -729,7 +1062,9 @@ export interface operations {
                 /** @description Time window for the metric. Defaults to 7d. 24h is bucketed hourly; 7d/30d/90d/1y daily. Ranges longer than 30d (90d, 1y) are served from the daily rollup, so latency percentiles are not available for them. */
                 range?: components["parameters"]["Range"];
                 /** @description Optional business filter (the operator's end-client). Empty means all clients. */
-                tenant_id?: components["parameters"]["TenantFilter"];
+                user_id?: components["parameters"]["UserFilter"];
+                /** @description Scope the read to one workspace. This is an access boundary, not just a filter: the caller must be a member of the workspace or the request is refused with 403. Omitted, the read covers every workspace the caller is a member of (an account that is a member of none sees nothing). The dashboard passes the active workspace from its switcher. */
+                workspace_id?: components["parameters"]["WorkspaceFilter"];
                 /** @description Optional: restrict the metric to a single agent (the trace root name), powering the agent detail page's charts. Agent-scoped metrics are a raw-window feature — ranges longer than 30d (90d, 1y) are rejected with a 400, since per-agent latency cannot be derived from the daily rollup. */
                 agent?: components["parameters"]["AgentFilter"];
             };
@@ -765,7 +1100,9 @@ export interface operations {
                 /** @description Time window for the metric. Defaults to 7d. 24h is bucketed hourly; 7d/30d/90d/1y daily. Ranges longer than 30d (90d, 1y) are served from the daily rollup, so latency percentiles are not available for them. */
                 range?: components["parameters"]["Range"];
                 /** @description Optional business filter (the operator's end-client). Empty means all clients. */
-                tenant_id?: components["parameters"]["TenantFilter"];
+                user_id?: components["parameters"]["UserFilter"];
+                /** @description Scope the read to one workspace. This is an access boundary, not just a filter: the caller must be a member of the workspace or the request is refused with 403. Omitted, the read covers every workspace the caller is a member of (an account that is a member of none sees nothing). The dashboard passes the active workspace from its switcher. */
+                workspace_id?: components["parameters"]["WorkspaceFilter"];
             };
             header?: never;
             path?: never;
@@ -799,7 +1136,9 @@ export interface operations {
                 /** @description Time window for the metric. Defaults to 7d. 24h is bucketed hourly; 7d/30d/90d/1y daily. Ranges longer than 30d (90d, 1y) are served from the daily rollup, so latency percentiles are not available for them. */
                 range?: components["parameters"]["Range"];
                 /** @description Optional business filter (the operator's end-client). Empty means all clients. */
-                tenant_id?: components["parameters"]["TenantFilter"];
+                user_id?: components["parameters"]["UserFilter"];
+                /** @description Scope the read to one workspace. This is an access boundary, not just a filter: the caller must be a member of the workspace or the request is refused with 403. Omitted, the read covers every workspace the caller is a member of (an account that is a member of none sees nothing). The dashboard passes the active workspace from its switcher. */
+                workspace_id?: components["parameters"]["WorkspaceFilter"];
             };
             header?: never;
             path?: never;
@@ -833,7 +1172,9 @@ export interface operations {
                 /** @description Time window for the metric. Defaults to 7d. 24h is bucketed hourly; 7d/30d/90d/1y daily. Ranges longer than 30d (90d, 1y) are served from the daily rollup, so latency percentiles are not available for them. */
                 range?: components["parameters"]["Range"];
                 /** @description Optional business filter (the operator's end-client). Empty means all clients. */
-                tenant_id?: components["parameters"]["TenantFilter"];
+                user_id?: components["parameters"]["UserFilter"];
+                /** @description Scope the read to one workspace. This is an access boundary, not just a filter: the caller must be a member of the workspace or the request is refused with 403. Omitted, the read covers every workspace the caller is a member of (an account that is a member of none sees nothing). The dashboard passes the active workspace from its switcher. */
+                workspace_id?: components["parameters"]["WorkspaceFilter"];
             };
             header?: never;
             path: {
@@ -879,7 +1220,9 @@ export interface operations {
                 /** @description Time window for the metric. Defaults to 7d. 24h is bucketed hourly; 7d/30d/90d/1y daily. Ranges longer than 30d (90d, 1y) are served from the daily rollup, so latency percentiles are not available for them. */
                 range?: components["parameters"]["Range"];
                 /** @description Optional business filter (the operator's end-client). Empty means all clients. */
-                tenant_id?: components["parameters"]["TenantFilter"];
+                user_id?: components["parameters"]["UserFilter"];
+                /** @description Scope the read to one workspace. This is an access boundary, not just a filter: the caller must be a member of the workspace or the request is refused with 403. Omitted, the read covers every workspace the caller is a member of (an account that is a member of none sees nothing). The dashboard passes the active workspace from its switcher. */
+                workspace_id?: components["parameters"]["WorkspaceFilter"];
             };
             header?: never;
             path?: never;
@@ -897,6 +1240,46 @@ export interface operations {
                 };
             };
             /** @description Invalid range. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getAnomalies: {
+        parameters: {
+            query?: {
+                /** @description Time window for the metric. Defaults to 7d. 24h is bucketed hourly; 7d/30d/90d/1y daily. Ranges longer than 30d (90d, 1y) are served from the daily rollup, so latency percentiles are not available for them. */
+                range?: components["parameters"]["Range"];
+                /** @description Optional business filter (the operator's end-client). Empty means all clients. */
+                user_id?: components["parameters"]["UserFilter"];
+                /** @description Scope the read to one workspace. This is an access boundary, not just a filter: the caller must be a member of the workspace or the request is refused with 403. Omitted, the read covers every workspace the caller is a member of (an account that is a member of none sees nothing). The dashboard passes the active workspace from its switcher. */
+                workspace_id?: components["parameters"]["WorkspaceFilter"];
+                /** @description Restrict to one metric. Omitted, all three are detected. */
+                metric?: "cost" | "error_rate" | "runs";
+                /** @description Drop anomalies below this severity. Omitted, all severities are returned. */
+                min_severity?: "info" | "warning" | "critical";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Anomalies ordered by severity, then score, then recency. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedAnomalyResponse"];
+                };
+            };
+            /** @description Invalid range, metric, or severity. */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -961,6 +1344,217 @@ export interface operations {
                         /** @example not_ready */
                         status: string;
                     };
+                };
+            };
+        };
+    };
+    register: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Credentials"];
+            };
+        };
+        responses: {
+            /** @description Account created; token returned. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Token"];
+                };
+            };
+            /** @description An account with that email already exists. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Credentials"];
+            };
+        };
+        responses: {
+            /** @description Authenticated; token returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Token"];
+                };
+            };
+            /** @description Invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listWorkspaces: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The caller's workspaces. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Workspace"][];
+                };
+            };
+        };
+    };
+    createWorkspace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkspaceInput"];
+            };
+        };
+        responses: {
+            /** @description The created workspace. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Workspace"];
+                };
+            };
+        };
+    };
+    deleteWorkspace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such workspace owned by the caller. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    addWorkspaceMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddMemberInput"];
+            };
+        };
+        responses: {
+            /** @description Member added (idempotent). */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Workspace not owned by the caller, or no account with that email. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    removeWorkspaceMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Member removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Attempted to remove the owner. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Workspace not owned by the caller, or member not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };

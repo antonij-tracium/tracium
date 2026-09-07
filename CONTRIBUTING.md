@@ -14,6 +14,7 @@ changing that component.
 
 ```bash
 make test            # go tests (collector, api) + dashboard tests
+make smoke           # isolated end-to-end Docker check (Python 3 required)
 make up              # run the full stack from source
 make build-collector # assemble the OSS collector via OCB
 ```

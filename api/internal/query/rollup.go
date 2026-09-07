@@ -10,7 +10,7 @@ import (
 
 // This file serves the metrics queries from the daily rollup
 // (tracium.metrics_daily, see the collector's 002/003 migrations) instead of raw
-// spans. The rollup holds one row per (day, tenant, agent, model), so a long
+// spans. The rollup holds one row per (day, user, agent, model), so a long
 // window reads ~(days × cardinality) rows rather than every span in the window —
 // the read cost tracks cardinality, not span volume.
 //
@@ -36,17 +36,20 @@ const dateFmt = "2006-01-02"
 // hiInclusive includes the hi day (used for the current window so today's partial
 // day is counted); the preceding window passes false so the windows never share a
 // boundary day.
-func rollupWindow(tenant string, lo, hi time.Time, hiInclusive bool) (string, []any) {
+func rollupWindow(user string, workspaces []string, lo, hi time.Time, hiInclusive bool) (string, []any) {
 	op := "<"
 	if hiInclusive {
 		op = "<="
 	}
 	clause := "bucket_date >= ? AND bucket_date " + op + " ?"
 	args := []any{lo.Format(dateFmt), hi.Format(dateFmt)}
-	if tenant != "" {
-		clause += " AND tenant_id = ?"
-		args = append(args, tenant)
+	if user != "" {
+		clause += " AND user_id = ?"
+		args = append(args, user)
 	}
+	wsClause, wsArgs := workspaceScope(workspaces)
+	clause += wsClause
+	args = append(args, wsArgs...)
 	return clause, args
 }
 
@@ -70,24 +73,69 @@ func rollupErrRate(k rollupKPI) float64 {
 	return float64(k.errRuns) / float64(k.runs)
 }
 
-func (r *ClickHouseRepository) kpiWindowRollup(ctx context.Context, tenant string, lo, hi time.Time, hiInclusive bool) (rollupKPI, error) {
-	clause, args := rollupWindow(tenant, lo, hi, hiInclusive)
+// costReconcileRollupExpr reconciles the daily cost rollup's two source columns
+// within a bucket_date group. It is the day-grain analog of costReconcileExpr on
+// the raw-span path: each source is a lower bound on the day's true spend, so the
+// greater is the tightest non-double-counting estimate. With no metrics ingested
+// metric_cost is 0, so greatest(span, 0) = span and the result is span-only.
+const costReconcileRollupExpr = `greatest(sum(span_cost), sum(metric_cost))`
+
+// costTotalRollupSQL sums per-day reconciled cost over the window: reconcile each
+// bucket_date, then sum the days. Reads the source-aware cost rollup
+// (metrics_daily_cost) so metric-derived spend is included.
+func costTotalRollupSQL(clause string) string {
+	return fmt.Sprintf(`SELECT sum(day_cost) FROM (
+    SELECT %s AS day_cost
+    FROM tracium.metrics_daily_cost WHERE %s GROUP BY bucket_date
+)`, costReconcileRollupExpr, clause)
+}
+
+// costSeriesRollupSQL is the per-day reconciled cost series on the day grid the
+// long-window chart uses, so the chart and the KPI agree.
+func costSeriesRollupSQL(clause string) string {
+	return fmt.Sprintf(`SELECT %s AS bucket_ms, %s AS value
+FROM tracium.metrics_daily_cost WHERE %s GROUP BY bucket_ms`, bucketMsExpr, costReconcileRollupExpr, clause)
+}
+
+// costTotalRollup sums per-day reconciled cost over the window (see
+// costTotalRollupSQL). Reads metrics_daily_cost, not metrics_daily, so
+// metric-derived spend is included; with no metrics ingested it equals the
+// span-only sum.
+func (r *ClickHouseRepository) costTotalRollup(ctx context.Context, user string, workspaces []string, lo, hi time.Time, hiInclusive bool) (float64, error) {
+	clause, args := rollupWindow(user, workspaces, lo, hi, hiInclusive)
+	var cost float64
+	if err := r.db.QueryRowContext(ctx, costTotalRollupSQL(clause), args...).Scan(&cost); err != nil {
+		return 0, fmt.Errorf("clickhouse: cost total rollup: %w", err)
+	}
+	return sanitize(cost), nil
+}
+
+func (r *ClickHouseRepository) kpiWindowRollup(ctx context.Context, user string, workspaces []string, lo, hi time.Time, hiInclusive bool) (rollupKPI, error) {
+	clause, args := rollupWindow(user, workspaces, lo, hi, hiInclusive)
 	var k rollupKPI
-	q := fmt.Sprintf(`SELECT sum(cost), toInt64(uniqMerge(runs)), toInt64(uniqIfMerge(error_runs))
+	// runs/error_runs stay span-derived (metrics_daily); cost is reconciled
+	// across both sources separately (costTotalRollup), mirroring how the raw
+	// path splits costTotal out of kpiAggregates.
+	q := fmt.Sprintf(`SELECT toInt64(uniqMerge(runs)), toInt64(uniqIfMerge(error_runs))
 FROM tracium.metrics_daily WHERE %s`, clause)
-	if err := r.db.QueryRowContext(ctx, q, args...).Scan(&k.cost, &k.runs, &k.errRuns); err != nil {
+	if err := r.db.QueryRowContext(ctx, q, args...).Scan(&k.runs, &k.errRuns); err != nil {
 		return rollupKPI{}, fmt.Errorf("clickhouse: kpi rollup: %w", err)
 	}
-	k.cost = sanitize(k.cost)
+
+	cost, err := r.costTotalRollup(ctx, user, workspaces, lo, hi, hiInclusive)
+	if err != nil {
+		return rollupKPI{}, err
+	}
+	k.cost = cost
 	return k, nil
 }
 
 func (r *ClickHouseRepository) overviewKPIsRollup(ctx context.Context, f MetricsFilter) (model.KPISet, error) {
-	cur, err := r.kpiWindowRollup(ctx, f.TenantID, f.Start, f.End, true)
+	cur, err := r.kpiWindowRollup(ctx, f.UserID, f.WorkspaceIDs, f.Start, f.End, true)
 	if err != nil {
 		return model.KPISet{}, err
 	}
-	prev, err := r.kpiWindowRollup(ctx, f.TenantID, f.PrevStart, f.Start, false)
+	prev, err := r.kpiWindowRollup(ctx, f.UserID, f.WorkspaceIDs, f.PrevStart, f.Start, false)
 	if err != nil {
 		return model.KPISet{}, err
 	}
@@ -104,11 +152,11 @@ func (r *ClickHouseRepository) overviewKPIsRollup(ctx context.Context, f Metrics
 // --- Series -------------------------------------------------------------------
 
 func (r *ClickHouseRepository) costSeriesRollup(ctx context.Context, f MetricsFilter) ([]model.CostPoint, error) {
-	clause, args := rollupWindow(f.TenantID, f.Start, f.End, true)
-	q := fmt.Sprintf(`SELECT %s AS bucket_ms, sum(cost) AS value
-FROM tracium.metrics_daily WHERE %s GROUP BY bucket_ms`, bucketMsExpr, clause)
-
-	points, err := bucketSeries(ctx, r.db, f, q, args, scanCostBucket, costPoint)
+	clause, args := rollupWindow(f.UserID, f.WorkspaceIDs, f.Start, f.End, true)
+	// Reconcile the two cost sources per day (see costReconcileRollupExpr) on the
+	// same day grid the long-window chart uses, so the chart and the KPI agree
+	// and metric-derived spend is included.
+	points, err := bucketSeries(ctx, r.db, f, costSeriesRollupSQL(clause), args, scanCostBucket, costPoint)
 	if err != nil {
 		return nil, fmt.Errorf("clickhouse: cost series rollup: %w", err)
 	}
@@ -128,7 +176,7 @@ func latencySeriesEmpty(f MetricsFilter) []model.LatencyPoint {
 }
 
 func (r *ClickHouseRepository) errorSeriesRollup(ctx context.Context, f MetricsFilter) ([]model.ErrorPoint, error) {
-	clause, args := rollupWindow(f.TenantID, f.Start, f.End, true)
+	clause, args := rollupWindow(f.UserID, f.WorkspaceIDs, f.Start, f.End, true)
 	q := fmt.Sprintf(`SELECT %s AS bucket_ms,
     toInt64(uniqIfMerge(error_runs)) AS errors,
     toInt64(uniqMerge(runs))         AS total
@@ -144,7 +192,7 @@ FROM tracium.metrics_daily WHERE %s GROUP BY bucket_ms`, bucketMsExpr, clause)
 // --- Top-N lists --------------------------------------------------------------
 
 func (r *ClickHouseRepository) topAgentsRollup(ctx context.Context, f MetricsFilter, limit int) ([]model.AgentCost, error) {
-	clause, args := rollupWindow(f.TenantID, f.Start, f.End, true)
+	clause, args := rollupWindow(f.UserID, f.WorkspaceIDs, f.Start, f.End, true)
 	q := fmt.Sprintf(`SELECT agent_name AS name, sum(cost) AS cost, toInt64(uniqMerge(runs)) AS calls
 FROM tracium.metrics_daily WHERE %s GROUP BY name ORDER BY cost DESC LIMIT ?`, clause)
 
@@ -176,7 +224,7 @@ FROM tracium.metrics_daily WHERE %s GROUP BY name, bucket_ms`, bucketMsExpr, cla
 }
 
 func (r *ClickHouseRepository) listAgentsRollup(ctx context.Context, f MetricsFilter, limit int) ([]model.Agent, error) {
-	clause, args := rollupWindow(f.TenantID, f.Start, f.End, true)
+	clause, args := rollupWindow(f.UserID, f.WorkspaceIDs, f.Start, f.End, true)
 	// calls/error runs are uniq-approximate; avg latency is not derivable from a
 	// span→day rollup (per-trace durations are discarded), so it is left 0 for
 	// long windows — same limitation as LatencyP95. The dashboard shows "—".
@@ -218,7 +266,7 @@ FROM tracium.metrics_daily WHERE %s GROUP BY name, bucket_ms`, bucketMsExpr, cla
 }
 
 func (r *ClickHouseRepository) failuresRollup(ctx context.Context, f MetricsFilter, limit int) ([]model.Failure, int64, error) {
-	clause, args := rollupWindow(f.TenantID, f.Start, f.End, true)
+	clause, args := rollupWindow(f.UserID, f.WorkspaceIDs, f.Start, f.End, true)
 	// top_error is not stored in the rollup (no error_type dimension), so it is
 	// left empty for long windows.
 	q := fmt.Sprintf(`SELECT agent_name AS agent,
@@ -257,7 +305,7 @@ FROM tracium.metrics_daily WHERE %s GROUP BY agent HAVING failed > 0 ORDER BY fa
 }
 
 func (r *ClickHouseRepository) modelCostsRollup(ctx context.Context, f MetricsFilter, limit int) ([]model.ModelCost, error) {
-	clause, args := rollupWindow(f.TenantID, f.Start, f.End, true)
+	clause, args := rollupWindow(f.UserID, f.WorkspaceIDs, f.Start, f.End, true)
 	// Calls is span-level (sum of span_count), matching the raw model-costs path.
 	q := fmt.Sprintf(`SELECT model AS name, sum(cost) AS cost,
     toInt64(sum(span_count))    AS calls,
@@ -285,51 +333,51 @@ FROM tracium.metrics_daily WHERE %s AND model != '' GROUP BY name ORDER BY cost 
 
 // --- Usage tables (current vs preceding window) -------------------------------
 
-func (r *ClickHouseRepository) tenantUsageRollup(ctx context.Context, f MetricsFilter, limit int) ([]model.TenantUsage, error) {
+func (r *ClickHouseRepository) userUsageRollup(ctx context.Context, f MetricsFilter, limit int) ([]model.UserUsage, error) {
 	// One pass over [PrevStart, End], split at the current window's start day.
-	clause, args := rollupWindow(f.TenantID, f.PrevStart, f.End, true)
+	clause, args := rollupWindow(f.UserID, f.WorkspaceIDs, f.PrevStart, f.End, true)
 	curDate := f.Start.Format(dateFmt)
-	q := fmt.Sprintf(`SELECT tenant_id,
+	q := fmt.Sprintf(`SELECT user_id,
     sumIf(cost, bucket_date >= ?)                  AS cost_cur,
     sumIf(cost, bucket_date <  ?)                  AS cost_prev,
     toInt64(uniqMergeIf(runs, bucket_date >= ?))   AS runs_cur,
     toInt64(uniqMergeIf(runs, bucket_date <  ?))   AS runs_prev
-FROM tracium.metrics_daily WHERE %s GROUP BY tenant_id ORDER BY cost_cur DESC LIMIT ?`, clause)
+FROM tracium.metrics_daily WHERE %s GROUP BY user_id ORDER BY cost_cur DESC LIMIT ?`, clause)
 
 	qArgs := append([]any{curDate, curDate, curDate, curDate}, args...)
 	qArgs = append(qArgs, limit)
 	rows, err := r.db.QueryContext(ctx, q, qArgs...)
 	if err != nil {
-		return nil, fmt.Errorf("clickhouse: tenant usage rollup: %w", err)
+		return nil, fmt.Errorf("clickhouse: user usage rollup: %w", err)
 	}
 	defer rows.Close()
 
-	tenants := []model.TenantUsage{}
+	users := []model.UserUsage{}
 	for rows.Next() {
-		var t model.TenantUsage
-		if err := rows.Scan(&t.TenantID, &t.Cost, &t.CostPrev, &t.Runs, &t.RunsPrev); err != nil {
-			return nil, fmt.Errorf("clickhouse: scan tenant usage: %w", err)
+		var t model.UserUsage
+		if err := rows.Scan(&t.UserID, &t.Cost, &t.CostPrev, &t.Runs, &t.RunsPrev); err != nil {
+			return nil, fmt.Errorf("clickhouse: scan user usage: %w", err)
 		}
 		t.Cost, t.CostPrev = sanitize(t.Cost), sanitize(t.CostPrev)
-		tenants = append(tenants, t)
+		users = append(users, t)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 
 	// Trends span the current window only (the main query spans [PrevStart, End]).
-	trendClause, trendArgs := rollupWindow(f.TenantID, f.Start, f.End, true)
-	trendQ := fmt.Sprintf(`SELECT tenant_id, %s AS bucket_ms, sum(cost) AS cost
-FROM tracium.metrics_daily WHERE %s GROUP BY tenant_id, bucket_ms`, bucketMsExpr, trendClause)
-	if err := r.fillTenantTrends(ctx, f, tenants, trendQ, trendArgs); err != nil {
-		return nil, fmt.Errorf("clickhouse: tenant trends rollup: %w", err)
+	trendClause, trendArgs := rollupWindow(f.UserID, f.WorkspaceIDs, f.Start, f.End, true)
+	trendQ := fmt.Sprintf(`SELECT user_id, %s AS bucket_ms, sum(cost) AS cost
+FROM tracium.metrics_daily WHERE %s GROUP BY user_id, bucket_ms`, bucketMsExpr, trendClause)
+	if err := r.fillUserTrends(ctx, f, users, trendQ, trendArgs); err != nil {
+		return nil, fmt.Errorf("clickhouse: user trends rollup: %w", err)
 	}
-	return tenants, nil
+	return users, nil
 }
 
 func (r *ClickHouseRepository) agentUsageRollup(ctx context.Context, f MetricsFilter, limit int) ([]model.AgentUsage, error) {
 	// Agent-level cost/runs split (one pass over [PrevStart, End], split at Start).
-	clause, args := rollupWindow(f.TenantID, f.PrevStart, f.End, true)
+	clause, args := rollupWindow(f.UserID, f.WorkspaceIDs, f.PrevStart, f.End, true)
 	curDate := f.Start.Format(dateFmt)
 	q := fmt.Sprintf(`SELECT agent_name AS name,
     sumIf(cost, bucket_date >= ?)                AS cost_cur,
@@ -372,7 +420,7 @@ func (r *ClickHouseRepository) fillAgentModels(ctx context.Context, f MetricsFil
 	if len(agents) == 0 {
 		return nil
 	}
-	clause, args := rollupWindow(f.TenantID, f.Start, f.End, true)
+	clause, args := rollupWindow(f.UserID, f.WorkspaceIDs, f.Start, f.End, true)
 	q := fmt.Sprintf(`SELECT name, argMax(model, spans) AS model FROM (
     SELECT agent_name AS name, model, sum(span_count) AS spans
     FROM tracium.metrics_daily WHERE %s AND model != '' GROUP BY name, model

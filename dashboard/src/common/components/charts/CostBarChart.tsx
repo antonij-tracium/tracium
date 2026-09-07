@@ -1,16 +1,20 @@
 import React, { useRef, useState } from 'react';
-import type { CostPoint } from '../../interfaces';
+import type { CostPoint, ChartMarker } from '../../interfaces';
 import { useResize } from '../../hooks/useResize';
 
 export interface CostBarChartProps {
   series: CostPoint[];
   height?: number;
+  // Optional in-place anomaly flags: each tints its bucket's bar and draws a
+  // dashed rule; a labelled marker also renders a clickable flag near the top.
+  markers?: ChartMarker[];
 }
 
-export function CostBarChart({ series, height = 220 }: CostBarChartProps) {
+export function CostBarChart({ series, height = 220, markers = [] }: CostBarChartProps) {
   const [hover, setHover] = useState<number | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const width = useResize(ref);
+  const markerByIndex = new Map(markers.map((m) => [m.index, m]));
 
   const max = (series.length ? Math.max(...series.map((d) => d.value)) : 0) * 1.1 || 1;
   const pad = { top: 20, right: 8, bottom: 32, left: 56 };
@@ -56,6 +60,7 @@ export function CostBarChart({ series, height = 220 }: CostBarChartProps) {
           const h = (d.value / max) * innerH;
           const y = pad.top + innerH - h;
           const isHover = hover === i;
+          const marker = markerByIndex.get(i);
           return (
             <g
               key={i}
@@ -77,8 +82,8 @@ export function CostBarChart({ series, height = 220 }: CostBarChartProps) {
                 width={barW}
                 height={Math.max(2, h)}
                 rx={3}
-                fill="var(--accent)"
-                opacity={isHover ? 1 : 0.85}
+                fill={marker ? marker.color : 'var(--accent)'}
+                opacity={isHover ? 1 : marker ? 0.95 : 0.85}
               />
               {i % labelStep === 0 && (
                 <text
@@ -94,6 +99,26 @@ export function CostBarChart({ series, height = 220 }: CostBarChartProps) {
             </g>
           );
         })}
+
+        {width > 0 &&
+          markers.map((m) => {
+            if (m.index < 0 || m.index >= series.length) return null;
+            const x = pad.left + m.index * gap + gap / 2;
+            return (
+              <g key={`mk-${m.index}`} style={{ pointerEvents: 'none' }}>
+                <line
+                  x1={x}
+                  x2={x}
+                  y1={pad.top}
+                  y2={pad.top + innerH}
+                  stroke={m.color}
+                  strokeOpacity="0.6"
+                  strokeDasharray="4 3"
+                />
+                <circle cx={x} cy={pad.top} r={3.5} fill={m.color} />
+              </g>
+            );
+          })}
 
         {hover !== null && (() => {
           const d = series[hover];
@@ -139,6 +164,46 @@ export function CostBarChart({ series, height = 220 }: CostBarChartProps) {
           );
         })()}
       </svg>
+
+      {width > 0 &&
+        markers
+          .filter((m) => m.label && m.index >= 0 && m.index < series.length)
+          .map((m) => {
+            const x = pad.left + m.index * gap + gap / 2;
+            // Keep the flag inside the plot; anchor point is its center.
+            const left = Math.min(Math.max(x, pad.left + 4), width - 4);
+            return (
+              <button
+                key={`fl-${m.index}`}
+                onClick={m.onClick}
+                title={m.label}
+                style={{
+                  position: 'absolute',
+                  left,
+                  top: 2,
+                  transform: 'translateX(-50%)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  maxWidth: '90%',
+                  padding: '4px 9px',
+                  borderRadius: 8,
+                  fontSize: 11,
+                  lineHeight: 1.2,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  color: m.color,
+                  background: `color-mix(in srgb, ${m.color} 14%, transparent)`,
+                  border: `1px solid color-mix(in srgb, ${m.color} 45%, transparent)`,
+                  cursor: m.onClick ? 'pointer' : 'default',
+                }}
+              >
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: m.color, flex: 'none' }} />
+                {m.label}
+              </button>
+            );
+          })}
     </div>
   );
 }

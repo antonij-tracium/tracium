@@ -4,10 +4,10 @@ import type { ViewId } from './ids';
  * Bidirectional mapping between the dashboard's in-memory navigation state
  * (a `view` plus a `selected` record holding the active entity id) and a real
  * URL pathname. This is what makes pages linkable: a user can copy the address
- * bar for a trace/tenant/agent and send it to someone, and the recipient lands
+ * bar for a trace/user/agent and send it to someone, and the recipient lands
  * on the same page.
  *
- * Detail entity ids (trace id, tenant id, agent name) can contain characters
+ * Detail entity ids (trace id, user id, agent name) can contain characters
  * that are unsafe in a path segment, so they are percent-encoded here and
  * decoded on the way back.
  */
@@ -25,8 +25,8 @@ export function stateToPath(view: ViewId, selected: Record<string, string>): str
     case 'agents':     return selected.agent ? `/agents/${enc(selected.agent)}` : '/agents';
     case 'trace':      return selected.traceId ? `/traces/${enc(selected.traceId)}` : '/traces';
     case 'usage':      return '/usage';
-    case 'tenants':    return '/tenants';
-    case 'tenant':     return selected.tenant ? `/tenants/${enc(selected.tenant)}` : '/tenants';
+    case 'users':    return '/users';
+    case 'user':     return selected.user ? `/users/${enc(selected.user)}` : '/users';
     case 'keys':       return '/api-keys';
     case 'settings':   return '/settings';
     default:           return '/';
@@ -53,10 +53,10 @@ export function pathToState(pathname: string): NavState | null {
         : { view: 'trace', selected: {} };
     case 'usage':
       return { view: 'usage', selected: {} };
-    case 'tenants':
+    case 'users':
       return seg[1]
-        ? { view: 'tenant', selected: { tenant: seg[1] } }
-        : { view: 'tenants', selected: {} };
+        ? { view: 'user', selected: { user: seg[1] } }
+        : { view: 'users', selected: {} };
     case 'api-keys':
       return { view: 'keys', selected: {} };
     case 'settings':

@@ -24,9 +24,9 @@ const shared = (enabled: boolean) => ({
 // either refetches. The server rejects rollup ranges (>30d) with a 400, so the
 // page disables these hooks for those ranges.
 export function useAgentDetail(name: string, range: string, enabled = true) {
-  const { metricsAPI } = useAPIClient();
+  const { metricsAPI, workspaceId } = useAPIClient();
   return useQuery({
-    queryKey: ['agents', 'detail', name, range],
+    queryKey: ['agents', 'detail', workspaceId, name, range],
     queryFn: () => metricsAPI.getAgentDetail(name, range),
     ...shared(enabled),
   });
@@ -35,27 +35,27 @@ export function useAgentDetail(name: string, range: string, enabled = true) {
 // The agent's three detail charts, each its own bounded, agent-scoped series so
 // they load and refresh independently — same pattern as the overview charts.
 export function useAgentCostSeries(name: string, range: string, enabled = true) {
-  const { metricsAPI } = useAPIClient();
+  const { metricsAPI, workspaceId } = useAPIClient();
   return useQuery({
-    queryKey: ['agents', 'cost-series', name, range],
+    queryKey: ['agents', 'cost-series', workspaceId, name, range],
     queryFn: () => metricsAPI.getCostSeries(range, name),
     ...shared(enabled),
   });
 }
 
 export function useAgentLatencySeries(name: string, range: string, enabled = true) {
-  const { metricsAPI } = useAPIClient();
+  const { metricsAPI, workspaceId } = useAPIClient();
   return useQuery({
-    queryKey: ['agents', 'latency-series', name, range],
+    queryKey: ['agents', 'latency-series', workspaceId, name, range],
     queryFn: () => metricsAPI.getLatencySeries(range, name),
     ...shared(enabled),
   });
 }
 
 export function useAgentErrorSeries(name: string, range: string, enabled = true) {
-  const { metricsAPI } = useAPIClient();
+  const { metricsAPI, workspaceId } = useAPIClient();
   return useQuery({
-    queryKey: ['agents', 'error-series', name, range],
+    queryKey: ['agents', 'error-series', workspaceId, name, range],
     queryFn: () => metricsAPI.getErrorSeries(range, name),
     ...shared(enabled),
   });
@@ -63,9 +63,9 @@ export function useAgentErrorSeries(name: string, range: string, enabled = true)
 
 // The agent's most recent runs, as a bounded page of its traces (newest first).
 export function useAgentRuns(name: string, range: string, enabled = true) {
-  const { tracesAPI } = useAPIClient();
+  const { tracesAPI, workspaceId } = useAPIClient();
   return useQuery({
-    queryKey: ['agents', 'runs', name, range],
+    queryKey: ['agents', 'runs', workspaceId, name, range],
     queryFn: () => tracesAPI.listTraces({ agent: name, range, page_size: AGENT_RUNS_PAGE_SIZE }),
     ...shared(enabled),
   });

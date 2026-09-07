@@ -49,7 +49,7 @@ export default function App() {
   }
 
   const apiConfig = {
-    baseUrl: import.meta.env.VITE_API_URL ?? 'http://localhost:8090',
+    baseUrl: import.meta.env.VITE_API_URL || window.location.origin,
     apiKey: token,
   };
 

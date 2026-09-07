@@ -12,12 +12,13 @@ import (
 
 // SpanHandler handles span-related endpoints.
 type SpanHandler struct {
-	repo query.TraceRepository
+	repo   query.TraceRepository
+	access WorkspaceAccess
 }
 
 // NewSpanHandler constructs a SpanHandler with the given repository.
-func NewSpanHandler(repo query.TraceRepository) *SpanHandler {
-	return &SpanHandler{repo: repo}
+func NewSpanHandler(repo query.TraceRepository, access WorkspaceAccess) *SpanHandler {
+	return &SpanHandler{repo: repo, access: access}
 }
 
 // ListSpans handles GET /v1/traces/{traceId}/spans.
@@ -28,7 +29,11 @@ func (h *SpanHandler) ListSpans(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	spans, err := h.repo.GetSpans(r.Context(), traceID)
+	scope, ok := resolveWorkspaceScope(w, r, h.access, r.URL.Query().Get("workspace_id"))
+	if !ok {
+		return
+	}
+	spans, err := h.repo.GetSpans(r.Context(), traceID, scope)
 	if err != nil {
 		if errors.Is(err, query.ErrNotFound) {
 			respondError(w, http.StatusNotFound, "TRACE_NOT_FOUND", "trace not found")

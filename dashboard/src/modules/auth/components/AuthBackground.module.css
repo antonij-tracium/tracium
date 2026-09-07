@@ -5,24 +5,56 @@
   pointer-events: none;
 }
 
-.lineFirst {
+.container > * {
   position: absolute;
-  right: -256px;
-  top: 0;
-  height: 150%;
-  width: 800px;
-  border-left: 4px solid color-mix(in srgb, var(--auth-decorative) 55%, transparent);
-  transform: rotate(25deg);
-  transform-origin: top right;
+  inset: -30% -10%;
+  pointer-events: none;
 }
 
-.lineSecond {
-  position: absolute;
-  right: -300px;
-  top: -10%;
-  height: 150%;
-  width: 1000px;
-  border-left: 4px solid color-mix(in srgb, var(--auth-decorative) 25%, transparent);
-  transform: rotate(25deg);
-  transform-origin: top right;
+/* Faint hatching that drifts slowly upward. */
+.drift {
+  background: repeating-linear-gradient(
+    74deg,
+    transparent 0 129px,
+    color-mix(in srgb, var(--accent) 7%, transparent) 129px 130px
+  );
+  animation: auth-drift 26s linear infinite;
+}
+
+/* Sparse, brighter guide lines held static behind the drift. */
+.grid {
+  background: repeating-linear-gradient(
+    74deg,
+    transparent 0 519px,
+    color-mix(in srgb, var(--accent) 22%, transparent) 519px 520px
+  );
+}
+
+.glow {
+  inset: 0;
+  background: radial-gradient(
+    60% 55% at 50% 45%,
+    color-mix(in srgb, var(--accent) 7%, transparent),
+    transparent 70%
+  );
+}
+
+.vignette {
+  inset: 0;
+  background: radial-gradient(120% 90% at 50% 50%, transparent 25%, var(--background) 88%);
+}
+
+@keyframes auth-drift {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(0, -180px, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drift {
+    animation: none;
+  }
 }

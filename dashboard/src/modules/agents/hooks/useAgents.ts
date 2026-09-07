@@ -13,9 +13,9 @@ const AGENTS_REFRESH_MS = 60_000;
 // flipping the range selector refetches; the server caps the row count, so this
 // stays a single bounded request rather than an unbounded scan.
 export function useAgents(range: string) {
-  const { metricsAPI } = useAPIClient();
+  const { metricsAPI, workspaceId } = useAPIClient();
   return useQuery({
-    queryKey: ['agents', 'list', range],
+    queryKey: ['agents', 'list', workspaceId, range],
     queryFn: () => metricsAPI.getAgents(range),
     staleTime: AGENTS_REFRESH_MS,
     refetchInterval: AGENTS_REFRESH_MS,

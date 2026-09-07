@@ -45,4 +45,3 @@ export function TraceDetailView({ traceId, setView }: TraceDetailViewProps) {
   return <TraceView key={data.trace_id} trace={toTraceView(data)} setView={setView} />;
 }
 
-export default TraceDetailView;

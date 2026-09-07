@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   IconHome,
   IconAgents,
-  IconTenants,
+  IconUsers,
   IconUsage,
   IconKey,
   IconSettings,
@@ -28,7 +28,7 @@ const CMD_ITEMS: CmdItemData[] = [
   { label: 'Overview', icon: <IconHome size={14} />, action: { view: 'overview' } },
   { label: 'Agents', icon: <IconAgents size={14} />, action: { view: 'agents' } },
   { label: 'Usage', icon: <IconUsage size={14} />, action: { view: 'usage' } },
-  { label: 'Tenants', icon: <IconTenants size={14} />, action: { view: 'tenants' } },
+  { label: 'Users', icon: <IconUsers size={14} />, action: { view: 'users' } },
   { label: 'API Keys', icon: <IconKey size={14} />, action: { view: 'keys' } },
   { label: 'Settings', icon: <IconSettings size={14} />, action: { view: 'settings' } },
   {

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	// Import the ClickHouse driver to register it with database/sql.
 	_ "github.com/ClickHouse/clickhouse-go/v2"
@@ -17,10 +18,14 @@ import (
 // ClickHouseRepository implements TraceRepository against a real ClickHouse instance.
 type ClickHouseRepository struct {
 	db *sql.DB
+	// queryTimeout bounds how long any single read may run (storage.query_timeout_seconds).
+	// It is applied per public method via withTimeout; zero means no bound.
+	queryTimeout time.Duration
 }
 
 // NewClickHouseRepository opens a connection to ClickHouse using the given DSN.
-func NewClickHouseRepository(dsn string) (*ClickHouseRepository, error) {
+// queryTimeout bounds each read; pass 0 to leave reads unbounded.
+func NewClickHouseRepository(dsn string, queryTimeout time.Duration) (*ClickHouseRepository, error) {
 	db, err := sql.Open("clickhouse", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("clickhouse: open: %w", err)
@@ -28,24 +33,44 @@ func NewClickHouseRepository(dsn string) (*ClickHouseRepository, error) {
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("clickhouse: ping: %w", err)
 	}
-	return &ClickHouseRepository{db: db}, nil
+	return &ClickHouseRepository{db: db, queryTimeout: queryTimeout}, nil
+}
+
+// withTimeout derives a child context bounded by queryTimeout. Public read
+// methods call it once at entry and defer the returned cancel, so the deadline
+// covers the whole method — including iterating the *sql.Rows it returns, which
+// happens after QueryContext itself returns. A zero timeout leaves ctx as-is.
+// The returned cancel is always safe to call.
+func (r *ClickHouseRepository) withTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
+	if r.queryTimeout <= 0 {
+		return ctx, func() {}
+	}
+	return context.WithTimeout(ctx, r.queryTimeout)
+}
+
+// Ping verifies the ClickHouse connection is alive. Used by the readiness probe.
+// It intentionally does not apply queryTimeout — readiness carries its own
+// deadline and must not be governed by the read-query budget.
+func (r *ClickHouseRepository) Ping(ctx context.Context) error {
+	return r.db.PingContext(ctx)
 }
 
 // A trace is the aggregation of all spans sharing a trace_id. start/end span the
 // whole tree; has_error is true if any span carries an error_type.
 // trace_name prefers the collector-derived agent_name (see the collector's
 // agentName helper) so the displayed name matches the agent the trace is grouped
-// under — and, crucially, shows the right name while a trace is still in flight:
-// agent_name comes from the resource service.name, so it is present on the very
-// first auto-instrumented span (e.g. "openai.chat"), whereas a wrapping root span
-// carrying the operation name typically exports last. We fall back to the root
-// span's name (the span with an empty parent_span_id) and finally the earliest
-// span for rows written before agent_name existed (which read back empty). The
-// root name is taken from the root span, not simply the earliest by start_time_ms:
-// a span explicitly
-// wrapping an auto-instrumented call starts in the same millisecond as its child,
-// and a plain argMin would tie-break arbitrarily onto the child's name (e.g.
-// "chat gpt-4o-mini").
+// under — mirroring agentExpr's precedence: the root span's agent_name first
+// (parent_span_id = ”, the trace's entry agent), then any span's agent_name.
+// Both are taken from the root/earliest span rather than simply the earliest by
+// start_time_ms because a span wrapping an auto-instrumented call starts in the
+// same millisecond as its child, and a plain argMin would tie-break arbitrarily
+// onto the child's name (e.g. "chat gpt-4o-mini"). To keep the right name while a
+// trace is still in flight — before any invoke_agent span carrying
+// gen_ai.agent.name exports — we then fall back to the root span's own name and
+// to service_name, the resource-level name present on the very first
+// auto-instrumented span (e.g. "openai.chat"). The final fallback is the earliest
+// span's raw name (rows written before agent_name/service_name existed, which
+// read back empty).
 // Aliases deliberately differ from the raw column names: an alias that shadows a
 // column (e.g. AS start_time_ms) gets substituted back into argMin(name, start_time_ms),
 // producing an illegal aggregate-inside-aggregate. count() is cast to Int64 so it
@@ -53,24 +78,27 @@ func NewClickHouseRepository(dsn string) (*ClickHouseRepository, error) {
 const traceSelect = `
 SELECT
     trace_id,
-    coalesce(nullIf(argMinIf(agent_name, start_time_ms, agent_name != ''), ''),
+    coalesce(nullIf(argMinIf(agent_name, start_time_ms, agent_name != '' AND parent_span_id = ''), ''),
+             nullIf(argMinIf(agent_name, start_time_ms, agent_name != ''), ''),
              nullIf(argMinIf(name, start_time_ms, parent_span_id = ''), ''),
+             nullIf(argMinIf(service_name, start_time_ms, service_name != ''), ''),
              argMin(name, start_time_ms)) AS trace_name,
-    any(tenant_id)                        AS trace_tenant,
+    any(user_id)                        AS trace_user,
+    any(workspace_id)                     AS trace_workspace,
     min(start_time_ms)                    AS started_ms,
     max(end_time_ms)                      AS ended_ms,
     max(end_time_ms) - min(start_time_ms) AS dur_ms,
     toInt64(count())                      AS spans,
     max(` + spanErrored + `)              AS errored,
     sum(cost_usd)                         AS total_cost
-FROM tracium.spans`
+FROM tracium.calls`
 
 // scanTrace reads one aggregated trace row. Works with both *sql.Row and *sql.Rows.
 func scanTrace(s interface{ Scan(...any) error }) (model.Trace, error) {
 	var t model.Trace
 	var hasError uint8
 	var spanCount int64
-	err := s.Scan(&t.TraceID, &t.Name, &t.TenantID, &t.StartTimeMs, &t.EndTimeMs,
+	err := s.Scan(&t.TraceID, &t.Name, &t.UserID, &t.WorkspaceID, &t.StartTimeMs, &t.EndTimeMs,
 		&t.DurationMs, &spanCount, &hasError, &t.TotalCostUSD)
 	t.HasError = hasError != 0
 	t.SpanCount = int(spanCount)
@@ -86,6 +114,9 @@ func traceFilterSQL(filter TraceFilter) (string, []any) {
 	// Every listing is time-bounded (StartAfter is defaulted in Validate) so the
 	// query prunes to its window's granules — the spans table is ordered by
 	// start_time_ms — rather than aggregating the whole table on every page load.
+	// The query reads tracium.calls (per-call spans only), so metric-derived rows —
+	// which carry no trace_id and would otherwise collapse into one phantom trace
+	// keyed on '' — are excluded structurally, without a source predicate here.
 	clause := "\nWHERE start_time_ms >= ?"
 	args = append(args, filter.StartAfter.UnixMilli())
 	if !filter.StartBefore.IsZero() {
@@ -93,18 +124,18 @@ func traceFilterSQL(filter TraceFilter) (string, []any) {
 		args = append(args, filter.StartBefore.UnixMilli())
 	}
 
-	// source pins the listing to per-call spans (the same reasoning as window()
-	// in metrics.go): metric-derived aggregate rows carry no trace_id, so without
-	// this they all collapse into one phantom trace keyed on ''.
-	clause += " AND source = ?"
-	args = append(args, sourceSpan)
-
-	// tenant_id is an optional business filter (the operator's end-client), not
+	// user_id is an optional business filter (the operator's end-client), not
 	// an access boundary. Empty means "all clients" — read every trace.
-	if filter.TenantID != "" {
-		clause += " AND tenant_id = ?"
-		args = append(args, filter.TenantID)
+	if filter.UserID != "" {
+		clause += " AND user_id = ?"
+		args = append(args, filter.UserID)
 	}
+
+	// workspace_id scopes the listing to the workspaces the caller may read
+	// (their memberships, or the single selected one). Empty matches nothing.
+	wsClause, wsArgs := workspaceScope(filter.WorkspaceIDs)
+	clause += wsClause
+	args = append(args, wsArgs...)
 	clause += "\nGROUP BY trace_id"
 
 	var having []string
@@ -137,11 +168,14 @@ func traceFilterSQL(filter TraceFilter) (string, []any) {
 // plus the total number of matching traces across all pages so callers can size
 // their pagination UI.
 func (r *ClickHouseRepository) ListTraces(ctx context.Context, filter TraceFilter) ([]model.Trace, int64, error) {
+	ctx, cancel := r.withTimeout(ctx)
+	defer cancel()
+
 	clause, filterArgs := traceFilterSQL(filter)
 
 	// total counts the trace_id groups matching the filter, ignoring LIMIT/OFFSET.
 	var total int64
-	totalQ := "SELECT toInt64(count()) FROM (\nSELECT trace_id FROM tracium.spans" + clause + "\n)"
+	totalQ := "SELECT toInt64(count()) FROM (\nSELECT trace_id FROM tracium.calls" + clause + "\n)"
 	if err := r.db.QueryRowContext(ctx, totalQ, filterArgs...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("clickhouse: count traces: %w", err)
 	}
@@ -167,12 +201,16 @@ func (r *ClickHouseRepository) ListTraces(ctx context.Context, filter TraceFilte
 }
 
 // GetTrace returns a single aggregated trace by its ID.
-func (r *ClickHouseRepository) GetTrace(ctx context.Context, traceID string) (*model.Trace, error) {
+func (r *ClickHouseRepository) GetTrace(ctx context.Context, traceID string, workspaceIDs []string) (*model.Trace, error) {
+	ctx, cancel := r.withTimeout(ctx)
+	defer cancel()
+
 	// source = 'span' for symmetry with the listing: only per-call spans carry
 	// trace identity, so metric rows can never contribute to a trace.
-	q := traceSelect + "\nWHERE trace_id = ? AND source = ?\nGROUP BY trace_id"
+	clause, args := traceDetailScope(traceID, workspaceIDs)
+	q := traceSelect + clause + "\nGROUP BY trace_id"
 
-	t, err := scanTrace(r.db.QueryRowContext(ctx, q, traceID, sourceSpan))
+	t, err := scanTrace(r.db.QueryRowContext(ctx, q, args...))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -184,16 +222,18 @@ func (r *ClickHouseRepository) GetTrace(ctx context.Context, traceID string) (*m
 
 const spanSelect = `
 SELECT trace_id, span_id, parent_span_id, name, start_time_ms, end_time_ms, duration_ms,
-       model, model_normalized, input_tokens, output_tokens, cost_usd, tenant_id,
+       model, model_normalized, input_tokens, output_tokens, cost_usd, user_id, workspace_id,
        finish_reason, error_type, error_message, schema_version,
        input, output, available_tools, kind
-FROM tracium.spans
-WHERE trace_id = ? AND source = ?
-ORDER BY start_time_ms`
+FROM tracium.calls`
 
 // GetSpans returns all spans for a given trace ID, ordered by start time.
-func (r *ClickHouseRepository) GetSpans(ctx context.Context, traceID string) ([]model.Span, error) {
-	rows, err := r.db.QueryContext(ctx, spanSelect, traceID, sourceSpan)
+func (r *ClickHouseRepository) GetSpans(ctx context.Context, traceID string, workspaceIDs []string) ([]model.Span, error) {
+	ctx, cancel := r.withTimeout(ctx)
+	defer cancel()
+
+	clause, args := traceDetailScope(traceID, workspaceIDs)
+	rows, err := r.db.QueryContext(ctx, spanSelect+clause+"\nORDER BY start_time_ms", args...)
 	if err != nil {
 		return nil, fmt.Errorf("clickhouse: get spans: %w", err)
 	}
@@ -205,7 +245,7 @@ func (r *ClickHouseRepository) GetSpans(ctx context.Context, traceID string) ([]
 		var tools string // available_tools is stored as a JSON string column
 		if err := rows.Scan(&s.TraceID, &s.SpanID, &s.ParentSpanID, &s.Name,
 			&s.StartTimeMs, &s.EndTimeMs, &s.DurationMs, &s.Model, &s.ModelNormalized,
-			&s.InputTokens, &s.OutputTokens, &s.CostUSD, &s.TenantID, &s.FinishReason,
+			&s.InputTokens, &s.OutputTokens, &s.CostUSD, &s.UserID, &s.WorkspaceID, &s.FinishReason,
 			&s.ErrorType, &s.ErrorMessage, &s.SchemaVersion,
 			&s.Input, &s.Output, &tools, &s.Kind); err != nil {
 			return nil, fmt.Errorf("clickhouse: scan span: %w", err)
@@ -223,6 +263,18 @@ func (r *ClickHouseRepository) GetSpans(ctx context.Context, traceID string) ([]
 	// Roll up cost and tokens across the whole trace so each parent span reports
 	// the totals for its subtree. Cheap: this runs over one trace's spans, not
 	// the table.
+	if len(spans) == 0 {
+		return nil, ErrNotFound
+	}
 	model.AssignSubtreeTotals(spans)
 	return spans, nil
+}
+
+// traceDetailScope requires an explicit workspace scope, even when the trace ID
+// is known. The same trace ID can occur in multiple workspaces. It reads
+// tracium.calls, so metric rows (no trace_id) are excluded structurally — no
+// source predicate needed.
+func traceDetailScope(traceID string, workspaceIDs []string) (string, []any) {
+	clause, scopeArgs := workspaceScope(workspaceIDs)
+	return "\nWHERE trace_id = ?" + clause, append([]any{traceID}, scopeArgs...)
 }

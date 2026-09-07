@@ -7,10 +7,13 @@ import type {
   ErrorBucket,
   AgentCost,
   FailureRow,
+  Anomaly,
+  AnomalyMetric,
+  AnomalySeverity,
 } from '../../modules/overview/interfaces';
 import type {
   ModelCost,
-  TenantUsage,
+  UserUsage,
   AgentUsage,
   AttributeUsage,
 } from '../../modules/usage/interfaces';
@@ -55,13 +58,24 @@ export class MetricsAPI extends BaseAPIClient {
     return this.get('/metrics/failures', { range });
   }
 
+  // Statistical anomalies (cost / error-rate / run-volume) over the window,
+  // workspace-wide and per busy agent. Daily and rollup-backed, so the server
+  // requires a range of 7d or longer (24h is rejected). Optional metric and
+  // min_severity narrow the results.
+  getAnomalies(
+    range: string,
+    opts?: { metric?: AnomalyMetric; min_severity?: AnomalySeverity },
+  ): Promise<PaginatedResponse<Anomaly>> {
+    return this.get('/metrics/anomalies', { range, metric: opts?.metric, min_severity: opts?.min_severity });
+  }
+
   // Usage-page breakdowns. cost-series / kpis feed the rest of the page.
   getModelCosts(range: string): Promise<PaginatedResponse<ModelCost>> {
     return this.get('/metrics/model-costs', { range });
   }
 
-  getTenantUsage(range: string): Promise<PaginatedResponse<TenantUsage>> {
-    return this.get('/metrics/usage-tenants', { range });
+  getUserUsage(range: string, userId?: string): Promise<PaginatedResponse<UserUsage>> {
+    return this.get('/metrics/usage-users', { range, user_id: userId });
   }
 
   getAgentUsage(range: string): Promise<PaginatedResponse<AgentUsage>> {

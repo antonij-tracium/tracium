@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -48,6 +50,15 @@ type AuthConfig struct {
 	Mode        string `yaml:"mode"` // AuthModeJWT or AuthModeNone
 	TokenHeader string `yaml:"token_header"`
 	JWTSecret   string `yaml:"jwt_secret"`
+	// RateLimitPerMinute caps register/login attempts per client IP per minute.
+	// Defaults to 10; set a negative value to disable throttling entirely.
+	RateLimitPerMinute int `yaml:"rate_limit_per_minute"`
+	// TrustedProxies lists the IPs/CIDRs of reverse proxies allowed to set
+	// X-Forwarded-For for the rate limiter. Empty (the default) means the header
+	// is ignored and the socket peer is always used, so a direct client cannot
+	// spoof its source IP. Set this to your ingress/proxy network only when that
+	// proxy overwrites the header from untrusted input.
+	TrustedProxies []string `yaml:"trusted_proxies"`
 }
 
 // TelemetryConfig holds logging and observability settings.
@@ -87,6 +98,9 @@ func (c *Config) Default() {
 	}
 	if c.Auth.TokenHeader == "" {
 		c.Auth.TokenHeader = "Authorization"
+	}
+	if c.Auth.RateLimitPerMinute == 0 {
+		c.Auth.RateLimitPerMinute = 10
 	}
 	// auth.jwt_secret is deliberately not defaulted: a signing secret shared by
 	// every install is no secret at all. Absence must fail the deploy.
@@ -194,6 +208,20 @@ func (c *Config) ApplyEnv() {
 	}
 	if v := os.Getenv("AUTH_MODE"); v != "" {
 		c.Auth.Mode = v
+	}
+	if v := os.Getenv("AUTH_RATE_LIMIT_PER_MINUTE"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			c.Auth.RateLimitPerMinute = n
+		}
+	}
+	if v := os.Getenv("AUTH_TRUSTED_PROXIES"); v != "" {
+		var proxies []string
+		for _, p := range strings.Split(v, ",") {
+			if p = strings.TrimSpace(p); p != "" {
+				proxies = append(proxies, p)
+			}
+		}
+		c.Auth.TrustedProxies = proxies
 	}
 	if v := os.Getenv("LISTEN_ADDR"); v != "" {
 		c.Server.Addr = v

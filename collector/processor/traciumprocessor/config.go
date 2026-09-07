@@ -11,9 +11,9 @@ type Config struct {
 	// Pricing controls how per-span cost is computed.
 	Pricing PricingConfig `mapstructure:"pricing"`
 
-	// Tenant controls tenant resolution. When unset, the tenant carried in the
+	// User controls user resolution. When unset, the user carried in the
 	// span/resource attributes (if any) is used as-is.
-	Tenant TenantConfig `mapstructure:"tenant"`
+	User UserConfig `mapstructure:"user"`
 
 	// DeadLetter controls where spans the enrichment chain rejects are kept.
 	// Drops are always counted and logged; a path additionally persists the
@@ -39,10 +39,10 @@ type PricingConfig struct {
 	StaticFilePath string `mapstructure:"static_file_path"`
 }
 
-// TenantConfig selects a tenant-resolution source. OSS supports "passthrough"
-// (use the attribute value as the tenant ID); Enterprise adds e.g. "postgres".
-type TenantConfig struct {
-	// Source is the tenant strategy. OSS supports "passthrough" (the default).
+// UserConfig selects a user-resolution source. OSS supports "passthrough"
+// (use the attribute value as the user ID); Enterprise adds e.g. "postgres".
+type UserConfig struct {
+	// Source is the user strategy. OSS supports "passthrough" (the default).
 	Source string `mapstructure:"source"`
 }
 
@@ -63,10 +63,10 @@ func (c *Config) Validate() error {
 	default:
 		return fmt.Errorf("pricing.source %q is not supported in this edition", c.Pricing.Source)
 	}
-	switch c.Tenant.Source {
+	switch c.User.Source {
 	case "", "passthrough":
 	default:
-		return fmt.Errorf("tenant.source %q is not supported in this edition", c.Tenant.Source)
+		return fmt.Errorf("user.source %q is not supported in this edition", c.User.Source)
 	}
 	return nil
 }

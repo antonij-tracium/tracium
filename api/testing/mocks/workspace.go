@@ -17,6 +17,9 @@ type MockWorkspaceStore struct {
 	CreateErr error
 	DeleteErr error
 
+	// AllowedIDsErr simulates an access-lookup failure.
+	AllowedIDsErr error
+
 	// Call counters — inspect these in tests.
 	ListCallCount   int
 	CreateCallCount int
@@ -67,6 +70,37 @@ func (m *MockWorkspaceStore) Delete(_ context.Context, id, userID string) error 
 	return workspace.ErrNotFound
 }
 
+// AllowedIDs returns the ids of the workspaces the user can access. The mock
+// treats ownership as membership (every stored workspace the user owns).
+func (m *MockWorkspaceStore) AllowedIDs(_ context.Context, userID string) ([]string, error) {
+	if m.AllowedIDsErr != nil {
+		return nil, m.AllowedIDsErr
+	}
+	var ids []string
+	for _, ws := range m.Workspaces {
+		if ws.UserID == userID {
+			ids = append(ids, ws.ID)
+		}
+	}
+	return ids, nil
+}
+
+// IsOwner reports whether the user owns the workspace in the mock store.
+func (m *MockWorkspaceStore) IsOwner(_ context.Context, workspaceID, userID string) (bool, error) {
+	for _, ws := range m.Workspaces {
+		if ws.ID == workspaceID && ws.UserID == userID {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// AddMember is a no-op in the mock (membership is modelled as ownership).
+func (m *MockWorkspaceStore) AddMember(_ context.Context, _, _, _ string) error { return nil }
+
+// RemoveMember is a no-op in the mock.
+func (m *MockWorkspaceStore) RemoveMember(_ context.Context, _, _ string) error { return nil }
+
 // NewTestWorkspace returns a Workspace fixture owned by the given user.
 func NewTestWorkspace(id, userID string) model.Workspace {
 	return model.Workspace{
@@ -77,6 +111,5 @@ func NewTestWorkspace(id, userID string) model.Workspace {
 		Env:     "production",
 		Role:    "Owner",
 		Members: 1,
-		Plan:    "Free",
 	}
 }

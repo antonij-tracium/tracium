@@ -1,6 +1,6 @@
 # Tracium
 
-**Open-source LLM observability.** Tracium is an OpenTelemetry-native backend for
+**Open-source LLM observability — alpha.** Tracium is an OpenTelemetry-native backend for
 LLM apps: point any OTel-instrumented app at it and get accurate cost, token,
 latency, and error analytics per model, agent, and end-client — built to stay
 fast from the first span to hundreds of millions.
@@ -20,8 +20,8 @@ Requires Docker with Compose v2.
 git clone https://github.com/tracium/tracium
 cd tracium
 cp .env.example .env
-# Set JWT_SECRET (the API won't start without it) and change the DB passwords:
-#   openssl rand -hex 32
+# Fill in JWT_SECRET, CLICKHOUSE_PASSWORD, and POSTGRES_PASSWORD in .env.
+# Generate a separate value for each with: openssl rand -hex 32
 docker compose up --build
 ```
 
@@ -34,10 +34,37 @@ run automatically before the app services start.
 | API | http://localhost:8090 | REST API (`/v1/...`) the dashboard reads |
 | Collector — OTLP gRPC | `localhost:4317` | Point your app's OTLP exporter here |
 | Collector — OTLP HTTP | `localhost:4318` | Same, HTTP/protobuf |
-| Collector — health | http://localhost:8080/health | Liveness / readiness |
+| Collector — health | http://localhost:8080/ | Liveness / readiness |
 
-Send spans by setting `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318` in your
-app. Runnable Python senders are in [`examples/`](examples/).
+Open the dashboard, create an account, and create your first workspace. Open
+**Settings → Workspace** and copy its workspace ID. In your instrumented app, set:
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+OTEL_RESOURCE_ATTRIBUTES=tracium.workspace.id=YOUR_WORKSPACE_ID
+```
+
+Append the workspace attribute if you already set `OTEL_RESOURCE_ATTRIBUTES`.
+Telemetry without a workspace ID is stored but is not visible in workspace reads.
+The workspace ID routes telemetry; it is not an ingestion credential. Runnable
+Python senders are in [`examples/`](examples/); set `TRACIUM_WORKSPACE_ID` when
+using those examples.
+
+Compose binds published ports to loopback. For applications on other machines,
+configure a trusted network endpoint and collector authentication explicitly.
+The dashboard uses its own origin for API requests, so it also works through a
+reverse proxy without rebuilding the frontend.
+
+**Want data to look at right away?** With the stack up, seed a demo account,
+workspaces, and ~520 realistic traces in one command (requires Node.js 20+):
+
+```bash
+cd dashboard && npm run seed
+```
+
+Then sign in at http://localhost:3000 with `demo@tracium.ai` / `tracium-demo-1234`.
+See [dashboard/README.md](dashboard/README.md#seed-demo-data) for options.
 
 > The OTLP ports are **unauthenticated by default** — keep them on a trusted
 > network. See [securing the collector](deploy/docs/collector-auth.md).
@@ -47,7 +74,7 @@ app. Runnable Python senders are in [`examples/`](examples/).
 ```
 your app ──OTLP──▶ collector ──▶ ClickHouse ◀── api ◀──REST── dashboard
 (gRPC/HTTP)      (enrich: cost,    (spans +      (bounded          (trace viewer)
-                  tenant, model)    rollups)      reads)
+                  user, model)      rollups)      reads)
                                    Postgres ◀── api (users, auth, config)
 ```
 
@@ -84,6 +111,18 @@ Each directory has its own `README.md` with the details.
 
 Helm chart in [`deploy/helm/tracium`](deploy/helm/tracium/); steps in
 [`deploy/README.md`](deploy/README.md).
+
+## Alpha scope and upgrades
+
+Live traces, overview metrics, user usage, workspace creation, and workspace
+access checks are available. Per-client API keys, profile/password editing,
+workspace editing, and retention controls in the UI are unavailable; the UI
+labels these limitations. Configure ingestion authentication and retention in
+the deployment instead.
+
+Existing installations must follow [the upgrade guide](deploy/docs/upgrading.md)
+before adopting workspace scoping. The migration preserves legacy aggregates and
+requires an explicit destination workspace rather than guessing data ownership.
 
 ## Contributing
 

@@ -20,14 +20,14 @@ spec:
     spec:
       containers:
         - name: dashboard
-          image: "{{ .Values.dashboard.image.repository }}:{{ include "tracium.imageTag" (dict "component" .Values.dashboard "global" .Values.global) }}"
+          image: "{{ .Values.dashboard.image.repository }}:{{ include "tracium.imageTag" (dict "component" .Values.dashboard "global" .Values.global "chart" .Chart) }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
           ports:
             - name: http
               containerPort: {{ .Values.dashboard.service.port }}
               protocol: TCP
           env:
-            - name: VITE_API_URL
+            - name: API_UPSTREAM
               value: "http://{{ include "tracium.fullname" . }}-api:{{ .Values.api.service.port }}"
           readinessProbe:
             httpGet:

@@ -7,7 +7,8 @@ import (
 
 // TraceFilter holds all optional filtering criteria for listing traces.
 type TraceFilter struct {
-	TenantID    string    // optional: the operator's end-client (a business dimension, not an access boundary)
+	UserID    string    // optional: the operator's end-client (a business dimension, not an access boundary)
+	WorkspaceIDs []string // access scope: the workspaces the caller may read. Empty means "no accessible workspace" and matches nothing (see workspaceScope). Set by the handler from the caller's memberships.
 	Model       string    // optional model filter
 	Agent       string    // optional: restrict to one derived agent (see agentExpr), e.g. an agent's recent runs
 	HasError    *bool     // pointer to distinguish false from unset
@@ -47,12 +48,20 @@ func (f *TraceFilter) Validate() error {
 // Start/End bound the current window; PrevStart..Start is the equal-length
 // preceding window used to compute period-over-period deltas.
 type MetricsFilter struct {
-	TenantID  string        // optional business filter (the operator's end-client)
+	UserID  string        // optional business filter (the operator's end-client)
+	WorkspaceIDs []string  // access scope: the workspaces the caller may read (empty matches nothing). Set by the handler from memberships.
 	Agent     string        // optional: restrict the metric to one derived agent (see agentExpr)
 	Start     time.Time     // window lower bound (inclusive)
 	End       time.Time     // window upper bound (exclusive)
 	PrevStart time.Time     // preceding window lower bound
 	Bucket    time.Duration // time-series bucket width
+
+	// Anomaly-detection filters (optional; ignored by every non-anomaly query).
+	// AnomalyMetric restricts detection to one metric ("cost" | "error_rate" |
+	// "runs"); AnomalyMinSeverity drops anomalies below a severity ("info" |
+	// "warning" | "critical"). Empty means no restriction.
+	AnomalyMetric      string
+	AnomalyMinSeverity string
 }
 
 // rollupThreshold: windows longer than this are served from the daily rollup

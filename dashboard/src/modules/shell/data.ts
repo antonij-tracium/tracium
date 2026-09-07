@@ -24,7 +24,6 @@ export function createDemoWorkspace(): Workspace {
     slug: 'demo',
     role: 'Owner',
     members: 1,
-    plan: 'Free',
     env: 'production',
   };
 }

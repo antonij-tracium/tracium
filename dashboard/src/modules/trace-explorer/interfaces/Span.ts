@@ -1,5 +1,5 @@
 import type { TraceId, SpanId } from '../ids';
-import type { TenantId } from '../../../common/ids';
+import type { UserId } from '../../../common/ids';
 
 export interface Span {
   trace_id: TraceId;
@@ -21,7 +21,7 @@ export interface Span {
   // every descendant's, so a parent reports the total consumed beneath it.
   subtree_input_tokens: number;
   subtree_output_tokens: number;
-  tenant_id: TenantId;
+  user_id: UserId;
   model_normalized: string;
   schema_version: number;
   error_type: string;

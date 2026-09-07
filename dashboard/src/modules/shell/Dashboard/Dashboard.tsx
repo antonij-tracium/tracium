@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useAPIClient } from '../../../common/providers/APIProvider';
 import { Sidebar } from '../Sidebar';
 import { TopBar } from '../TopBar';
 import { CommandPalette } from '../CommandPalette';
@@ -6,7 +7,8 @@ import { OverviewPage, OverviewLivePage } from '../../overview';
 import { AgentsPage, AgentsLivePage, AgentDetailDemoPage, AgentDetailLivePage, AGENTS } from '../../agents';
 import { TraceDetailDashPage, TRACE_DETAIL } from '../../trace-inspector';
 import { TraceDetailView } from '../../trace-explorer';
-import { TenantsPage, TenantsLivePage, TenantDetailPage, UsagePage, UsageLivePage, TENANTS } from '../../usage';
+import { UsersPage, UsersLivePage, UserDetailPage, UsagePage, UsageLivePage, USERS } from '../../usage';
+import { UserDetailLivePage } from '../../usage/pages/UserDetailLivePage';
 import { ApiKeysPage } from '../../api-keys';
 import { SettingsPage } from '../../settings';
 import { EmptyState, useMaxWidth, BREAKPOINTS } from '../../../common';
@@ -45,8 +47,8 @@ interface DashboardProps {
  * are no runs yet.
  */
 const DATA_EMPTY: Partial<Record<ViewId, { message: string; description: string }>> = {
-  // Tenants now renders TenantsLivePage, which fetches real metrics and shows
-  // its own "No tenants yet" empty state when the window has no activity.
+  // Users now renders UsersLivePage, which fetches real metrics and shows
+  // its own "No users yet" empty state when the window has no activity.
 };
 
 /**
@@ -153,6 +155,19 @@ export function Dashboard({ embedded = false, onLogout }: DashboardProps = {}) {
     const id = localStorage.getItem('tracium_ws');
     setWorkspace(serverWorkspaces.find((w) => w.id === id) ?? serverWorkspaces[0] ?? null);
   }, [persist, wsLoading, serverWorkspaces]);
+
+  // Scope every API read to the active workspace: point the API clients at the
+  // new workspace_id when the selection changes (or resolves on load). The data
+  // hooks fold workspaceId into their query keys, so changing it refetches every
+  // dashboard on its own, scoped to the rebuilt client — no manual invalidation
+  // (which would race the client rebuild and refetch with the stale, unscoped
+  // client). Only in the real app — the embedded preview renders demo data and
+  // makes no live reads.
+  const { setWorkspaceId } = useAPIClient();
+  useEffect(() => {
+    if (!persist) return;
+    setWorkspaceId(workspace?.id);
+  }, [persist, workspace?.id, setWorkspaceId]);
   const [cmdOpen, setCmdOpen] = useState(false);
   const [tweaks, setTweaks] = useState<Tweaks>(TWEAK_DEFAULTS);
   // Below this width the sidebar collapses into an off-canvas drawer. The
@@ -182,10 +197,11 @@ export function Dashboard({ embedded = false, onLogout }: DashboardProps = {}) {
     setView('settings');
   };
   const createWorkspace = async (input: { name: string; slug: string; env: Workspace['env'] }) => {
-    if (!persist) return;
+    if (!persist) throw new Error('Sign in to create a workspace.');
     const ws = await apiCreate(input);
     updateWorkspace(ws);
-    setView('overview');
+    setCreateWsIntent(false);
+    return ws;
   };
   const deleteWorkspace = async (id: string) => {
     if (!persist) return;
@@ -272,8 +288,8 @@ export function Dashboard({ embedded = false, onLogout }: DashboardProps = {}) {
       ? [{ label: 'Agents', onClick: () => { setSelected(s => { const n = { ...s }; delete n.agent; return n; }); setView('agents'); } }, { label: selected.agent }]
       : [{ label: 'Agents' }];
     if (view === 'usage')      return [{ label: 'Usage' }];
-    if (view === 'tenants')    return [{ label: 'Tenants' }];
-    if (view === 'tenant')     return [{ label: 'Tenants', onClick: () => setView('tenants') }, { label: 'Tenant detail' }];
+    if (view === 'users')    return [{ label: 'Users' }];
+    if (view === 'user')     return [{ label: 'Users', onClick: () => setView('users') }, { label: 'User detail' }];
     if (view === 'keys')       return [{ label: 'Settings', onClick: () => setView('settings') }, { label: 'API Keys' }];
     if (view === 'settings')   return [{ label: 'Settings' }];
     return [{ label: 'Overview' }];
@@ -365,11 +381,13 @@ export function Dashboard({ embedded = false, onLogout }: DashboardProps = {}) {
             ? <UsagePage range={range} />
             : <UsageLivePage range={range} setView={setView} setSelected={setSelected} />)}
           {view === 'keys'        && <ApiKeysPage demo={embedded} />}
-          {view === 'settings'    && <SettingsPage createWorkspace={createWorkspace} createMode={createWsIntent} demo={embedded} workspace={workspace} account={embedded ? null : readAccount()} />}
-          {view === 'tenants'     && (embedded
-            ? <TenantsPage tenants={TENANTS} periodLabel="Apr 1 – Apr 30" setView={setView} setSelected={setSelected} />
-            : <TenantsLivePage range={range} setView={setView} setSelected={setSelected} />)}
-          {view === 'tenant'      && <TenantDetailPage selected={selected} setView={setView} />}
+          {view === 'settings'    && <SettingsPage createWorkspace={embedded ? undefined : createWorkspace} createMode={createWsIntent} onCancelCreate={() => setCreateWsIntent(false)} onOpenOverview={() => setView('overview')} demo={embedded} workspace={workspace} account={embedded ? null : readAccount()} />}
+          {view === 'users'     && (embedded
+            ? <UsersPage users={USERS} periodLabel="Apr 1 – Apr 30" setView={setView} setSelected={setSelected} />
+            : <UsersLivePage range={range} setView={setView} setSelected={setSelected} />)}
+          {view === 'user' && (embedded
+            ? <UserDetailPage selected={selected} setView={setView} />
+            : <UserDetailLivePage userId={selected.user || ''} range={range} setView={setView} setSelected={setSelected} />)}
           </>
           )}
         </div>

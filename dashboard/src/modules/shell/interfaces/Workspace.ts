@@ -6,6 +6,5 @@ export interface Workspace {
   slug: string;
   role: string;
   members: number;
-  plan: string;
   env: 'production' | 'development' | 'staging';
 }

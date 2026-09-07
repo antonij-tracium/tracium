@@ -15,7 +15,7 @@ import (
 const overviewLimit = 5
 
 // usageLimit caps the rows returned by the usage-page breakdown lists (models,
-// tenants, agents), which show more rows than the overview's top-five.
+// users, agents), which show more rows than the overview's top-five.
 const usageLimit = 50
 
 // agentsLimit caps the rows returned by the Agents page, which lists every
@@ -24,16 +24,19 @@ const agentsLimit = 200
 
 // MetricsHandler serves the aggregated metrics powering the dashboard overview.
 type MetricsHandler struct {
-	repo query.MetricsRepository
-	now  func() time.Time // injectable clock; defaults to time.Now
+	repo   query.MetricsRepository
+	access WorkspaceAccess
+	now    func() time.Time // injectable clock; defaults to time.Now
 }
 
-// NewMetricsHandler constructs a MetricsHandler with the given repository.
-func NewMetricsHandler(repo query.MetricsRepository) *MetricsHandler {
-	return &MetricsHandler{repo: repo, now: time.Now}
+// NewMetricsHandler constructs a MetricsHandler with the given repository and
+// workspace access resolver (used to scope every metric to the caller's
+// workspaces).
+func NewMetricsHandler(repo query.MetricsRepository, access WorkspaceAccess) *MetricsHandler {
+	return &MetricsHandler{repo: repo, access: access, now: time.Now}
 }
 
-// filter resolves the shared range + tenant_id query params into a MetricsFilter,
+// filter resolves the shared range + user_id query params into a MetricsFilter,
 // writing a 400 and returning ok=false on a bad range.
 func (h *MetricsHandler) filter(w http.ResponseWriter, r *http.Request) (query.MetricsFilter, bool) {
 	rng := r.URL.Query().Get("range")
@@ -45,9 +48,18 @@ func (h *MetricsHandler) filter(w http.ResponseWriter, r *http.Request) (query.M
 		respondError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
 		return query.MetricsFilter{}, false
 	}
-	// tenant_id is an optional business filter (the operator's end-client), not
+	// user_id is an optional business filter (the operator's end-client), not
 	// an access boundary — same semantics as ListTraces.
-	f.TenantID = r.URL.Query().Get("tenant_id")
+	f.UserID = r.URL.Query().Get("user_id")
+
+	// Enforce workspace access: scope every metric to the workspaces the caller
+	// may read (the selected one, if a valid workspace_id is passed, else all of
+	// theirs). Refuses with 403 if they ask for a workspace they can't access.
+	scope, ok := resolveWorkspaceScope(w, r, h.access, r.URL.Query().Get("workspace_id"))
+	if !ok {
+		return query.MetricsFilter{}, false
+	}
+	f.WorkspaceIDs = scope
 
 	// agent narrows the series to one derived agent (the detail page's charts).
 	// Agent-scoped metrics are a raw-window feature: per-agent latency can't come
@@ -59,6 +71,47 @@ func (h *MetricsHandler) filter(w http.ResponseWriter, r *http.Request) (query.M
 		return query.MetricsFilter{}, false
 	}
 	return f, true
+}
+
+// validAnomalyMetrics / validAnomalySeverities gate the optional anomaly query
+// params so a typo returns 400 rather than silently matching nothing.
+var validAnomalyMetrics = map[string]bool{"cost": true, "error_rate": true, "runs": true}
+var validAnomalySeverities = map[string]bool{"info": true, "warning": true, "critical": true}
+
+// Anomalies handles GET /v1/metrics/anomalies. Detection is daily and served
+// from the daily rollup, so it needs a range of 7d or longer (24h is
+// sub-daily); the handler rejects shorter ranges. Optional `metric` and
+// `min_severity` narrow the results.
+func (h *MetricsHandler) Anomalies(w http.ResponseWriter, r *http.Request) {
+	f, ok := h.filter(w, r)
+	if !ok {
+		return
+	}
+	// Detection is daily; a sub-daily bucket (the 24h range) cannot be scored.
+	if f.Bucket < 24*time.Hour {
+		respondError(w, http.StatusBadRequest, "BAD_REQUEST", "anomaly detection requires a range of 7d or longer")
+		return
+	}
+	if m := r.URL.Query().Get("metric"); m != "" {
+		if !validAnomalyMetrics[m] {
+			respondError(w, http.StatusBadRequest, "BAD_REQUEST", "metric must be one of cost, error_rate, runs")
+			return
+		}
+		f.AnomalyMetric = m
+	}
+	if s := r.URL.Query().Get("min_severity"); s != "" {
+		if !validAnomalySeverities[s] {
+			respondError(w, http.StatusBadRequest, "BAD_REQUEST", "min_severity must be one of info, warning, critical")
+			return
+		}
+		f.AnomalyMinSeverity = s
+	}
+	anomalies, err := h.repo.Anomalies(r.Context(), f)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "INTERNAL", "failed to detect anomalies")
+		return
+	}
+	respondPage(w, anomalies, len(anomalies), 1, len(anomalies))
 }
 
 // KPIs handles GET /v1/metrics/kpis.
@@ -205,18 +258,18 @@ func (h *MetricsHandler) ModelCosts(w http.ResponseWriter, r *http.Request) {
 	respondPage(w, models, len(models), 1, len(models))
 }
 
-// TenantUsage handles GET /v1/metrics/usage-tenants.
-func (h *MetricsHandler) TenantUsage(w http.ResponseWriter, r *http.Request) {
+// UserUsage handles GET /v1/metrics/usage-users.
+func (h *MetricsHandler) UserUsage(w http.ResponseWriter, r *http.Request) {
 	f, ok := h.filter(w, r)
 	if !ok {
 		return
 	}
-	tenants, err := h.repo.TenantUsage(r.Context(), f, usageLimit)
+	users, err := h.repo.UserUsage(r.Context(), f, usageLimit)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "INTERNAL", "failed to load tenant usage")
+		respondError(w, http.StatusInternalServerError, "INTERNAL", "failed to load user usage")
 		return
 	}
-	respondPage(w, tenants, len(tenants), 1, len(tenants))
+	respondPage(w, users, len(users), 1, len(users))
 }
 
 // AgentUsage handles GET /v1/metrics/usage-agents.

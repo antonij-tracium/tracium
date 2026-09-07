@@ -48,11 +48,19 @@ export function LatencyChart({ series, height = 220 }: LatencyChartProps) {
       .map((seg) => seg.map((p, i) => (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ',' + p.y.toFixed(1)).join(' '))
       .join(' ');
 
+  const p50Segs = segmentsOf('p50');
+  const p95Segs = segmentsOf('p95');
   const p99Segs = segmentsOf('p99');
   const baseY = (pad.top + innerH).toFixed(1);
   const areaPath = p99Segs
     .map((seg) => linePath([seg]) + ` L${seg[seg.length - 1].x.toFixed(1)},${baseY} L${seg[0].x.toFixed(1)},${baseY} Z`)
     .join(' ');
+
+  // An isolated bucket — one non-null point with null neighbours on both sides —
+  // becomes a length-1 segment, which draws no line (a lone `M` has nothing to
+  // connect to). A single-trace agent hits this and the whole series vanishes, so
+  // render a dot for every singleton segment to keep the point visible.
+  const isolatedPoints = (segs: Pt[][]): Pt[] => segs.filter((s) => s.length === 1).map((s) => s[0]);
 
   return (
     <div
@@ -100,7 +108,7 @@ export function LatencyChart({ series, height = 220 }: LatencyChartProps) {
           strokeDasharray="4 4"
         />
         <path
-          d={linePath(segmentsOf('p95'))}
+          d={linePath(p95Segs)}
           stroke="var(--accent)"
           strokeWidth="2"
           fill="none"
@@ -108,7 +116,7 @@ export function LatencyChart({ series, height = 220 }: LatencyChartProps) {
           strokeLinejoin="round"
         />
         <path
-          d={linePath(segmentsOf('p50'))}
+          d={linePath(p50Segs)}
           stroke="var(--foreground)"
           strokeOpacity="0.4"
           strokeWidth="1.5"
@@ -116,6 +124,17 @@ export function LatencyChart({ series, height = 220 }: LatencyChartProps) {
           strokeLinecap="round"
           strokeLinejoin="round"
         />
+
+        {/* Dots for isolated points, which the line paths above can't draw */}
+        {isolatedPoints(p99Segs).map((p, i) => (
+          <circle key={`i99-${i}`} cx={p.x} cy={p.y} r={2.5} fill="var(--warning)" />
+        ))}
+        {isolatedPoints(p50Segs).map((p, i) => (
+          <circle key={`i50-${i}`} cx={p.x} cy={p.y} r={2.5} fill="var(--foreground)" opacity="0.4" />
+        ))}
+        {isolatedPoints(p95Segs).map((p, i) => (
+          <circle key={`i95-${i}`} cx={p.x} cy={p.y} r={3} fill="var(--accent)" />
+        ))}
 
         {/* Hit areas + hover dots + x-axis labels */}
         {series.map((d, i) => {

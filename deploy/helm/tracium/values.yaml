@@ -1,7 +1,11 @@
 # Global image settings
 global:
-  # imageTag: Docker image tag applied to all services unless overridden per-service.
-  imageTag: "0.1.0"
+  # imageTag: Docker image tag applied to all services unless overridden
+  # per-service. Leave empty to track the chart's appVersion, which
+  # `helm package --app-version` stamps on each released chart — so a released
+  # chart requests the images built for that exact release. Set a value only to
+  # pin every service to a specific tag regardless of the chart version.
+  imageTag: ""
   # imagePullPolicy: Kubernetes image pull policy. Use Always in CI, IfNotPresent otherwise.
   imagePullPolicy: IfNotPresent
 
@@ -64,8 +68,6 @@ api:
   service:
     # port: REST API listen port. All routes are prefixed /v1/.
     port: 8090
-    # healthPort: separate port for /v1/health and /v1/ready probes.
-    healthPort: 8091
   # jwt: signing secret for API auth tokens. REQUIRED — the API refuses to start
   # without it. HS256 both signs and verifies with this one key, so a value shared
   # across installs is no security at all; use a unique random value per install.
@@ -101,6 +103,10 @@ dashboard:
 # Runs as a Helm hook (post-install + pre-upgrade) on every release, mirroring
 # the one-shot `migrate` service in docker-compose. Idempotent.
 migrate:
+  # Legacy upgrade only: select an existing workspace and stop ingestion first.
+  # See deploy/docs/upgrading.md. Empty on a fresh installation.
+  legacyWorkspaceId: ""
+  legacyIngestionPaused: false
   image:
     # repository: image bundling run-migrations.sh plus the psql/curl tooling it
     # needs. Built from deploy/docker/migrate/Dockerfile. The schema SQL
@@ -149,7 +155,7 @@ clickhouse:
   # existingSecretKey: key within the secret that holds the password value.
   existingSecretKey: "password"
 
-# PostgreSQL — stores configuration and metadata (tenants, API keys, migrations)
+# PostgreSQL — stores configuration and metadata (users, API keys, migrations)
 postgres:
   # storageClass: Kubernetes StorageClass for the PersistentVolumeClaim.
   storageClass: "standard"

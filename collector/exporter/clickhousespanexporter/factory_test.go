@@ -51,6 +51,46 @@ func TestConfigAcceptsSendingQueue(t *testing.T) {
 	}
 }
 
+// TestConfigAcceptsBatcher proves the batcher block in config/collector.yaml
+// unmarshals into Config. Batching lives on the exporter (after the durable
+// queue) rather than in a standalone `batch` processor (before it), so that a
+// span is persisted before it is acknowledged.
+func TestConfigAcceptsBatcher(t *testing.T) {
+	conf := confmap.NewFromStringMap(map[string]any{
+		"dsn": "clickhouse://tracium:pass@clickhouse:9000/tracium",
+		"batcher": map[string]any{
+			"enabled":        true,
+			"flush_timeout":  "5s",
+			"min_size_items": 5000,
+			"max_size_items": 10000,
+		},
+	})
+
+	cfg := NewFactory().CreateDefaultConfig().(*Config)
+	if err := conf.Unmarshal(cfg); err != nil {
+		t.Fatalf("collector.yaml-style batcher config does not unmarshal: %v", err)
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+	if !cfg.BatchConfig.Enabled {
+		t.Fatal("batcher.enabled not honoured")
+	}
+	if cfg.BatchConfig.MinSizeItems != 5000 || cfg.BatchConfig.MaxSizeItems != 10000 {
+		t.Fatalf("batcher sizes = %d/%d, want 5000/10000", cfg.BatchConfig.MinSizeItems, cfg.BatchConfig.MaxSizeItems)
+	}
+}
+
+// TestDefaultConfigBatchesByDefault pins that batching is on out of the box, so
+// an operator who omits the batcher block still gets efficient inserts without
+// reintroducing a pre-queue batch processor.
+func TestDefaultConfigBatchesByDefault(t *testing.T) {
+	cfg := NewFactory().CreateDefaultConfig().(*Config)
+	if !cfg.BatchConfig.Enabled {
+		t.Fatal("default config should batch on the exporter by default")
+	}
+}
+
 // TestConfigRejectsUnknownField pins the ErrorUnused behaviour the fields
 // above exist to satisfy: a mistyped key fails loudly instead of being
 // silently dropped and leaving the operator with the settings they thought

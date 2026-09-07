@@ -34,7 +34,7 @@
   "componentSrcMap": {
     "IconHome": null,
     "IconAgents": null,
-    "IconTenants": null,
+    "IconUsers": null,
     "IconUsage": null,
     "IconKey": null,
     "IconSettings": null,

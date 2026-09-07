@@ -8,17 +8,35 @@ permissions:
   packages: write   # push images to GHCR
 
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.work
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: azure/setup-helm@v4
+      - run: make test
+      - run: npm --prefix dashboard run build
+      - run: bash spec/codegen/gen-ts-types.sh
+      - run: git diff --exit-code -- dashboard/src/types
+      - run: make helm-lint
+      - run: make smoke
+
   images:
+    needs: validate
     runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
           - { name: collector, context: collector }
           - { name: api,        context: api }
-          # NOTE: the dashboard bakes VITE_API_URL at build time (defaults to
-          # http://localhost:8090). A published image therefore has a fixed API
-          # URL; runtime-configurable API URL (nginx env substitution) is a
-          # follow-up before this image is generically reusable.
           - { name: dashboard,  context: dashboard }
           - { name: migrate,    context: deploy/docker/migrate }
     steps:
@@ -29,12 +47,17 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      # The chart job packages with --app-version = tag without the leading "v",
+      # and the chart requests images by that appVersion, so the image tag must
+      # match it exactly (0.1.0, not v0.1.0). Strip the "v" here too.
+      - name: Derive version (tag without the leading v)
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
       - uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}:${{ github.ref_name }}
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}:${{ env.VERSION }}
             ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max

@@ -1,0 +1,22 @@
+# Resource caps keep this local validation separate from running user services.
+services:
+  clickhouse:
+    ports: !override ["127.0.0.1::8123"]
+    mem_limit: 1g
+    cpus: 2
+  postgres:
+    ports: !override []
+    mem_limit: 192m
+    cpus: 1
+  collector:
+    ports: !override ["127.0.0.1::4318", "127.0.0.1::8888"]
+    mem_limit: 384m
+    cpus: 1
+  api:
+    ports: !override []
+    mem_limit: 256m
+    cpus: 1
+  dashboard:
+    ports: !override ["127.0.0.1::3000"]
+    mem_limit: 64m
+    cpus: 0.5

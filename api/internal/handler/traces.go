@@ -14,26 +14,37 @@ import (
 
 // TraceHandler handles all trace-related endpoints.
 type TraceHandler struct {
-	repo query.TraceRepository
+	repo   query.TraceRepository
+	access WorkspaceAccess
 }
 
-// NewTraceHandler constructs a TraceHandler with the given repository.
-func NewTraceHandler(repo query.TraceRepository) *TraceHandler {
-	return &TraceHandler{repo: repo}
+// NewTraceHandler constructs a TraceHandler with the given repository and
+// workspace access resolver (used to scope listings to the caller's workspaces).
+func NewTraceHandler(repo query.TraceRepository, access WorkspaceAccess) *TraceHandler {
+	return &TraceHandler{repo: repo, access: access}
 }
 
 // ListTraces handles GET /v1/traces.
-// Accepts query params: tenant_id, model, has_error, page, page_size.
+// Accepts query params: user_id, model, has_error, page, page_size.
 func (h *TraceHandler) ListTraces(w http.ResponseWriter, r *http.Request) {
 	filter := query.TraceFilter{}
 
 	q := r.URL.Query()
 
-	// tenant_id identifies the operator's own end-client — a business dimension
+	// user_id identifies the operator's own end-client — a business dimension
 	// of the data, not an access boundary. It's an optional filter, like model.
-	if tenantID := q.Get("tenant_id"); tenantID != "" {
-		filter.TenantID = tenantID
+	if userID := q.Get("user_id"); userID != "" {
+		filter.UserID = userID
 	}
+
+	// Enforce workspace access: scope the listing to the workspaces the caller
+	// may read (the selected one, if a valid workspace_id is passed, else all of
+	// theirs). Refuses with 403 if they ask for a workspace they can't access.
+	scope, ok := resolveWorkspaceScope(w, r, h.access, q.Get("workspace_id"))
+	if !ok {
+		return
+	}
+	filter.WorkspaceIDs = scope
 
 	// range bounds the listing to a time window (default 30d) so it never scans
 	// the whole table; the explorer can widen/narrow it. Same tokens as metrics.
@@ -107,7 +118,11 @@ func (h *TraceHandler) GetTrace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	trace, err := h.repo.GetTrace(r.Context(), traceID)
+	scope, ok := resolveWorkspaceScope(w, r, h.access, r.URL.Query().Get("workspace_id"))
+	if !ok {
+		return
+	}
+	trace, err := h.repo.GetTrace(r.Context(), traceID, scope)
 	if err != nil {
 		if errors.Is(err, query.ErrNotFound) {
 			respondError(w, http.StatusNotFound, "TRACE_NOT_FOUND", "trace not found")
@@ -117,9 +132,14 @@ func (h *TraceHandler) GetTrace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	spans, err := h.repo.GetSpans(r.Context(), traceID)
+	spans, err := h.repo.GetSpans(r.Context(), traceID, scope)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "INTERNAL", "internal error")
+		return
+	}
+
+	if err := model.CheckSchemaCompatibility(spans); err != nil {
+		respondError(w, http.StatusInternalServerError, "SCHEMA_INCOMPATIBLE", err.Error())
 		return
 	}
 

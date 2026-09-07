@@ -1,6 +1,6 @@
 # Bundled ClickHouse schema
 
-These `*.sql` files are the canonical migrations, copied from
+These `*.sql` and `*.sh` files are the canonical migrations, copied from
 `collector/schema/`. The chart renders them into a ConfigMap
 (`templates/migrate-configmap.yaml`) that the migration Job mounts at
 `/migrations`.

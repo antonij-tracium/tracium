@@ -25,10 +25,13 @@ func spansRequest(traceID string) *http.Request {
 func listSpans(t *testing.T, spans []model.Span) *httptest.ResponseRecorder {
 	t.Helper()
 	repo := mocks.NewMockTraceRepository()
+	for i := range spans {
+		spans[i].WorkspaceID = "ws-test"
+	}
 	repo.SpansMap["trace-1"] = spans
 
 	rr := httptest.NewRecorder()
-	NewSpanHandler(repo).ListSpans(rr, spansRequest("trace-1"))
+	NewSpanHandler(repo, allowAllAccess{}).ListSpans(rr, authed(spansRequest("trace-1")))
 	return rr
 }
 

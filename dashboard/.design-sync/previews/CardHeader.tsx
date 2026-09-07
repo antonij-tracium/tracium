@@ -2,7 +2,7 @@ import { Card, CardHeader, LastUpdated, StatusPill } from 'tracium-dashboard';
 
 export const WithSubtitle = () => (
   <Card style={{ width: 380 }}>
-    <CardHeader title="Cost over time" subtitle="Last 7 days · all tenants" />
+    <CardHeader title="Cost over time" subtitle="Last 7 days · all users" />
     <div style={{ padding: '20px', fontSize: 13, color: 'var(--muted)' }}>chart body…</div>
   </Card>
 );

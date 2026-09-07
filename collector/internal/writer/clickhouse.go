@@ -38,13 +38,14 @@ const insertQuery = `INSERT INTO tracium.spans (
 	start_time_ms, end_time_ms, duration_ms,
 	model, model_normalized,
 	input_tokens, output_tokens, cost_usd,
-	tenant_id, finish_reason,
+	user_id, workspace_id, finish_reason,
 	output_tokens_derived, unmetered,
 	error_type, error_message,
 	schema_version,
 	input, output, available_tools,
 	source,
 	agent_name,
+	service_name,
 	kind,
 	attributes
 )`
@@ -82,7 +83,8 @@ func (w *ClickHouseWriter) WriteBatch(ctx context.Context, spans []*spanmodel.Sp
 			s.InputTokens,
 			s.OutputTokens,
 			s.CostUSD,
-			s.TenantID,
+			s.UserID,
+			s.WorkspaceID,
 			s.FinishReason,
 			boolToUInt8(s.OutputTokensDerived),
 			boolToUInt8(s.Unmetered),
@@ -94,6 +96,7 @@ func (w *ClickHouseWriter) WriteBatch(ctx context.Context, spans []*spanmodel.Sp
 			s.AvailableTools,
 			source,
 			s.AgentName,
+			s.ServiceName,
 			s.Kind,
 			attributes,
 		); err != nil {

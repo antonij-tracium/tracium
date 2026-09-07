@@ -1,0 +1,7 @@
+.env
+.env.*
+.git
+_build
+_build-ee
+*.test
+*.out

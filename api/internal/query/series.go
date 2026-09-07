@@ -132,13 +132,13 @@ func (r *ClickHouseRepository) fillAgentRowTrends(ctx context.Context, f Metrics
 	)
 }
 
-// fillTenantTrends fills each tenant's per-bucket cost sparkline from query.
-// Both the raw and rollup tenant-usage paths supply their own SQL and call this.
-func (r *ClickHouseRepository) fillTenantTrends(ctx context.Context, f MetricsFilter, tenants []model.TenantUsage, query string, args []any) error {
-	return fillTrends(ctx, r.db, f, query, args, tenants,
-		func(t *model.TenantUsage) string { return t.TenantID },
-		func(t *model.TenantUsage, n int) { t.Trend = make([]float64, n) },
-		func(t *model.TenantUsage, slot int, v float64) { t.Trend[slot] = sanitize(v) },
+// fillUserTrends fills each user's per-bucket cost sparkline from query.
+// Both the raw and rollup user-usage paths supply their own SQL and call this.
+func (r *ClickHouseRepository) fillUserTrends(ctx context.Context, f MetricsFilter, users []model.UserUsage, query string, args []any) error {
+	return fillTrends(ctx, r.db, f, query, args, users,
+		func(t *model.UserUsage) string { return t.UserID },
+		func(t *model.UserUsage, n int) { t.Trend = make([]float64, n) },
+		func(t *model.UserUsage, slot int, v float64) { t.Trend[slot] = sanitize(v) },
 		scanNamedFloat,
 	)
 }

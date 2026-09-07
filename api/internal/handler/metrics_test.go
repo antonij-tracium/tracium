@@ -9,10 +9,37 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/tracium/api/internal/middleware"
 	"github.com/tracium/api/internal/model"
 	"github.com/tracium/api/internal/query"
 	"github.com/tracium/api/testing/mocks"
 )
+
+// allowAllAccess is a WorkspaceAccess that grants a fixed workspace, so metrics
+// handler tests exercise the query path rather than the access boundary.
+type allowAllAccess struct{}
+
+func (allowAllAccess) AllowedIDs(context.Context, string) ([]string, error) {
+	return []string{"ws-test"}, nil
+}
+
+// newMetricsHandler builds a MetricsHandler wired with a permissive access
+// resolver — the drop-in the tests use in place of the production constructor.
+func newMetricsHandler(repo query.MetricsRepository) *MetricsHandler {
+	return NewMetricsHandler(repo, allowAllAccess{})
+}
+
+// authed attaches an authenticated principal to a request, as the middleware
+// chain would, so the handler's workspace-access enforcement can resolve it.
+func authed(req *http.Request) *http.Request {
+	return req.WithContext(middleware.ContextWithPrincipal(
+		req.Context(), &model.Principal{UserID: "u-test", TenantID: "t-test", Role: "user"}))
+}
+
+// serveAuthed invokes a handler method with an authenticated request.
+func serveAuthed(hf http.HandlerFunc, rr http.ResponseWriter, req *http.Request) {
+	hf.ServeHTTP(rr, authed(req))
+}
 
 // agentDetailRequest builds a request carrying the {name} path param the way chi
 // would, so AgentDetail's chi.URLParam("name") resolves in a unit test.
@@ -30,10 +57,10 @@ func TestMetricsKPIs(t *testing.T) {
 			Runs: model.KPI{Value: 3751, Delta: 0.08, DeltaType: "good"},
 		},
 	}
-	h := NewMetricsHandler(repo)
+	h := newMetricsHandler(repo)
 
 	rr := httptest.NewRecorder()
-	h.KPIs(rr, httptest.NewRequest(http.MethodGet, "/v1/metrics/kpis?range=7d", nil))
+	serveAuthed(h.KPIs, rr, httptest.NewRequest(http.MethodGet, "/v1/metrics/kpis?range=7d", nil))
 
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rr.Code)
@@ -57,10 +84,10 @@ func TestMetricsErrorSeries(t *testing.T) {
 			{BucketMs: 1_700_086_400_000, Errors: 8, Total: 298},
 		},
 	}
-	h := NewMetricsHandler(repo)
+	h := newMetricsHandler(repo)
 
 	rr := httptest.NewRecorder()
-	h.ErrorSeries(rr, httptest.NewRequest(http.MethodGet, "/v1/metrics/error-series?range=7d", nil))
+	serveAuthed(h.ErrorSeries, rr, httptest.NewRequest(http.MethodGet, "/v1/metrics/error-series?range=7d", nil))
 
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rr.Code)
@@ -82,10 +109,10 @@ func TestMetricsAgentsEnvelope(t *testing.T) {
 			{Name: "classify-intent", Calls: 1203, Cost: 0.1204, AvgLatencyMs: 820, ErrorRate: 0.014, Trend: []int64{42, 48, 52}, LastTraceID: "tr_classify_999"},
 		},
 	}
-	h := NewMetricsHandler(repo)
+	h := newMetricsHandler(repo)
 
 	rr := httptest.NewRecorder()
-	h.Agents(rr, httptest.NewRequest(http.MethodGet, "/v1/metrics/agents?range=7d", nil))
+	serveAuthed(h.Agents, rr, httptest.NewRequest(http.MethodGet, "/v1/metrics/agents?range=7d", nil))
 
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rr.Code)
@@ -105,27 +132,27 @@ func TestMetricsAgentsEnvelope(t *testing.T) {
 	}
 }
 
-func TestMetricsTenantUsageEnvelope(t *testing.T) {
+func TestMetricsUserUsageEnvelope(t *testing.T) {
 	repo := &mocks.MockMetricsRepository{
-		Tenants: []model.TenantUsage{
-			{TenantID: "tn_acme", Cost: 12.44, CostPrev: 10.88, Runs: 58022, RunsPrev: 53110, Trend: []float64{0.4, 0.5}},
+		Users: []model.UserUsage{
+			{UserID: "tn_acme", Cost: 12.44, CostPrev: 10.88, Runs: 58022, RunsPrev: 53110, Trend: []float64{0.4, 0.5}},
 		},
 	}
-	h := NewMetricsHandler(repo)
+	h := newMetricsHandler(repo)
 
 	rr := httptest.NewRecorder()
-	h.TenantUsage(rr, httptest.NewRequest(http.MethodGet, "/v1/metrics/usage-tenants?range=30d", nil))
+	serveAuthed(h.UserUsage, rr, httptest.NewRequest(http.MethodGet, "/v1/metrics/usage-users?range=30d", nil))
 
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rr.Code)
 	}
 	var got struct {
-		Items []model.TenantUsage `json:"items"`
+		Items []model.UserUsage `json:"items"`
 	}
 	if err := json.Unmarshal(rr.Body.Bytes(), &got); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if len(got.Items) != 1 || got.Items[0].TenantID != "tn_acme" {
+	if len(got.Items) != 1 || got.Items[0].UserID != "tn_acme" {
 		t.Fatalf("items = %+v, want one tn_acme row", got.Items)
 	}
 	if got.Items[0].CostPrev != 10.88 || got.Items[0].RunsPrev != 53110 {
@@ -145,10 +172,10 @@ func TestMetricsAgentDetail(t *testing.T) {
 			LastTraceID: "t_eb7c",
 		},
 	}
-	h := NewMetricsHandler(repo)
+	h := newMetricsHandler(repo)
 
 	rr := httptest.NewRecorder()
-	h.AgentDetail(rr, agentDetailRequest("rewrite-message", "range=7d"))
+	serveAuthed(h.AgentDetail, rr, agentDetailRequest("rewrite-message", "range=7d"))
 
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rr.Code)
@@ -170,10 +197,10 @@ func TestMetricsAgentDetail(t *testing.T) {
 
 func TestMetricsAgentDetailNotFound(t *testing.T) {
 	repo := &mocks.MockMetricsRepository{Err: query.ErrNotFound}
-	h := NewMetricsHandler(repo)
+	h := newMetricsHandler(repo)
 
 	rr := httptest.NewRecorder()
-	h.AgentDetail(rr, agentDetailRequest("ghost-agent", "range=7d"))
+	serveAuthed(h.AgentDetail, rr, agentDetailRequest("ghost-agent", "range=7d"))
 
 	if rr.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, want 404", rr.Code)
@@ -190,10 +217,10 @@ func TestMetricsAgentDetailNotFound(t *testing.T) {
 // Per-agent latency can't come from the daily rollup, so agent-scoped requests
 // over rollup ranges (>30d) are rejected rather than silently degraded.
 func TestMetricsAgentDetailRejectsRollupRange(t *testing.T) {
-	h := NewMetricsHandler(&mocks.MockMetricsRepository{})
+	h := newMetricsHandler(&mocks.MockMetricsRepository{})
 
 	rr := httptest.NewRecorder()
-	h.AgentDetail(rr, agentDetailRequest("rewrite-message", "range=1y"))
+	serveAuthed(h.AgentDetail, rr, agentDetailRequest("rewrite-message", "range=1y"))
 
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400", rr.Code)
@@ -202,10 +229,10 @@ func TestMetricsAgentDetailRejectsRollupRange(t *testing.T) {
 
 // The agent query param on the series endpoints is likewise a raw-window feature.
 func TestMetricsSeriesAgentRejectsRollupRange(t *testing.T) {
-	h := NewMetricsHandler(&mocks.MockMetricsRepository{})
+	h := newMetricsHandler(&mocks.MockMetricsRepository{})
 
 	rr := httptest.NewRecorder()
-	h.CostSeries(rr, httptest.NewRequest(http.MethodGet, "/v1/metrics/cost-series?range=90d&agent=rewrite-message", nil))
+	serveAuthed(h.CostSeries, rr, httptest.NewRequest(http.MethodGet, "/v1/metrics/cost-series?range=90d&agent=rewrite-message", nil))
 
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400", rr.Code)
@@ -213,10 +240,10 @@ func TestMetricsSeriesAgentRejectsRollupRange(t *testing.T) {
 }
 
 func TestMetricsBadRange(t *testing.T) {
-	h := NewMetricsHandler(&mocks.MockMetricsRepository{})
+	h := newMetricsHandler(&mocks.MockMetricsRepository{})
 
 	rr := httptest.NewRecorder()
-	h.KPIs(rr, httptest.NewRequest(http.MethodGet, "/v1/metrics/kpis?range=nonsense", nil))
+	serveAuthed(h.KPIs, rr, httptest.NewRequest(http.MethodGet, "/v1/metrics/kpis?range=nonsense", nil))
 
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400", rr.Code)
@@ -228,10 +255,10 @@ func TestMetricsFailuresEnvelope(t *testing.T) {
 		FailureItems:  []model.Failure{{Agent: "rewrite-message", Count: 8, Pct: 0.083, TopError: "rate_limit_exceeded"}},
 		FailuresTotal: 12,
 	}
-	h := NewMetricsHandler(repo)
+	h := newMetricsHandler(repo)
 
 	rr := httptest.NewRecorder()
-	h.Failures(rr, httptest.NewRequest(http.MethodGet, "/v1/metrics/failures?range=24h", nil))
+	serveAuthed(h.Failures, rr, httptest.NewRequest(http.MethodGet, "/v1/metrics/failures?range=24h", nil))
 
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rr.Code)
@@ -249,5 +276,52 @@ func TestMetricsFailuresEnvelope(t *testing.T) {
 	}
 	if len(got.Items) != 1 || got.Items[0].Agent != "rewrite-message" {
 		t.Errorf("items = %+v, want one rewrite-message row", got.Items)
+	}
+}
+
+func TestMetricsAnomalies(t *testing.T) {
+	repo := &mocks.MockMetricsRepository{
+		AnomalyItems: []model.Anomaly{
+			{Metric: "cost", Scope: "agent", Agent: "planner", BucketMs: 1_700_000_000_000,
+				Observed: 120, Expected: 10, Deviation: 110, Score: 8.1,
+				Direction: "spike", Severity: "critical", Summary: "Agent \"planner\" cost rose to $120.00."},
+		},
+	}
+	h := newMetricsHandler(repo)
+
+	rr := httptest.NewRecorder()
+	serveAuthed(h.Anomalies, rr, httptest.NewRequest(http.MethodGet, "/v1/metrics/anomalies?range=30d", nil))
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rr.Code)
+	}
+	var got struct {
+		Items []model.Anomaly `json:"items"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(got.Items) != 1 || got.Items[0].Severity != "critical" || got.Items[0].Agent != "planner" {
+		t.Errorf("items = %+v, want one critical anomaly for planner", got.Items)
+	}
+}
+
+func TestMetricsAnomaliesRejectsSubDailyRange(t *testing.T) {
+	h := newMetricsHandler(&mocks.MockMetricsRepository{})
+	rr := httptest.NewRecorder()
+	serveAuthed(h.Anomalies, rr, httptest.NewRequest(http.MethodGet, "/v1/metrics/anomalies?range=24h", nil))
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400 for a 24h range", rr.Code)
+	}
+}
+
+func TestMetricsAnomaliesRejectsBadFilters(t *testing.T) {
+	h := newMetricsHandler(&mocks.MockMetricsRepository{})
+	for _, q := range []string{"range=30d&metric=latency", "range=30d&min_severity=urgent"} {
+		rr := httptest.NewRecorder()
+		serveAuthed(h.Anomalies, rr, httptest.NewRequest(http.MethodGet, "/v1/metrics/anomalies?"+q, nil))
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("query %q: status = %d, want 400", q, rr.Code)
+		}
 	}
 }

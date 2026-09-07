@@ -18,8 +18,8 @@ import (
 	"github.com/tracium/api/internal/middleware"
 	"github.com/tracium/api/internal/model"
 	"github.com/tracium/api/internal/query"
-	"github.com/tracium/api/internal/workspace"
 	"github.com/tracium/api/internal/version"
+	"github.com/tracium/api/internal/workspace"
 )
 
 func main() {
@@ -43,13 +43,15 @@ func main() {
 	// ── Repository ────────────────────────────────────────────────────────────
 
 	var repo query.Repository
+	var healthChecks []handler.DependencyCheck
 
 	if cfg.Storage.ClickHouseDSN != "" {
-		chRepo, err := query.NewClickHouseRepository(cfg.Storage.ClickHouseDSN)
+		chRepo, err := query.NewClickHouseRepository(cfg.Storage.ClickHouseDSN, time.Duration(cfg.Storage.QueryTimeout)*time.Second)
 		if err != nil {
 			log.Fatalf("failed to connect to ClickHouse: %v", err)
 		}
 		repo = chRepo
+		healthChecks = append(healthChecks, handler.DependencyCheck{Name: "clickhouse", Check: chRepo.Ping})
 		log.Println("connected to ClickHouse")
 	} else {
 		log.Println("WARNING: no ClickHouse DSN configured — repository calls will return ErrNotFound")
@@ -65,6 +67,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to connect to Postgres: %v", err)
 	}
+	healthChecks = append(healthChecks, handler.DependencyCheck{Name: "postgres", Check: userStore.Ping})
 	authService := auth.NewService(userStore, auth.NewTokenIssuer(cfg.Auth.JWTSecret))
 	authHandler := handler.NewAuthHandler(authService)
 
@@ -72,7 +75,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to init workspace store: %v", err)
 	}
-	workspaceHandler := handler.NewWorkspaceHandler(wsStore)
+	workspaceHandler := handler.NewWorkspaceHandler(wsStore, userStore)
 
 	// The auth strategy is chosen explicitly by config. AuthModeNone has to be
 	// asked for by name; it is never the fallback for something absent.
@@ -86,10 +89,10 @@ func main() {
 
 	// ── Handlers ─────────────────────────────────────────────────────────────
 
-	traceHandler := handler.NewTraceHandler(repo)
-	spanHandler := handler.NewSpanHandler(repo)
-	metricsHandler := handler.NewMetricsHandler(repo)
-	healthHandler := handler.NewHealthHandler()
+	traceHandler := handler.NewTraceHandler(repo, wsStore)
+	spanHandler := handler.NewSpanHandler(repo, wsStore)
+	metricsHandler := handler.NewMetricsHandler(repo, wsStore)
+	healthHandler := handler.NewHealthHandler(healthChecks...)
 
 	// ── Router ────────────────────────────────────────────────────────────────
 
@@ -103,9 +106,20 @@ func main() {
 	r.Get(version.Route(version.V1, "/health"), healthHandler.Health)
 	r.Get(version.Route(version.V1, "/ready"), healthHandler.Ready)
 
-	// Account registration and login are unauthenticated.
-	r.Post(version.Route(version.V1, "/auth/register"), authHandler.Register)
-	r.Post(version.Route(version.V1, "/auth/login"), authHandler.Login)
+	// Account registration and login are unauthenticated, so they are the most
+	// exposed surface — throttle them per client IP to blunt brute-force and
+	// enumeration. A negative limit disables it (see AuthConfig.RateLimitPerMinute).
+	r.Group(func(r chi.Router) {
+		if cfg.Auth.RateLimitPerMinute >= 0 {
+			limiter := middleware.NewRateLimiter(cfg.Auth.RateLimitPerMinute, time.Minute, cfg.Auth.TrustedProxies)
+			r.Use(limiter.Middleware())
+			log.Printf("auth endpoints throttled to %d requests/min per client IP", cfg.Auth.RateLimitPerMinute)
+		} else {
+			log.Println("WARNING: auth endpoint rate limiting is disabled")
+		}
+		r.Post(version.Route(version.V1, "/auth/register"), authHandler.Register)
+		r.Post(version.Route(version.V1, "/auth/login"), authHandler.Login)
+	})
 
 	// Workspace routes — auth only (no tenant required; workspaces are per-user).
 	r.Group(func(r chi.Router) {
@@ -113,6 +127,8 @@ func main() {
 		r.Get(version.Route(version.V1, "/workspaces"), workspaceHandler.List)
 		r.Post(version.Route(version.V1, "/workspaces"), workspaceHandler.Create)
 		r.Delete(version.Route(version.V1, "/workspaces/{id}"), workspaceHandler.Delete)
+		r.Post(version.Route(version.V1, "/workspaces/{id}/members"), workspaceHandler.AddMember)
+		r.Delete(version.Route(version.V1, "/workspaces/{id}/members/{userId}"), workspaceHandler.RemoveMember)
 	})
 
 	// Authenticated routes.
@@ -133,10 +149,11 @@ func main() {
 		r.Get(version.Route(version.V1, "/metrics/agents/{name}"), metricsHandler.AgentDetail)
 		r.Get(version.Route(version.V1, "/metrics/failures"), metricsHandler.Failures)
 		r.Get(version.Route(version.V1, "/metrics/model-costs"), metricsHandler.ModelCosts)
-		r.Get(version.Route(version.V1, "/metrics/usage-tenants"), metricsHandler.TenantUsage)
+		r.Get(version.Route(version.V1, "/metrics/usage-users"), metricsHandler.UserUsage)
 		r.Get(version.Route(version.V1, "/metrics/usage-agents"), metricsHandler.AgentUsage)
 		r.Get(version.Route(version.V1, "/metrics/attribute-keys"), metricsHandler.AttributeKeys)
 		r.Get(version.Route(version.V1, "/metrics/usage-by-attribute"), metricsHandler.UsageByAttribute)
+		r.Get(version.Route(version.V1, "/metrics/anomalies"), metricsHandler.Anomalies)
 	})
 
 	// ── HTTP Server ───────────────────────────────────────────────────────────
@@ -180,11 +197,11 @@ func (n *noopRepository) ListTraces(_ context.Context, _ query.TraceFilter) ([]m
 	return nil, 0, query.ErrNotFound
 }
 
-func (n *noopRepository) GetTrace(_ context.Context, _ string) (*model.Trace, error) {
+func (n *noopRepository) GetTrace(_ context.Context, _ string, _ []string) (*model.Trace, error) {
 	return nil, query.ErrNotFound
 }
 
-func (n *noopRepository) GetSpans(_ context.Context, _ string) ([]model.Span, error) {
+func (n *noopRepository) GetSpans(_ context.Context, _ string, _ []string) ([]model.Span, error) {
 	return nil, query.ErrNotFound
 }
 
@@ -227,7 +244,7 @@ func (n *noopRepository) ModelCosts(_ context.Context, _ query.MetricsFilter, _ 
 	return nil, nil
 }
 
-func (n *noopRepository) TenantUsage(_ context.Context, _ query.MetricsFilter, _ int) ([]model.TenantUsage, error) {
+func (n *noopRepository) UserUsage(_ context.Context, _ query.MetricsFilter, _ int) ([]model.UserUsage, error) {
 	return nil, nil
 }
 
@@ -240,5 +257,9 @@ func (n *noopRepository) AttributeKeys(_ context.Context, _ query.MetricsFilter,
 }
 
 func (n *noopRepository) UsageByAttribute(_ context.Context, _ query.MetricsFilter, _ string, _ int) ([]model.AttributeUsage, error) {
+	return nil, nil
+}
+
+func (n *noopRepository) Anomalies(_ context.Context, _ query.MetricsFilter) ([]model.Anomaly, error) {
 	return nil, nil
 }

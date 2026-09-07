@@ -2,10 +2,12 @@ package traciumprocessor
 
 import (
 	"context"
+	"strings"
 	"testing"
 
+	"github.com/tracium/collector/internal/ingest"
 	"github.com/tracium/collector/internal/pricing"
-	"github.com/tracium/collector/internal/tenant"
+	"github.com/tracium/collector/internal/user"
 
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.uber.org/zap"
@@ -13,12 +15,12 @@ import (
 )
 
 // newMetricsProcessor wires the processor with the OSS-style static pricing and
-// passthrough tenant resolution used in production.
+// passthrough user resolution used in production.
 func newMetricsProcessor() *metricsProcessor {
 	return &metricsProcessor{
 		logger:  zap.NewNop(),
 		pricing: pricing.NewStaticResolver(pricing.DefaultPrices()),
-		tenant:  tenant.NewCachedResolver(tenant.Passthrough{}),
+		user:  user.Passthrough{},
 	}
 }
 
@@ -34,11 +36,11 @@ func addUsagePoint(metrics pmetric.MetricSlice, tokenType, model string, tokens 
 }
 
 // The processor prices input/output token-usage points independently and stamps
-// cost, normalised model, and the resolved tenant onto each.
+// cost, normalised model, and the resolved user onto each.
 func TestProcessMetrics_PricesAndStampsTokenUsage(t *testing.T) {
 	md := pmetric.NewMetrics()
 	rm := md.ResourceMetrics().AppendEmpty()
-	rm.Resource().Attributes().PutStr(attrTenantID, "acme-corp")
+	rm.Resource().Attributes().PutStr(attrUserID, "acme-corp")
 	metrics := rm.ScopeMetrics().AppendEmpty().Metrics()
 
 	// gpt-4o: $2.50/1M in, $10/1M out (DefaultPrices). Model arrives mixed-case.
@@ -52,8 +54,8 @@ func TestProcessMetrics_PricesAndStampsTokenUsage(t *testing.T) {
 	assertCost(t, in, 0.0025) // 1000 * 0.0000025
 	assertCost(t, out, 0.005) // 500 * 0.00001
 	assertStr(t, in, attrModelNormalized, "gpt-4o")
-	assertStr(t, in, attrTenantID, "acme-corp")
-	assertStr(t, out, attrTenantID, "acme-corp")
+	assertStr(t, in, attrUserID, "acme-corp")
+	assertStr(t, out, attrUserID, "acme-corp")
 }
 
 // Non-token-usage metrics are passed through untouched (no tracium.* stamps).
@@ -163,6 +165,53 @@ func TestProcessMetrics_DropsCumulativeHistogram(t *testing.T) {
 
 	if metrics.Len() != 0 {
 		t.Error("cumulative token-usage histogram survived")
+	}
+}
+
+// A token-usage point above the ingest ceiling is dropped, not priced: the
+// metrics path must apply the same bound as the span chain, or a single point
+// with 1e15 tokens would be priced at billions and corrupt every cost aggregate.
+func TestProcessMetrics_DropsTokenCountOutOfRange(t *testing.T) {
+	core, logs := observer.New(zap.WarnLevel)
+	p := newMetricsProcessor()
+	p.logger = zap.New(core)
+
+	md := pmetric.NewMetrics()
+	metrics := md.ResourceMetrics().AppendEmpty().ScopeMetrics().AppendEmpty().Metrics()
+	// 1e15 tokens for gpt-4o — the report's reproduction.
+	addUsagePoint(metrics, "input", "gpt-4o", 1e15)
+
+	if _, err := p.processMetrics(context.Background(), md); err != nil {
+		t.Fatalf("processMetrics: %v", err)
+	}
+
+	// The metric stays but its lone out-of-range point is removed.
+	if got := metrics.At(0).Histogram().DataPoints().Len(); got != 0 {
+		t.Fatalf("out-of-range point survived: %d points left", got)
+	}
+	if logs.Len() != 1 {
+		t.Fatalf("got %d warnings, want exactly 1 — the drop must be visible", logs.Len())
+	}
+}
+
+// An oversized, control-character-laden user label is sanitized and length-capped
+// before it is stamped, matching the span chain's UserEnricher.
+func TestProcessMetrics_CapsOversizedUserLabel(t *testing.T) {
+	md := pmetric.NewMetrics()
+	metrics := md.ResourceMetrics().AppendEmpty().ScopeMetrics().AppendEmpty().Metrics()
+	dp := addUsagePoint(metrics, "input", "gpt-4o", 1000)
+	dp.Attributes().PutStr(attrUserID, strings.Repeat("a", 4096))
+
+	if _, err := newMetricsProcessor().processMetrics(context.Background(), md); err != nil {
+		t.Fatalf("processMetrics: %v", err)
+	}
+
+	v, ok := dp.Attributes().Get(attrUserID)
+	if !ok {
+		t.Fatal("user id not stamped")
+	}
+	if len(v.AsString()) > ingest.MaxUserIDBytes {
+		t.Errorf("user label = %d bytes, want <= %d", len(v.AsString()), ingest.MaxUserIDBytes)
 	}
 }
 

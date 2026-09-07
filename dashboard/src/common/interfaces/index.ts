@@ -3,3 +3,4 @@ export type { APIClientConfig } from './APIClientConfig';
 export type { CostPoint } from './CostPoint';
 export type { LatencyPoint } from './LatencyPoint';
 export type { ErrorPoint } from './ErrorPoint';
+export type { ChartMarker } from './ChartMarker';

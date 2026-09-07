@@ -55,6 +55,13 @@ func PrincipalFromContext(ctx context.Context) (*model.Principal, bool) {
 	return p, ok
 }
 
+// ContextWithPrincipal attaches a Principal to ctx exactly as the Auth
+// middleware would. Exported so tests can exercise handlers that require an
+// authenticated principal without wiring the full middleware chain.
+func ContextWithPrincipal(ctx context.Context, p *model.Principal) context.Context {
+	return context.WithValue(ctx, principalKey, p)
+}
+
 // NoopAuthenticator always succeeds and returns a default principal suitable for
 // development and testing. Never use this in production.
 type NoopAuthenticator struct{}

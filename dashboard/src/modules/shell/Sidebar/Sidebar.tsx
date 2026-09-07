@@ -2,7 +2,7 @@ import React from 'react';
 import {
   IconHome,
   IconAgents,
-  IconTenants,
+  IconUsers,
   IconUsage,
   IconKey,
   IconSettings,
@@ -11,7 +11,7 @@ import {
 } from '../../../common';
 import type { Workspace } from '../interfaces';
 import { WorkspaceSwitcher } from '../WorkspaceSwitcher';
-import { TraciumLogo } from '../Logo';
+import { TraciumWordmark } from '../Logo';
 
 interface NavItemData {
   id: string;
@@ -48,7 +48,7 @@ const NAV_ITEMS: NavItemData[] = [
   { id: 'overview', icon: <IconHome size={16} />, label: 'Overview' },
   { id: 'agents', icon: <IconAgents size={16} />, label: 'Agents' },
   { id: 'usage', icon: <IconUsage size={16} />, label: 'Usage' },
-  { id: 'tenants', icon: <IconTenants size={16} />, label: 'Tenants' },
+  { id: 'users', icon: <IconUsers size={16} />, label: 'Users' },
   { id: 'keys', icon: <IconKey size={16} />, label: 'API Keys' },
 ];
 
@@ -190,17 +190,7 @@ export function Sidebar({
             borderBottom: '1px solid var(--border)',
           }}
         >
-          <TraciumLogo size={26} />
-          <span
-            style={{
-              fontSize: 14,
-              fontWeight: 700,
-              color: 'var(--foreground)',
-              letterSpacing: '-0.01em',
-            }}
-          >
-            Tracium
-          </span>
+          <TraciumWordmark height={22} />
         </div>
 
         <div style={{ paddingTop: 10 }}>

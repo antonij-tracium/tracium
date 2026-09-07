@@ -47,3 +47,26 @@ export interface FailureRow {
   count: number;
   pct: number; // fraction of that agent's runs that failed
 }
+
+// Anomaly is one bucket of one series that deviated significantly from its own
+// recent history — the /metrics/anomalies payload. Detection is daily and
+// rollup-backed; metric is the series that moved, scope/agent locate it, and
+// observed/expected/deviation/score carry the math the UI explains.
+export type AnomalyMetric = 'cost' | 'error_rate' | 'runs';
+export type AnomalyScope = 'workspace' | 'agent';
+export type AnomalyDirection = 'spike' | 'drop';
+export type AnomalySeverity = 'info' | 'warning' | 'critical';
+
+export interface Anomaly {
+  metric: AnomalyMetric;
+  scope: AnomalyScope;
+  agent: string; // set when scope === 'agent', else ''
+  bucket_ms: number; // anomalous day bucket, UTC midnight
+  observed: number; // the bucket's value (USD, error rate 0–1, or run count)
+  expected: number; // baseline median
+  deviation: number; // observed − expected
+  score: number; // signed robust z-score
+  direction: AnomalyDirection;
+  severity: AnomalySeverity;
+  summary: string; // ready-to-read description
+}

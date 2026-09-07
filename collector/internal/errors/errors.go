@@ -50,7 +50,7 @@ type TransientErrorCode string
 const (
 	ErrDatabaseUnavailable TransientErrorCode = "database_unavailable"
 	ErrPricingUnavailable  TransientErrorCode = "pricing_unavailable"
-	ErrTenantLookupFailed  TransientErrorCode = "tenant_lookup_failed"
+	ErrUserLookupFailed  TransientErrorCode = "user_lookup_failed"
 	ErrWriteTimeout        TransientErrorCode = "write_timeout"
 )
 
@@ -83,16 +83,6 @@ func InvalidSpan(code SpanErrorCode, msg string) *SpanError {
 // InvalidSpanf creates a SpanError with a formatted message.
 func InvalidSpanf(code SpanErrorCode, format string, args ...any) *SpanError {
 	return &SpanError{Code: code, Message: fmt.Sprintf(format, args...)}
-}
-
-// InvalidSpanWrap creates a SpanError that wraps a cause.
-func InvalidSpanWrap(code SpanErrorCode, msg string, err error) *SpanError {
-	return &SpanError{Code: code, Message: msg, Cause: err}
-}
-
-// Transient creates a TransientError with no cause.
-func Transient(code TransientErrorCode, msg string, retryable bool) *TransientError {
-	return &TransientError{Code: code, Message: msg, Retryable: retryable}
 }
 
 // TransientWrap creates a TransientError that wraps a cause.
