@@ -1,5 +1,5 @@
 // Package traciumprocessor is the OpenTelemetry Collector processor that applies
-// Tracium's LLM-span enrichment (validation, model normalisation, tenant
+// Tracium's LLM-span enrichment (validation, model normalisation, user
 // resolution, per-span cost, model filtering).
 //
 // It is a thin adapter: all domain behaviour lives in the framework-free
@@ -16,7 +16,7 @@ import (
 	"github.com/tracium/collector/enrich"
 	"github.com/tracium/collector/internal/deadletter"
 	"github.com/tracium/collector/internal/pricing"
-	"github.com/tracium/collector/internal/tenant"
+	"github.com/tracium/collector/internal/user"
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
@@ -44,16 +44,16 @@ func NewFactory() processor.Factory {
 func createDefaultConfig() component.Config {
 	return &Config{
 		Pricing: PricingConfig{Source: "static"},
-		Tenant:  TenantConfig{Source: "passthrough"},
+		User:  UserConfig{Source: "passthrough"},
 	}
 }
 
-// buildResolvers constructs the OSS pricing and tenant resolvers from config.
+// buildResolvers constructs the OSS pricing and user resolvers from config.
 // Both the traces enrichment chain and the metrics processor share them, so a
-// single price table and tenant policy govern spans and metric-derived rows
+// single price table and user policy govern spans and metric-derived rows
 // alike. This is the seam the Enterprise edition swaps to inject its own
 // resolvers.
-func buildResolvers(cfg *Config, logger *zap.Logger) (pricing.Resolver, tenant.Resolver, error) {
+func buildResolvers(cfg *Config, logger *zap.Logger) (pricing.Resolver, user.Resolver, error) {
 	// Pricing source (OSS: static).
 	prices := pricing.DefaultPrices()
 	if cfg.Pricing.StaticFilePath != "" {
@@ -73,23 +73,27 @@ func buildResolvers(cfg *Config, logger *zap.Logger) (pricing.Resolver, tenant.R
 	}
 	pricingResolver := pricing.NewStaticResolver(prices)
 
-	// Tenant source (OSS: passthrough — the attribute value is the tenant ID).
-	var tenantResolver tenant.Resolver
-	if cfg.Tenant.Source == "passthrough" || cfg.Tenant.Source == "" {
-		tenantResolver = tenant.NewCachedResolver(tenant.Passthrough{})
+	// User source (OSS: passthrough — the attribute value is the user ID).
+	// Passthrough is a no-op lookup, so it is used directly, never wrapped in the
+	// cache: caching an identity operation keyed by a sender-supplied label would
+	// grow memory without bound for no benefit. NewCachedResolver (bounded LRU) is
+	// for the Enterprise resolver that performs a costly external lookup.
+	var userResolver user.Resolver
+	if cfg.User.Source == "passthrough" || cfg.User.Source == "" {
+		userResolver = user.Passthrough{}
 	}
 
-	return pricingResolver, tenantResolver, nil
+	return pricingResolver, userResolver, nil
 }
 
 // buildChain turns the validated Config into the OSS enrichment chain. This is
 // the function the Enterprise edition overrides/wraps to inject its enrichers.
 func buildChain(cfg *Config, logger *zap.Logger) (*enrich.Chain, error) {
-	pricingResolver, tenantResolver, err := buildResolvers(cfg, logger)
+	pricingResolver, userResolver, err := buildResolvers(cfg, logger)
 	if err != nil {
 		return nil, err
 	}
-	return enrich.DefaultChain(pricingResolver, tenantResolver, cfg.AllowedModels), nil
+	return enrich.DefaultChain(pricingResolver, userResolver, cfg.AllowedModels), nil
 }
 
 func createTracesProcessor(
@@ -168,14 +172,14 @@ func createMetricsProcessor(
 	next consumer.Metrics,
 ) (processor.Metrics, error) {
 	pCfg := cfg.(*Config)
-	pricingResolver, tenantResolver, err := buildResolvers(pCfg, set.TelemetrySettings.Logger)
+	pricingResolver, userResolver, err := buildResolvers(pCfg, set.TelemetrySettings.Logger)
 	if err != nil {
 		return nil, err
 	}
 	mp := &metricsProcessor{
 		logger:  set.TelemetrySettings.Logger,
 		pricing: pricingResolver,
-		tenant:  tenantResolver,
+		user:  userResolver,
 	}
 	return processorhelper.NewMetrics(
 		ctx, set, cfg, next,

@@ -68,26 +68,26 @@ func (m *MockPricingResolver) Resolve(_ context.Context, _ string, _ pricing.Usa
 }
 
 // ---------------------------------------------------------------------------
-// MockTenantResolver
+// MockUserResolver
 // ---------------------------------------------------------------------------
 
-// TenantResolver mirrors internal/tenant.Resolver for use in tests.
-type TenantResolver interface {
+// UserResolver mirrors internal/user.Resolver for use in tests.
+type UserResolver interface {
 	Resolve(ctx context.Context, apiKey string) (string, error)
 }
 
-// MockTenantResolver always returns TenantID (unless ResolveErr is set).
-type MockTenantResolver struct {
-	TenantID   string
+// MockUserResolver always returns UserID (unless ResolveErr is set).
+type MockUserResolver struct {
+	UserID   string
 	ResolveErr error
 }
 
-// Resolve returns TenantID or ResolveErr.
-func (m *MockTenantResolver) Resolve(_ context.Context, _ string) (string, error) {
+// Resolve returns UserID or ResolveErr.
+func (m *MockUserResolver) Resolve(_ context.Context, _ string) (string, error) {
 	if m.ResolveErr != nil {
 		return "", m.ResolveErr
 	}
-	return m.TenantID, nil
+	return m.UserID, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -191,7 +191,7 @@ func NewTestSpan() *spanmodel.Span {
 		OutputTokens:    50,
 		FinishReason:    "stop",
 		CostUSD:         0.0,
-		TenantID:        "tenant-test-1",
+		UserID:        "user-test-1",
 		SchemaVersion:   1,
 	}
 }

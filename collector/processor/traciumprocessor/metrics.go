@@ -4,8 +4,9 @@ import (
 	"context"
 	"strings"
 
+	"github.com/tracium/collector/internal/ingest"
 	"github.com/tracium/collector/internal/pricing"
-	"github.com/tracium/collector/internal/tenant"
+	"github.com/tracium/collector/internal/user"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
@@ -13,7 +14,7 @@ import (
 )
 
 // metricsProcessor enriches OpenLLMetry's gen_ai.client.token.usage data points
-// with the same tenant resolution, model normalisation, and pricing the traces
+// with the same user resolution, model normalisation, and pricing the traces
 // chain applies to spans. It stays in pmetric form and stamps the results as
 // data-point attributes; the clickhousespan exporter turns each enriched data
 // point into a synthetic span row (source="metric").
@@ -25,7 +26,7 @@ import (
 type metricsProcessor struct {
 	logger  *zap.Logger
 	pricing pricing.Resolver
-	tenant  tenant.Resolver
+	user  user.Resolver
 }
 
 // Metric and attribute keys for the token-usage instrument. Duplicated from the
@@ -43,10 +44,10 @@ const (
 	attrMetricModelRequest  = "gen_ai.request.model"
 )
 
-// processMetrics resolves tenant/model/cost for every token-usage data point.
+// processMetrics resolves user/model/cost for every token-usage data point.
 // Non-token-usage metrics are passed through untouched; the exporter ignores
 // them. Cumulative token-usage metrics are rejected (see rejectCumulative). A
-// retryable tenant-lookup failure fails the batch so the collector retries it.
+// retryable user-lookup failure fails the batch so the collector retries it.
 func (p *metricsProcessor) processMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
 	var retryErr error
 
@@ -60,14 +61,11 @@ func (p *metricsProcessor) processMetrics(ctx context.Context, md pmetric.Metric
 				if m.Name() != metricTokenUsage {
 					return false
 				}
-				points := tokenUsagePoints(m)
 				if temporality(m) == pmetric.AggregationTemporalityCumulative {
-					p.rejectCumulative(m, len(points))
+					p.rejectCumulative(m, numDataPoints(m))
 					return true
 				}
-				for _, pt := range points {
-					p.enrichPoint(ctx, pt, resourceAttrs, &retryErr)
-				}
+				p.boundAndEnrich(ctx, m, resourceAttrs, &retryErr)
 				return false
 			})
 		}
@@ -130,25 +128,63 @@ type usagePoint struct {
 	tokens int64
 }
 
-// tokenUsagePoints returns the histogram (OpenLLMetry's shape) or sum data
-// points of a token-usage metric, whichever it carries.
-func tokenUsagePoints(m pmetric.Metric) []usagePoint {
-	var points []usagePoint
+// numDataPoints counts the token-usage data points on a metric (for logging).
+func numDataPoints(m pmetric.Metric) int {
 	switch m.Type() {
 	case pmetric.MetricTypeHistogram:
-		dps := m.Histogram().DataPoints()
-		for i := 0; i < dps.Len(); i++ {
-			dp := dps.At(i)
-			points = append(points, usagePoint{attrs: dp.Attributes(), tokens: int64(dp.Sum())})
-		}
+		return m.Histogram().DataPoints().Len()
 	case pmetric.MetricTypeSum:
-		dps := m.Sum().DataPoints()
-		for i := 0; i < dps.Len(); i++ {
-			dp := dps.At(i)
-			points = append(points, usagePoint{attrs: dp.Attributes(), tokens: dataPointValue(dp)})
-		}
+		return m.Sum().DataPoints().Len()
+	default:
+		return 0
 	}
-	return points
+}
+
+// boundAndEnrich enforces the shared ingest token bound on every data point and
+// enriches those that pass. Points whose token count is out of range are dropped
+// (removed from the metric) rather than priced: the metrics path arrives on the
+// same unauthenticated port as spans and must apply the same ceiling the span
+// chain does, or a single point claiming 1e15 tokens would be priced at billions
+// and corrupt every sum(cost_usd) aggregate. Identifier sanitization happens in
+// enrichPoint.
+func (p *metricsProcessor) boundAndEnrich(
+	ctx context.Context,
+	m pmetric.Metric,
+	resourceAttrs pcommon.Map,
+	retryErr *error,
+) {
+	switch m.Type() {
+	case pmetric.MetricTypeHistogram:
+		m.Histogram().DataPoints().RemoveIf(func(dp pmetric.HistogramDataPoint) bool {
+			return p.boundPoint(ctx, m.Name(), usagePoint{attrs: dp.Attributes(), tokens: int64(dp.Sum())}, resourceAttrs, retryErr)
+		})
+	case pmetric.MetricTypeSum:
+		m.Sum().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
+			return p.boundPoint(ctx, m.Name(), usagePoint{attrs: dp.Attributes(), tokens: dataPointValue(dp)}, resourceAttrs, retryErr)
+		})
+	}
+}
+
+// boundPoint reports whether a data point should be dropped. A token count
+// outside the accepted range is rejected loudly and dropped; otherwise the point
+// is enriched in place and kept.
+func (p *metricsProcessor) boundPoint(
+	ctx context.Context,
+	metricName string,
+	pt usagePoint,
+	resourceAttrs pcommon.Map,
+	retryErr *error,
+) bool {
+	if !ingest.TokensInRange(pt.tokens) {
+		p.logger.Warn("dropped token-usage data point: token count out of range",
+			zap.String("metric", metricName),
+			zap.Int64("tokens", pt.tokens),
+			zap.Int64("limit", ingest.MaxTokensPerCall),
+		)
+		return true
+	}
+	p.enrichPoint(ctx, pt, resourceAttrs, retryErr)
+	return false
 }
 
 // dataPointValue reads a numeric sum data point as int64 regardless of whether
@@ -172,8 +208,11 @@ func (p *metricsProcessor) enrichPoint(
 	retryErr *error,
 ) {
 	attrs := pt.attrs
-	modelNormalized := strings.ToLower(strings.TrimSpace(metricModel(attrs)))
-	tenantID := resolveTenant(ctx, p.tenant, metricTenant(attrs, resourceAttrs), retryErr)
+	// Sanitize and length-cap the client-controlled identifiers, matching the
+	// span chain (NormalizeModelEnricher / UserEnricher): both feed
+	// LowCardinality grouping columns downstream.
+	modelNormalized := ingest.SanitizeIdentifier(strings.ToLower(strings.TrimSpace(metricModel(attrs))), ingest.MaxModelNameBytes)
+	userID := ingest.SanitizeIdentifier(resolveUser(ctx, p.user, metricUser(attrs, resourceAttrs), retryErr), ingest.MaxUserIDBytes)
 
 	// Price the point as input-only or output-only depending on its type.
 	var cost float64
@@ -191,14 +230,14 @@ func (p *metricsProcessor) enrichPoint(
 
 	attrs.PutDouble(attrCostUSD, cost)
 	attrs.PutStr(attrModelNormalized, modelNormalized)
-	if tenantID != "" {
-		attrs.PutStr(attrTenantID, tenantID)
+	if userID != "" {
+		attrs.PutStr(attrUserID, userID)
 	}
 }
 
-// resolveTenant applies the tenant resolver, mirroring TenantEnricher: a nil
-// resolver or empty tenant is a no-op; a retryable failure is surfaced.
-func resolveTenant(ctx context.Context, r tenant.Resolver, raw string, retryErr *error) string {
+// resolveUser applies the user resolver, mirroring UserEnricher: a nil
+// resolver or empty user is a no-op; a retryable failure is surfaced.
+func resolveUser(ctx context.Context, r user.Resolver, raw string, retryErr *error) string {
 	if r == nil || raw == "" {
 		return raw
 	}
@@ -221,13 +260,13 @@ func metricModel(attrs pcommon.Map) string {
 	return ""
 }
 
-// metricTenant reads the tenant from the data point, falling back to the
+// metricUser reads the user from the data point, falling back to the
 // resource — the same precedence spans use.
-func metricTenant(attrs, resourceAttrs pcommon.Map) string {
-	if v, ok := attrs.Get(attrTenantID); ok && v.AsString() != "" {
+func metricUser(attrs, resourceAttrs pcommon.Map) string {
+	if v, ok := attrs.Get(attrUserID); ok && v.AsString() != "" {
 		return v.AsString()
 	}
-	if v, ok := resourceAttrs.Get(attrTenantID); ok {
+	if v, ok := resourceAttrs.Get(attrUserID); ok {
 		return v.AsString()
 	}
 	return ""

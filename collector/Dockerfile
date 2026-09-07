@@ -4,7 +4,7 @@
 # Network access is required at build time to download the collector framework
 # and contrib components referenced by builder/oss.builder.yaml.
 
-FROM golang:1.22-alpine AS builder
+FROM golang:1.25-alpine AS builder
 RUN apk --no-cache add ca-certificates git
 WORKDIR /src
 
@@ -17,7 +17,7 @@ RUN go install go.opentelemetry.io/collector/cmd/builder@${OCB_VERSION}
 COPY . .
 RUN builder --config builder/oss.builder.yaml
 
-FROM alpine:3.19
+FROM alpine:3.22
 RUN apk --no-cache add ca-certificates
 WORKDIR /app
 COPY --from=builder /src/_build/tracium-collector /app/tracium-collector

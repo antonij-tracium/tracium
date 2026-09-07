@@ -112,9 +112,11 @@ func TestFromOTLP_SetsKind(t *testing.T) {
 	}
 }
 
-// agentName picks the first usable signal in priority order, treating the OTel
-// "unknown_service" default as absent so traces don't collapse under it (or
-// under a raw operation name like "openai.chat").
+// agentName prefers span-scoped signals (gen_ai.agent.name, traceloop
+// entity/workflow) over the resource-level service.name, so a multi-agent trace
+// attributes each span to its real agent; the OTel "unknown_service" default is
+// treated as absent so traces don't collapse under it (or under a raw operation
+// name like "openai.chat").
 func TestAgentName_DerivationPriority(t *testing.T) {
 	tests := []struct {
 		name                                                    string
@@ -122,13 +124,15 @@ func TestAgentName_DerivationPriority(t *testing.T) {
 		spanName                                                string
 		want                                                    string
 	}{
-		{"service.name wins", "checkout-agent", "gen-agent", "wf", "ent", "openai.chat", "checkout-agent"},
-		{"falls back to gen_ai.agent.name", "", "research-agent", "wf", "ent", "openai.chat", "research-agent"},
-		{"then traceloop.workflow.name", "", "", "summarize", "ent", "openai.chat", "summarize"},
-		{"then traceloop.entity.name", "", "", "", "fetch_docs", "openai.chat", "fetch_docs"},
+		{"gen_ai.agent.name wins over service.name", "checkout-svc", "research-agent", "wf", "ent", "openai.chat", "research-agent"},
+		{"multi-agent: each span keeps its own agent, not the shared service", "weather-svc", "Weather Agent", "", "", "invoke_agent", "Weather Agent"},
+		{"child span with no agent falls back to service.name", "weather-svc", "", "", "", "openai.chat", "weather-svc"},
+		{"then traceloop.workflow.name over service.name", "svc", "", "summarize", "ent", "openai.chat", "summarize"},
+		{"then traceloop.entity.name over service.name", "svc", "", "", "fetch_docs", "openai.chat", "fetch_docs"},
+		{"service.name used when no span-scoped signal", "checkout-svc", "", "", "", "openai.chat", "checkout-svc"},
 		{"span name as last resort", "", "", "", "", "openai.chat", "openai.chat"},
 		{"unknown_service is treated as absent", "unknown_service", "", "", "", "openai.chat", "openai.chat"},
-		{"unknown_service with process suffix is absent", "unknown_service:python", "agent", "", "", "openai.chat", "agent"},
+		{"unknown_service with process suffix is absent", "unknown_service:python", "", "", "", "openai.chat", "openai.chat"},
 		{"whitespace-only signal is skipped", "   ", "agent", "", "", "openai.chat", "agent"},
 		{"all empty yields empty", "", "", "", "", "", ""},
 	}
@@ -138,6 +142,29 @@ func TestAgentName_DerivationPriority(t *testing.T) {
 			if got != tt.want {
 				t.Errorf("agentName(%q,%q,%q,%q,%q) = %q, want %q",
 					tt.service, tt.genaiAgent, tt.traceloopWorkflow, tt.traceloopEntity, tt.spanName, got, tt.want)
+			}
+		})
+	}
+}
+
+// fromOTLP persists the resource service.name on its own column, storing the
+// OTel "unknown_service" default as empty so it never becomes a stable fallback.
+func TestFromOTLP_ServiceNameColumn(t *testing.T) {
+	tests := []struct {
+		name    string
+		service string
+		want    string
+	}{
+		{"real service name kept", "weather-svc", "weather-svc"},
+		{"unknown_service stored empty", "unknown_service", ""},
+		{"unknown_service with suffix stored empty", "unknown_service:python", ""},
+		{"empty stays empty", "", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			row := fromOTLP(ptrace.NewSpan(), tt.service, pcommon.NewMap(), false)
+			if row.ServiceName != tt.want {
+				t.Errorf("ServiceName = %q, want %q", row.ServiceName, tt.want)
 			}
 		})
 	}

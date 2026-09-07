@@ -132,16 +132,16 @@ func TestValidate_DropsOversizedModelName(t *testing.T) {
 	}
 }
 
-func TestTenant_ControlCharactersAreStripped(t *testing.T) {
+func TestUser_ControlCharactersAreStripped(t *testing.T) {
 	chain := DefaultChain(nil, nil, nil)
 	span := validSpan()
-	span.TenantID = "evil\x00tenant\nsecond-line"
+	span.UserID = "evil\x00user\nsecond-line"
 
 	if _, err := chain.Apply(context.Background(), span); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if span.TenantID != "eviltenantsecond-line" {
-		t.Errorf("TenantID = %q, want control characters removed", span.TenantID)
+	if span.UserID != "evilusersecond-line" {
+		t.Errorf("UserID = %q, want control characters removed", span.UserID)
 	}
 }
 
@@ -192,17 +192,17 @@ func TestFilter_DropsDisallowedModel(t *testing.T) {
 	}
 }
 
-// retryTenantResolver always fails, simulating a transient backend outage.
-type retryTenantResolver struct{}
+// retryUserResolver always fails, simulating a transient backend outage.
+type retryUserResolver struct{}
 
-func (retryTenantResolver) Resolve(context.Context, string) (string, error) {
+func (retryUserResolver) Resolve(context.Context, string) (string, error) {
 	return "", errors.New("postgres down")
 }
 
-func TestTenant_RetryableErrorPropagates(t *testing.T) {
-	chain := DefaultChain(nil, retryTenantResolver{}, nil)
+func TestUser_RetryableErrorPropagates(t *testing.T) {
+	chain := DefaultChain(nil, retryUserResolver{}, nil)
 	span := validSpan()
-	span.TenantID = "api-key-123" // triggers a lookup
+	span.UserID = "api-key-123" // triggers a lookup
 
 	res, err := chain.Apply(context.Background(), span)
 	if res != ResultKeep {

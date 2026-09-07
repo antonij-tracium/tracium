@@ -3,6 +3,7 @@ package clickhousespanexporter
 import (
 	"context"
 
+	"github.com/tracium/collector/internal/ingest"
 	"github.com/tracium/collector/pkg/spanmodel"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -11,15 +12,16 @@ import (
 
 // Token-usage instrument and the attributes the tracium metrics processor
 // stamps onto its data points. Duplicated here (same convention as the traces
-// path) so the exporter stays independently usable. Note the tenant key is the
-// dotted tracium.tenant.id the processor writes, distinct from the legacy
+// path) so the exporter stays independently usable. Note the user key is the
+// dotted tracium.user.id the processor writes, distinct from the legacy
 // underscore key fromOTLP reads for spans.
 const (
 	metricTokenUsage     = "gen_ai.client.token.usage"
 	attrMetricTokenType  = "gen_ai.token.type"
 	attrMetricModel      = "gen_ai.response.model"
 	attrMetricModelAlt   = "llm.response.model"
-	attrMetricTenantID   = "tracium.tenant.id"
+	attrMetricUserID   = "tracium.user.id"
+	attrMetricWorkspaceID = "tracium.workspace.id"
 	attrMetricCostUSD    = "tracium.cost_usd"
 	attrMetricNormalized = "tracium.model_normalized"
 )
@@ -76,7 +78,11 @@ func isCumulative(m pmetric.Metric) bool {
 }
 
 // usageRows builds one synthetic span per data point of a token-usage metric,
-// handling both the histogram (OpenLLMetry) and sum shapes.
+// handling both the histogram (OpenLLMetry) and sum shapes. Data points whose
+// token count is out of range are skipped — a defense-in-depth guard mirroring
+// the span chain's ceiling, so the exporter never writes a row priced on an
+// absurd token count even if it runs in a pipeline without the tracium processor
+// (the processor already drops these upstream).
 func usageRows(m pmetric.Metric) []*spanmodel.Span {
 	var rows []*spanmodel.Span
 	switch m.Type() {
@@ -84,13 +90,17 @@ func usageRows(m pmetric.Metric) []*spanmodel.Span {
 		dps := m.Histogram().DataPoints()
 		for i := 0; i < dps.Len(); i++ {
 			dp := dps.At(i)
-			rows = append(rows, usageRow(dp.Attributes(), int64(dp.Sum()), dp.Timestamp()))
+			if row := usageRow(dp.Attributes(), int64(dp.Sum()), dp.Timestamp()); row != nil {
+				rows = append(rows, row)
+			}
 		}
 	case pmetric.MetricTypeSum:
 		dps := m.Sum().DataPoints()
 		for i := 0; i < dps.Len(); i++ {
 			dp := dps.At(i)
-			rows = append(rows, usageRow(dp.Attributes(), numberValue(dp), dp.Timestamp()))
+			if row := usageRow(dp.Attributes(), numberValue(dp), dp.Timestamp()); row != nil {
+				rows = append(rows, row)
+			}
 		}
 	}
 	return rows
@@ -101,7 +111,15 @@ func usageRows(m pmetric.Metric) []*spanmodel.Span {
 // independently. trace/span IDs and name are left empty — metric rows are
 // aggregates, never shown as individual traces (source-aware queries exclude
 // them from trace-shaped aggregates).
+//
+// Returns nil (the point is skipped) when the token count is out of range, and
+// length-caps the client-controlled identifiers, so a row written by the
+// exporter is bounded the same way a span row is regardless of what ran upstream.
 func usageRow(attrs pcommon.Map, tokens int64, ts pcommon.Timestamp) *spanmodel.Span {
+	if !ingest.TokensInRange(tokens) {
+		return nil
+	}
+
 	bucketMs := ts.AsTime().UnixMilli()
 	model := metricStr(attrs, attrMetricModel)
 	if model == "" {
@@ -112,10 +130,11 @@ func usageRow(attrs pcommon.Map, tokens int64, ts pcommon.Timestamp) *spanmodel.
 		Source:          "metric",
 		StartTimeMs:     bucketMs,
 		EndTimeMs:       bucketMs,
-		Model:           model,
-		ModelNormalized: metricStr(attrs, attrMetricNormalized),
+		Model:           ingest.SanitizeIdentifier(model, ingest.MaxModelNameBytes),
+		ModelNormalized: ingest.SanitizeIdentifier(metricStr(attrs, attrMetricNormalized), ingest.MaxModelNameBytes),
 		CostUSD:         metricFloat(attrs, attrMetricCostUSD),
-		TenantID:        metricStr(attrs, attrMetricTenantID),
+		UserID:          ingest.SanitizeIdentifier(metricStr(attrs, attrMetricUserID), ingest.MaxUserIDBytes),
+		WorkspaceID:     ingest.SanitizeIdentifier(metricStr(attrs, attrMetricWorkspaceID), ingest.MaxUserIDBytes),
 		SchemaVersion:   1,
 	}
 	if isOutputTokenType(attrs) {

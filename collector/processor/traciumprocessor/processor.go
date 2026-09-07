@@ -154,7 +154,8 @@ const (
 	attrModelResponse = "gen_ai.response.model"
 	attrFinishReason  = "gen_ai.response.finish_reasons"
 
-	attrTenantID        = "tracium.tenant.id"
+	attrUserID        = "tracium.user.id"
+	attrWorkspaceID     = "tracium.workspace.id"
 	attrCostUSD         = "tracium.cost_usd"
 	attrModelNormalized = "tracium.model_normalized"
 	attrSchemaVersion   = "tracium.schema_version"
@@ -169,11 +170,19 @@ func toSpanModel(s ptrace.Span, resourceAttrs pcommon.Map, attrs map[string]stri
 		model = attrs[attrModelResponse]
 	}
 
-	// Tenant may arrive on the span or on the resource.
-	tenantID := attrs[attrTenantID]
-	if tenantID == "" {
-		if v, ok := resourceAttrs.Get(attrTenantID); ok {
-			tenantID = v.AsString()
+	// User may arrive on the span or on the resource.
+	userID := attrs[attrUserID]
+	if userID == "" {
+		if v, ok := resourceAttrs.Get(attrUserID); ok {
+			userID = v.AsString()
+		}
+	}
+
+	// Workspace, likewise, may arrive on the span or on the resource.
+	workspaceID := attrs[attrWorkspaceID]
+	if workspaceID == "" {
+		if v, ok := resourceAttrs.Get(attrWorkspaceID); ok {
+			workspaceID = v.AsString()
 		}
 	}
 
@@ -201,7 +210,8 @@ func toSpanModel(s ptrace.Span, resourceAttrs pcommon.Map, attrs map[string]stri
 		// Read from the raw attributes, not the flattened attrs map: the map
 		// holds the JSON-encoded array (see finishReason).
 		FinishReason: finishReason(s.Attributes()),
-		TenantID:     tenantID,
+		UserID:     userID,
+		WorkspaceID:  workspaceID,
 	}
 }
 
@@ -211,8 +221,11 @@ func writeBack(s ptrace.Span, m *spanmodel.Span) {
 	attrs.PutDouble(attrCostUSD, m.CostUSD)
 	attrs.PutStr(attrModelNormalized, m.ModelNormalized)
 	attrs.PutInt(attrSchemaVersion, int64(m.SchemaVersion))
-	if m.TenantID != "" {
-		attrs.PutStr(attrTenantID, m.TenantID)
+	if m.UserID != "" {
+		attrs.PutStr(attrUserID, m.UserID)
+	}
+	if m.WorkspaceID != "" {
+		attrs.PutStr(attrWorkspaceID, m.WorkspaceID)
 	}
 }
 

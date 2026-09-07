@@ -52,15 +52,20 @@ const (
 	attrModelResponse = "gen_ai.response.model"
 	attrFinishReason  = "gen_ai.response.finish_reasons"
 	// Dotted to match the key the tracium processor writes on enriched spans
-	// (writeBack → tracium.tenant.id). The underscore form left span rows with
-	// an empty tenant_id in the processor→exporter pipeline.
-	attrTenantID        = "tracium.tenant.id"
+	// (writeBack → tracium.user.id). The underscore form left span rows with
+	// an empty user_id in the processor→exporter pipeline.
+	attrUserID        = "tracium.user.id"
+	attrWorkspaceID     = "tracium.workspace.id"
 	attrCostUSD         = "tracium.cost_usd"
 	attrModelNormalized = "tracium.model_normalized"
 	attrSchemaVersion   = "tracium.schema_version"
 	attrAvailableTools  = "tracium.available_tools"
 
-	// Agent-identity signals, in fallback order after the resource service.name.
+	// Agent-identity signals. The span-scoped semconv/decorator names come first
+	// (they name the actual agent that owns this span); the resource-level
+	// service.name is only a fallback. service.name is also persisted on its own
+	// column so the query layer keeps a stable, always-present name for in-flight
+	// traces without conflating it with agent identity.
 	attrServiceName       = "service.name"
 	attrGenAIAgentName    = "gen_ai.agent.name"
 	attrTraceloopWorkflow = "traceloop.workflow.name"
@@ -122,7 +127,8 @@ func fromOTLP(s ptrace.Span, serviceName string, resourceAttrs pcommon.Map, trus
 		FinishReason:        finishReason(attrs),
 		Kind:                spanKind(attrs, model, usage.InputTokens, usage.OutputTokens),
 		CostUSD:             cost,
-		TenantID:            strAttr(attrs, attrTenantID),
+		UserID:            strAttr(attrs, attrUserID),
+		WorkspaceID:         workspaceID(attrs, resourceAttrs),
 		SchemaVersion:       int(intAttr(attrs, attrSchemaVersion)),
 		ErrorType:           errType,
 		ErrorMessage:        errMessage,
@@ -133,6 +139,10 @@ func fromOTLP(s ptrace.Span, serviceName string, resourceAttrs pcommon.Map, trus
 			strAttr(attrs, attrTraceloopEntity),
 			s.Name(),
 		),
+		// ServiceName is the resource-level service.name, persisted verbatim (the
+		// OTel "unknown_service" default treated as absent). The query layer uses
+		// it as the stable in-flight fallback for a trace's display/agent name.
+		ServiceName: resourceServiceName(serviceName),
 		// Content is absent unless the processor kept it (capture enabled);
 		// available_tools is collector-computed metadata, passed through verbatim.
 		Input:          input,
@@ -155,7 +165,7 @@ const (
 
 // attrDenyPrefixes are the namespaces Tracium already promotes to typed columns
 // or stores as content. Keeping them in the custom-attribute map would duplicate
-// promoted data (model, tokens, cost, tenant, agent) or store large
+// promoted data (model, tokens, cost, user, agent) or store large
 // prompt/completion text; everything outside them is a custom business attribute
 // the operator can allocate by, retained verbatim.
 var attrDenyPrefixes = []string{"gen_ai.", "tracium.", "llm.", "traceloop."}
@@ -207,24 +217,33 @@ func isDeniedAttr(k string) bool {
 	return false
 }
 
-// agentName picks the agent identity for a span's trace as the first usable
-// signal in priority order: resource service.name, gen_ai.agent.name,
-// traceloop.workflow.name, traceloop.entity.name, then the span name as a last
-// resort. The OTel SDK default of "unknown_service" (optionally suffixed with
-// the process name) is treated as absent — grouping under it would be as
-// useless as grouping under a raw operation name like "openai.chat".
+// agentName picks the agent that owns this span, preferring span-scoped signals
+// over the resource-level service.name so a multi-agent trace attributes each
+// span to its real agent instead of collapsing every agent under one service.
+// Priority: gen_ai.agent.name, traceloop.workflow.name, traceloop.entity.name,
+// then service.name, then the span name as a last resort. The OTel SDK default
+// of "unknown_service" (optionally suffixed with the process name) is treated as
+// absent — grouping under it would be as useless as grouping under a raw
+// operation name like "openai.chat". The stability the resource service.name
+// used to provide (present on the very first auto-instrumented span, before any
+// invoke_agent span exports) is preserved by persisting it as its own column and
+// letting the query layer fall back to it for a trace's in-flight name.
 func agentName(serviceName, genaiAgent, traceloopWorkflow, traceloopEntity, spanName string) string {
-	if !strings.HasPrefix(serviceName, "unknown_service") {
-		if name := strings.TrimSpace(serviceName); name != "" {
-			return name
-		}
-	}
-	for _, c := range []string{genaiAgent, traceloopWorkflow, traceloopEntity, spanName} {
+	for _, c := range []string{genaiAgent, traceloopWorkflow, traceloopEntity, resourceServiceName(serviceName), spanName} {
 		if name := strings.TrimSpace(c); name != "" {
 			return name
 		}
 	}
 	return ""
+}
+
+// resourceServiceName returns the usable service.name, treating the OTel SDK
+// default "unknown_service" (optionally "unknown_service:<process>") as absent.
+func resourceServiceName(serviceName string) string {
+	if strings.HasPrefix(serviceName, "unknown_service") {
+		return ""
+	}
+	return strings.TrimSpace(serviceName)
 }
 
 // OTel records failures as a first-class span status plus (optionally) an
@@ -299,6 +318,17 @@ func finishReason(attrs pcommon.Map) string {
 		return s.At(0).AsString()
 	}
 	return ""
+}
+
+// workspaceID reads tracium.workspace.id from the span, falling back to the
+// resource. The processor promotes the resource value onto the span, but the
+// exporter is independently usable (it can ingest spans that never passed
+// through the processor), so it checks the resource too.
+func workspaceID(spanAttrs, resourceAttrs pcommon.Map) string {
+	if v := strAttr(spanAttrs, attrWorkspaceID); v != "" {
+		return v
+	}
+	return strAttr(resourceAttrs, attrWorkspaceID)
 }
 
 func strAttr(attrs pcommon.Map, key string) string {

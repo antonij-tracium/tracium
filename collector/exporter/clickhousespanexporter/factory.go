@@ -6,12 +6,14 @@ package clickhousespanexporter
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/tracium/collector/internal/writer"
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/configretry"
 	"go.opentelemetry.io/collector/exporter"
+	"go.opentelemetry.io/collector/exporter/exporterbatcher"
 	"go.opentelemetry.io/collector/exporter/exporterhelper"
 )
 
@@ -33,6 +35,16 @@ type Config struct {
 	// downstream outage destroyed spans already ACKed to the client.
 	QueueConfig   exporterhelper.QueueConfig `mapstructure:"sending_queue"`
 	BackOffConfig configretry.BackOffConfig  `mapstructure:"retry_on_failure"`
+
+	// BatchConfig batches spans INSIDE the exporter — after the durable
+	// sending_queue, not before it. This replaces the standalone `batch`
+	// processor, which sat in front of the queue: that processor buffered spans
+	// in memory and returned success to the receiver (HTTP 200) the moment they
+	// were buffered, so a crash or a full queue lost spans the client had already
+	// been told were delivered. With batching here, every OTLP request is written
+	// to the durable queue first — acknowledgement now means "persisted" — and
+	// batching happens on the way out of the queue toward ClickHouse.
+	BatchConfig exporterbatcher.Config `mapstructure:"batcher"`
 }
 
 // Validate implements component.ConfigValidator.
@@ -45,6 +57,9 @@ func (c *Config) Validate() error {
 	}
 	if err := c.BackOffConfig.Validate(); err != nil {
 		return fmt.Errorf("clickhousespan: retry_on_failure: %w", err)
+	}
+	if err := c.BatchConfig.Validate(); err != nil {
+		return fmt.Errorf("clickhousespan: batcher: %w", err)
 	}
 	return nil
 }
@@ -59,6 +74,16 @@ func NewFactory() exporter.Factory {
 			return &Config{
 				QueueConfig:   exporterhelper.NewDefaultQueueConfig(),
 				BackOffConfig: configretry.NewDefaultBackOffConfig(),
+				// Default batching mirrors the sizing the old `batch` processor
+				// used (flush at 5k spans or 5s, split at 10k) so throughput to
+				// ClickHouse is unchanged — but now downstream of the durable
+				// queue. Operators override under exporters.clickhousespan.batcher.
+				BatchConfig: exporterbatcher.Config{
+					Enabled:       true,
+					FlushTimeout:  5 * time.Second,
+					MinSizeConfig: exporterbatcher.MinSizeConfig{MinSizeItems: 5000},
+					MaxSizeConfig: exporterbatcher.MaxSizeConfig{MaxSizeItems: 10000},
+				},
 			}
 		},
 		exporter.WithTraces(createTracesExporter, component.StabilityLevelBeta),
@@ -87,6 +112,9 @@ func createTracesExporter(
 		// operator's config (see Config): hardcoding the defaults here made
 		// sending_queue.storage unreachable, so the queue could never be durable.
 		exporterhelper.WithQueue(c.QueueConfig),
+		// Batcher runs after the queue, so spans are durably enqueued before they
+		// are batched and sent — see Config.BatchConfig.
+		exporterhelper.WithBatcher(c.BatchConfig),
 		exporterhelper.WithRetry(c.BackOffConfig),
 		exporterhelper.WithShutdown(func(context.Context) error { return chWriter.Close() }),
 	)
@@ -109,6 +137,9 @@ func createMetricsExporter(
 		ctx, set, cfg,
 		exp.pushMetrics,
 		exporterhelper.WithQueue(c.QueueConfig),
+		// Batcher runs after the queue, so spans are durably enqueued before they
+		// are batched and sent — see Config.BatchConfig.
+		exporterhelper.WithBatcher(c.BatchConfig),
 		exporterhelper.WithRetry(c.BackOffConfig),
 		exporterhelper.WithShutdown(func(context.Context) error { return chWriter.Close() }),
 	)

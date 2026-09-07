@@ -3,66 +3,41 @@ package enrich
 import (
 	"context"
 	"strings"
-	"unicode"
 
 	customerrors "github.com/tracium/collector/internal/errors"
+	"github.com/tracium/collector/internal/ingest"
 	"github.com/tracium/collector/internal/pricing"
-	"github.com/tracium/collector/internal/tenant"
+	"github.com/tracium/collector/internal/user"
 	"github.com/tracium/collector/pkg/spanmodel"
 )
 
 // DefaultChain assembles the OSS enrichment chain in the canonical order:
-// validate → normalize model → resolve tenant → resolve pricing → filter.
+// validate → normalize model → resolve user → resolve pricing → filter.
 //
 // The Enterprise edition can call this and wrap or extend the result, e.g.
 //
 //	base := enrich.DefaultChain(cfg)
 //	chain := enrich.NewChain(append(base.Enrichers(), ee.QuotaEnricher{}, ee.PIIRedactor{})...)
 //
-// pricingResolver and tenantResolver may be nil; the corresponding step is then
+// pricingResolver and userResolver may be nil; the corresponding step is then
 // skipped (useful in local dev). allowedModels may be empty to allow all models.
 func DefaultChain(
 	pricingResolver pricing.Resolver,
-	tenantResolver tenant.Resolver,
+	userResolver user.Resolver,
 	allowedModels []string,
 ) *Chain {
 	return NewChain(
 		ValidateEnricher{},
 		NormalizeModelEnricher{},
-		TenantEnricher{Resolver: tenantResolver},
+		UserEnricher{Resolver: userResolver},
 		PricingEnricher{Resolver: pricingResolver},
 		NewFilterEnricher(allowedModels),
 	)
 }
 
-// ---------------------------------------------------------------------------
-// Ingest sanity bounds.
-//
-// Everything below arrives from an unauthenticated OTLP port, so every
-// client-controlled field is bounded before it can reach storage. The bounds are
-// set far above anything a working client can produce: crossing one means the
-// client is broken, not that the call was unusual.
-// ---------------------------------------------------------------------------
-
-const (
-	// maxTokensPerCall caps any single token count on one span. The largest
-	// context window advertised by any model today is ~10M tokens, so this
-	// leaves an order of magnitude of headroom. Without a ceiling a span
-	// claiming 2^62 tokens prices at ~$3.4 trillion, and since every aggregate
-	// is a sum(cost_usd), one such span destroys the cost figures for everyone.
-	maxTokensPerCall = 100_000_000
-
-	// maxModelNameBytes caps gen_ai.request.model. metrics_daily types its
-	// model column as LowCardinality(String) and feeds it from the (client
-	// controlled) normalized model name; unbounded values degrade the one
-	// rollup that keeps 90d/1y windows affordable. An id longer than this is
-	// not a model id.
-	maxModelNameBytes = 256
-
-	// maxTenantIDBytes caps the tenant label, which is likewise a
-	// LowCardinality grouping key in metrics_daily.
-	maxTenantIDBytes = 128
-)
+// Ingest sanity bounds are shared with the metrics path in package ingest, so
+// spans and token-usage metrics enforce identical limits. See that package for
+// the rationale behind each bound.
 
 // ---------------------------------------------------------------------------
 // ValidateEnricher — rejects spans missing required identity/timing fields.
@@ -98,9 +73,9 @@ func (ValidateEnricher) Enrich(_ context.Context, span *spanmodel.Span) error {
 		return customerrors.InvalidSpanf(customerrors.ErrInvalidTimestamp,
 			"end_time_ms %d precedes start_time_ms %d", span.EndTimeMs, span.StartTimeMs)
 	}
-	if len(span.Model) > maxModelNameBytes {
+	if len(span.Model) > ingest.MaxModelNameBytes {
 		return customerrors.InvalidSpanf(customerrors.ErrFieldTooLong,
-			"model name is %d bytes, limit is %d", len(span.Model), maxModelNameBytes)
+			"model name is %d bytes, limit is %d", len(span.Model), ingest.MaxModelNameBytes)
 	}
 	for _, tc := range []struct {
 		field string
@@ -111,28 +86,12 @@ func (ValidateEnricher) Enrich(_ context.Context, span *spanmodel.Span) error {
 		{"cache_read_tokens", span.CacheReadTokens},
 		{"cache_write_tokens", span.CacheWriteTokens},
 	} {
-		if tc.count > maxTokensPerCall {
+		if tc.count > ingest.MaxTokensPerCall {
 			return customerrors.InvalidSpanf(customerrors.ErrTokenCountOutOfRange,
-				"%s is %d, limit is %d", tc.field, tc.count, maxTokensPerCall)
+				"%s is %d, limit is %d", tc.field, tc.count, ingest.MaxTokensPerCall)
 		}
 	}
 	return nil
-}
-
-// sanitizeIdentifier makes a client-supplied identifier safe to store and to
-// group by: control characters (null bytes, newlines) are dropped and the result
-// is capped at maxBytes on a valid UTF-8 boundary.
-func sanitizeIdentifier(s string, maxBytes int) string {
-	s = strings.Map(func(r rune) rune {
-		if unicode.IsControl(r) {
-			return -1
-		}
-		return r
-	}, strings.TrimSpace(s))
-	if len(s) <= maxBytes {
-		return s
-	}
-	return strings.ToValidUTF8(s[:maxBytes], "")
 }
 
 // ---------------------------------------------------------------------------
@@ -149,7 +108,7 @@ func (NormalizeModelEnricher) Name() string { return "normalize-model" }
 
 // Enrich implements Enricher.
 func (NormalizeModelEnricher) Enrich(_ context.Context, span *spanmodel.Span) error {
-	span.ModelNormalized = sanitizeIdentifier(strings.ToLower(span.Model), maxModelNameBytes)
+	span.ModelNormalized = ingest.SanitizeIdentifier(strings.ToLower(span.Model), ingest.MaxModelNameBytes)
 	if span.SchemaVersion == 0 {
 		span.SchemaVersion = 1
 	}
@@ -157,37 +116,37 @@ func (NormalizeModelEnricher) Enrich(_ context.Context, span *spanmodel.Span) er
 }
 
 // ---------------------------------------------------------------------------
-// TenantEnricher — resolves the tenant ID when not already set on the span.
+// UserEnricher — resolves the user ID when not already set on the span.
 // ---------------------------------------------------------------------------
 
-// TenantEnricher fills span.TenantID via the configured Resolver. A nil Resolver
-// leaves any existing TenantID untouched (e.g. when tenancy is carried in OTLP
+// UserEnricher fills span.UserID via the configured Resolver. A nil Resolver
+// leaves any existing UserID untouched (e.g. when tenancy is carried in OTLP
 // resource attributes upstream).
-type TenantEnricher struct {
-	Resolver tenant.Resolver
+type UserEnricher struct {
+	Resolver user.Resolver
 }
 
 // Name implements Enricher.
-func (TenantEnricher) Name() string { return "tenant" }
+func (UserEnricher) Name() string { return "user" }
 
 // Enrich implements Enricher.
-func (e TenantEnricher) Enrich(ctx context.Context, span *spanmodel.Span) error {
-	// The tenant label is client-controlled and reaches ClickHouse verbatim, so
+func (e UserEnricher) Enrich(ctx context.Context, span *spanmodel.Span) error {
+	// The user label is client-controlled and reaches ClickHouse verbatim, so
 	// it is sanitised whether or not a Resolver is configured.
-	span.TenantID = sanitizeIdentifier(span.TenantID, maxTenantIDBytes)
-	if e.Resolver == nil || span.TenantID == "" {
+	span.UserID = ingest.SanitizeIdentifier(span.UserID, ingest.MaxUserIDBytes)
+	if e.Resolver == nil || span.UserID == "" {
 		return nil
 	}
-	tenantID, err := e.Resolver.Resolve(ctx, span.TenantID)
+	userID, err := e.Resolver.Resolve(ctx, span.UserID)
 	if err != nil {
 		return customerrors.TransientWrap(
-			customerrors.ErrTenantLookupFailed,
-			"failed to resolve tenant",
+			customerrors.ErrUserLookupFailed,
+			"failed to resolve user",
 			err,
 			true,
 		)
 	}
-	span.TenantID = tenantID
+	span.UserID = userID
 	return nil
 }
 

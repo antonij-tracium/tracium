@@ -50,7 +50,7 @@ type TransientErrorCode string
 const (
 	ErrDatabaseUnavailable TransientErrorCode = "database_unavailable"
 	ErrPricingUnavailable  TransientErrorCode = "pricing_unavailable"
-	ErrTenantLookupFailed  TransientErrorCode = "tenant_lookup_failed"
+	ErrUserLookupFailed  TransientErrorCode = "user_lookup_failed"
 	ErrWriteTimeout        TransientErrorCode = "write_timeout"
 )
 

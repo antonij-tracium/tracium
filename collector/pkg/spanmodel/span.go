@@ -36,18 +36,30 @@ type Span struct {
 
 	// tracium.* enriched attributes (set by EnrichStage)
 	CostUSD         float64
-	TenantID        string
+	UserID        string
+	// WorkspaceID scopes a span to a workspace (the isolation/allocation unit an
+	// account owns). Passthrough from the tracium.workspace.id attribute, like
+	// UserID — a client-controlled label, not resolved.
+	WorkspaceID     string
 	ModelNormalized string
 	SchemaVersion   int
 	ErrorType       string
 	ErrorMessage    string
 
-	// AgentName identifies the agent that owns this span's trace, so the query
-	// layer can group traces per agent instead of by the raw span name. Derived
-	// by the exporter from the first non-empty of: the resource attribute
-	// service.name, gen_ai.agent.name, traceloop.workflow.name,
-	// traceloop.entity.name, or the span name as a last resort.
+	// AgentName identifies the agent that owns this span, so the query layer can
+	// group traces per agent instead of by the raw span name. Derived by the
+	// exporter from the first non-empty of: gen_ai.agent.name,
+	// traceloop.workflow.name, traceloop.entity.name, the resource attribute
+	// service.name, or the span name as a last resort. The span-scoped signals
+	// come first so a multi-agent trace attributes each span to its real agent.
 	AgentName string
+
+	// ServiceName is the resource-level service.name, persisted verbatim (the
+	// OTel "unknown_service" default is stored as empty). Kept as its own column
+	// so the query layer has a stable, always-present name for a trace's in-flight
+	// display — present on the very first auto-instrumented span — without folding
+	// it into AgentName and losing per-agent attribution.
+	ServiceName string
 
 	// Source records how this row entered Tracium: "span" for a real per-call
 	// span (the default) or "metric" for an aggregate synthesised from an OTLP
