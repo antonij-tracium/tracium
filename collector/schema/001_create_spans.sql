@@ -21,13 +21,13 @@
 --     At fp=0.001 the same lookup pins to one granule: 8,192 rows flat at 5M/10M/
 --     15M, and the index is smaller on disk compressed (1.80 vs 3.60 MiB at 5M),
 --     because the sparser filter has more zero runs. Do not raise it back.
---   * INDEX idx_tenant — the tenant_id business filter lets tenant-scoped reads
+--   * INDEX idx_user — the user_id business filter lets user-scoped reads
 --     skip granules with no matching client. It keeps fp=0.01 deliberately: unlike
---     trace_id, tenant_id is never queried on its own — every tenant predicate is
+--     trace_id, user_id is never queried on its own — every user predicate is
 --     appended to a clause already bounded by start_time_ms, so the time-leading
 --     sort key does the pruning and those reads already measure flat as the table
---     grows. tenant_id is also low-cardinality (a handful of end-client labels),
---     so most granules hold most tenants and no false-positive rate makes them
+--     grows. user_id is also low-cardinality (a handful of end-client labels),
+--     so most granules hold most users and no false-positive rate makes them
 --     skippable. Tightening it would cost index bits for no measured gain.
 --   * TTL — caps retention so the table does not grow without bound. The 90 below
 --     is the default; the migration runner rewrites it from RETENTION_DAYS at
@@ -61,7 +61,8 @@ CREATE TABLE IF NOT EXISTS tracium.spans (
     input_tokens      Int64,
     output_tokens     Int64,
     cost_usd          Float64,
-    tenant_id         String,
+    user_id         String,
+    workspace_id    String,
     finish_reason     String,
     error_type        String,
     error_message     String,
@@ -72,6 +73,16 @@ CREATE TABLE IF NOT EXISTS tracium.spans (
     available_tools   String,
     source            LowCardinality(String) DEFAULT 'span',
     agent_name        LowCardinality(String) DEFAULT '',
+    -- Resource-level service.name, kept verbatim ("unknown_service*" stored as '').
+    -- agent_name now prefers span-scoped signals (gen_ai.agent.name, traceloop
+    -- entity/workflow) so multi-agent traces attribute each span to its real
+    -- agent; service_name preserves the always-present resource name the query
+    -- layer falls back to for a trace's in-flight display name. Additive column —
+    -- per Rule 5 it does not bump schema_version, and existing tables do not adopt
+    -- it (CREATE IF NOT EXISTS); add it in place with:
+    --   ALTER TABLE tracium.spans ADD COLUMN IF NOT EXISTS
+    --     service_name LowCardinality(String) DEFAULT '';
+    service_name      LowCardinality(String) DEFAULT '',
     kind              LowCardinality(String) DEFAULT '',
     -- Metering provenance. output_tokens_derived: part of output_tokens was
     -- reconciled from total_tokens rather than reported by the provider (Gemini
@@ -95,7 +106,8 @@ CREATE TABLE IF NOT EXISTS tracium.spans (
     --     attributes Map(String, String) DEFAULT map();
     attributes Map(String, String) DEFAULT map(),
     INDEX idx_trace_id trace_id  TYPE bloom_filter(0.001) GRANULARITY 1,
-    INDEX idx_tenant   tenant_id TYPE bloom_filter(0.01) GRANULARITY 4
+    INDEX idx_user   user_id TYPE bloom_filter(0.01) GRANULARITY 4,
+    INDEX idx_workspace workspace_id TYPE bloom_filter(0.01) GRANULARITY 4
 ) ENGINE = MergeTree()
 PARTITION BY toYYYYMM(toDateTime(start_time_ms / 1000))
 ORDER BY (start_time_ms, trace_id)

@@ -2,7 +2,7 @@
 --
 -- Fires on every insert into tracium.spans, aggregates that block, and writes
 -- the partial states into metrics_daily (TO target). AggregatingMergeTree merges
--- the partials per (bucket_date, tenant_id, agent_name, model) over time.
+-- the partials per (bucket_date, user_id, agent_name, model) over time.
 --
 -- source='span' only: aggregate token-usage metric rows (source='metric') carry
 -- no trace identity and would distort run counts, so the rollup is span-derived
@@ -13,7 +13,7 @@
 -- fresh deployment there is no data yet, so nothing is missed. To adopt this on
 -- a table that already holds spans, backfill once after creating it:
 --   INSERT INTO tracium.metrics_daily
---   SELECT toDate(start_time_ms/1000), tenant_id, agent_name,
+--   SELECT toDate(start_time_ms/1000), user_id, agent_name,
 --          if(model_normalized!='', model_normalized, model),
 --          sum(cost_usd), sum(input_tokens), sum(output_tokens), count(),
 --          uniqState(trace_id),
@@ -26,7 +26,8 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS tracium.metrics_daily_mv
 TO tracium.metrics_daily AS
 SELECT
     toDate(start_time_ms / 1000)                       AS bucket_date,
-    tenant_id,
+    user_id,
+    workspace_id,
     agent_name,
     if(model_normalized != '', model_normalized, model) AS model,
     sum(cost_usd)                                      AS cost,
@@ -37,4 +38,4 @@ SELECT
     uniqIfState(trace_id, error_type != '' OR error_message != '') AS error_runs
 FROM tracium.spans
 WHERE source = 'span'
-GROUP BY bucket_date, tenant_id, agent_name, model;
+GROUP BY bucket_date, user_id, workspace_id, agent_name, model;
