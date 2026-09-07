@@ -342,4 +342,3 @@ export function UsageLivePage({ range, setView, setSelected }: UsageLivePageProp
   );
 }
 
-export default UsageLivePage;

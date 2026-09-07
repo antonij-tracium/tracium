@@ -14,4 +14,3 @@ export function TraceDetailDashPage({ setView }: TraceDetailDashPageProps) {
   return <TraceView trace={TRACE_DETAIL} setView={setView} />;
 }
 
-export default TraceDetailDashPage;

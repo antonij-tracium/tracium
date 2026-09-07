@@ -265,4 +265,3 @@ export function OverviewPage({ range, setView, setSelected, tweaks }: OverviewPa
   );
 }
 
-export default OverviewPage;

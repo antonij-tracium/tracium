@@ -85,16 +85,6 @@ func InvalidSpanf(code SpanErrorCode, format string, args ...any) *SpanError {
 	return &SpanError{Code: code, Message: fmt.Sprintf(format, args...)}
 }
 
-// InvalidSpanWrap creates a SpanError that wraps a cause.
-func InvalidSpanWrap(code SpanErrorCode, msg string, err error) *SpanError {
-	return &SpanError{Code: code, Message: msg, Cause: err}
-}
-
-// Transient creates a TransientError with no cause.
-func Transient(code TransientErrorCode, msg string, retryable bool) *TransientError {
-	return &TransientError{Code: code, Message: msg, Retryable: retryable}
-}
-
 // TransientWrap creates a TransientError that wraps a cause.
 func TransientWrap(code TransientErrorCode, msg string, err error, retryable bool) *TransientError {
 	return &TransientError{Code: code, Message: msg, Cause: err, Retryable: retryable}

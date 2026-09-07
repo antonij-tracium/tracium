@@ -9,16 +9,6 @@ type tenantContextKey int
 
 const tenantKey tenantContextKey = iota
 
-// TenantFromContext retrieves the tenant ID from the request context.
-// Set by RequireTenant middleware after auth succeeds.
-func TenantFromContext(ctx context.Context) (string, bool) {
-	t, ok := ctx.Value(tenantKey).(string)
-	if !ok || t == "" {
-		return "", false
-	}
-	return t, true
-}
-
 // RequireTenant returns a middleware that extracts the tenant ID from the Principal
 // (which must already be in context, set by the Auth middleware) and stores it
 // separately for convenient access. Returns 401 if no principal is present.

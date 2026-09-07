@@ -323,4 +323,3 @@ export function OverviewLivePage({ range, setView, setSelected, tweaks }: Overvi
   );
 }
 
-export default OverviewLivePage;

@@ -95,4 +95,3 @@ export function UsersLivePage({ range, setView, setSelected }: UsersLivePageProp
   );
 }
 
-export default UsersLivePage;

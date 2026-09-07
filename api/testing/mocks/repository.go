@@ -2,7 +2,6 @@ package mocks
 
 import (
 	"context"
-	"fmt"
 	"slices"
 
 	"github.com/tracium/api/internal/model"
@@ -173,50 +172,4 @@ func (m *MockMetricsRepository) UsageByAttribute(_ context.Context, _ query.Metr
 
 func (m *MockMetricsRepository) Anomalies(_ context.Context, _ query.MetricsFilter) ([]model.Anomaly, error) {
 	return m.AnomalyItems, m.Err
-}
-
-// NewTestTrace returns a pre-populated Trace fixture for use in tests.
-func NewTestTrace() model.Trace {
-	return model.Trace{
-		TraceID:      "trace-test-001",
-		Name:         "test-trace",
-		StartTimeMs:  1_700_000_000_000,
-		EndTimeMs:    1_700_000_001_000,
-		DurationMs:   1000,
-		UserID:       "user-test",
-		SpanCount:    2,
-		HasError:     false,
-		TotalCostUSD: 0.0012,
-	}
-}
-
-// NewTestSpan returns a pre-populated Span fixture for use in tests.
-func NewTestSpan() model.Span {
-	return model.Span{
-		TraceID:         "trace-test-001",
-		SpanID:          fmt.Sprintf("span-%d", 1),
-		ParentSpanID:    "",
-		Name:            "llm.chat",
-		StartTimeMs:     1_700_000_000_000,
-		EndTimeMs:       1_700_000_001_000,
-		DurationMs:      1000,
-		Model:           "gpt-4o",
-		FinishReason:    "stop",
-		InputTokens:     500,
-		OutputTokens:    150,
-		CostUSD:         0.0012,
-		UserID:          "user-test",
-		ModelNormalized: "openai/gpt-4o",
-		SchemaVersion:   1,
-		ErrorType:       "",
-		ErrorMessage:    "",
-	}
-}
-
-// NewTestPrincipal returns a Principal fixture for injecting into handler tests.
-func NewTestPrincipal(userID string) *model.Principal {
-	return &model.Principal{
-		UserID: userID,
-		Role:   "admin",
-	}
 }

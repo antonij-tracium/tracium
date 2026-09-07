@@ -822,4 +822,3 @@ function LegendDot({ color, label }: { color: string; label: string }) {
   );
 }
 
-export default TraceView;
