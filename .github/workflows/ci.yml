@@ -10,6 +10,7 @@ concurrency:
 
 permissions:
   contents: read
+  pull-requests: read   # dorny/paths-filter calls the PR listFiles API
 
 jobs:
   # Detect which components changed so slow jobs (npm, helm) only run when relevant.
