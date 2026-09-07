@@ -1,13 +1,15 @@
+import type { AuthAppearance } from '../../../extensions';
 import { FormEvent, useState } from 'react';
 import { AuthShell } from '../components';
 import { registerUser, AuthError } from '../api';
 import styles from './LoginPage.module.css';
 
 interface SignupPageProps {
+  appearance?: AuthAppearance;
   onLogin: (token: string, email: string) => void;
 }
 
-export default function SignupPage({ onLogin }: SignupPageProps) {
+export default function SignupPage({ onLogin, appearance }: SignupPageProps) {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -42,7 +44,7 @@ export default function SignupPage({ onLogin }: SignupPageProps) {
   };
 
   return (
-    <AuthShell
+    <AuthShell appearance={appearance}
       active="signup"
       title="Start tracing"
       subtitle="Free and open source. Self-host in minutes — no limits, no lock-in."

@@ -30,7 +30,10 @@ on ClickHouse. The concrete store is wired once in `cmd/api/main.go`; swapping i
 on error text.
 
 ```
-cmd/api/main.go        wiring only (config → stores → handlers → router)
+cmd/api/main.go        standalone entrypoint
+app/                   reusable assembly, extension routes, lifecycle
+extension/             mail and entitlement contracts
+migrations/            embedded, tracked Postgres schema
 internal/handler/      HTTP handlers (traces, spans, metrics, auth, workspaces)
 internal/query/        ClickHouse repository + the windowing/rollup logic
 internal/auth/         accounts, password hashing, JWT issuing (Postgres-backed)
@@ -106,3 +109,9 @@ inaccessible workspace returns 403. A trace ID is never an access credential.
 ## License
 
 Apache 2.0 — see [LICENSE](LICENSE).
+
+## Application composition
+
+The standalone command uses the public `app` package. Additional applications can
+register authenticated routes, email delivery, entitlement policies, and namespaced
+migrations without copying this API. See [the extension guide](../docs/extending.md).

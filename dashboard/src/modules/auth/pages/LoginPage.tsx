@@ -1,3 +1,4 @@
+import type { AuthAppearance } from '../../../extensions';
 import { FormEvent, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthShell } from '../components';
@@ -10,10 +11,11 @@ const errorMessages: Record<string, string> = {
 };
 
 interface LoginPageProps {
+  appearance?: AuthAppearance;
   onLogin: (token: string, email: string) => void;
 }
 
-export default function LoginPage({ onLogin }: LoginPageProps) {
+export default function LoginPage({ onLogin, appearance }: LoginPageProps) {
   const params = new URLSearchParams(window.location.search);
   const errorKey = params.get('error') ?? undefined;
 
@@ -53,7 +55,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
   };
 
   return (
-    <AuthShell
+    <AuthShell appearance={appearance}
       active="signin"
       title="Welcome back"
       subtitle="Sign in to your Tracium workspace."

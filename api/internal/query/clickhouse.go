@@ -31,6 +31,7 @@ func NewClickHouseRepository(dsn string, queryTimeout time.Duration) (*ClickHous
 		return nil, fmt.Errorf("clickhouse: open: %w", err)
 	}
 	if err := db.Ping(); err != nil {
+		db.Close()
 		return nil, fmt.Errorf("clickhouse: ping: %w", err)
 	}
 	return &ClickHouseRepository{db: db, queryTimeout: queryTimeout}, nil
@@ -278,3 +279,6 @@ func traceDetailScope(traceID string, workspaceIDs []string) (string, []any) {
 	clause, scopeArgs := workspaceScope(workspaceIDs)
 	return "\nWHERE trace_id = ?" + clause, append([]any{traceID}, scopeArgs...)
 }
+
+// Close releases the underlying database pool.
+func (r *ClickHouseRepository) Close() error { return r.db.Close() }

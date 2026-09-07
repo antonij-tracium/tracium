@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/tracium/api/migrations"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -69,57 +70,11 @@ func NewStore(ctx context.Context, dsn string) (*PostgresStore, error) {
 	}
 
 	s := &PostgresStore{pool: pool}
-	if err := s.ensureSchema(ctx); err != nil {
+	if err := migrations.Apply(ctx, pool, migrations.Core); err != nil {
 		pool.Close()
 		return nil, err
 	}
 	return s, nil
-}
-
-func (s *PostgresStore) ensureSchema(ctx context.Context) error {
-	_, err := s.pool.Exec(ctx, `
-		CREATE TABLE IF NOT EXISTS workspaces (
-			id         TEXT        PRIMARY KEY,
-			user_id    TEXT        NOT NULL,
-			name       TEXT        NOT NULL,
-			slug       TEXT        NOT NULL,
-			env        TEXT        NOT NULL,
-			role       TEXT        NOT NULL,
-			members    INT         NOT NULL DEFAULT 1,
-			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-		)
-	`)
-	if err != nil {
-		return fmt.Errorf("workspace store: ensure schema: %w", err)
-	}
-
-	// workspace_members maps accounts to the workspaces they can access. A
-	// workspace's creator is added here as 'owner'; further members are 'member'.
-	// This is the access boundary the data handlers enforce: an account may read
-	// only the workspaces it has a row for here.
-	_, err = s.pool.Exec(ctx, `
-		CREATE TABLE IF NOT EXISTS workspace_members (
-			workspace_id TEXT        NOT NULL,
-			user_id      TEXT        NOT NULL,
-			role         TEXT        NOT NULL,
-			created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			PRIMARY KEY (workspace_id, user_id)
-		)
-	`)
-	if err != nil {
-		return fmt.Errorf("workspace store: ensure members schema: %w", err)
-	}
-	// Accounts created before membership-based access retain ownership. Never
-	// infer telemetry ownership from business user/tenant labels.
-	_, err = s.pool.Exec(ctx, `
-        INSERT INTO workspace_members (workspace_id, user_id, role)
-        SELECT id, user_id, 'owner' FROM workspaces
-        ON CONFLICT (workspace_id, user_id) DO NOTHING
-    `)
-	if err != nil {
-		return fmt.Errorf("workspace store: backfill owners: %w", err)
-	}
-	return nil
 }
 
 // List returns every workspace the user is a member of, ordered by creation

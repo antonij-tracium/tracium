@@ -31,3 +31,6 @@ __pycache__/
 CLAUDE.md
 **/CLAUDE.md
 .claude/
+
+# Reusable dashboard build artifacts
+dashboard/dist-library/

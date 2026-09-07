@@ -33,6 +33,16 @@ jobs:
             helm: ['deploy/**']
 
   go-test:
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: test-password
+          POSTGRES_DB: core_test
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      TEST_POSTGRES_DSN: postgres://postgres:test-password@localhost:5432/core_test?sslmode=disable
     needs: changes
     if: ${{ needs.changes.outputs.go == 'true' || needs.changes.outputs.spec == 'true' }}
     runs-on: ubuntu-latest
@@ -71,6 +81,7 @@ jobs:
       - run: npm ci --no-audit
       - run: npm run build   # tsc typecheck + vite build
       - run: npm test
+      - run: npm run build:library
 
   # The pinned TypeScript generator makes contract drift a release-blocking error.
   # Go models remain hand-written; gen-go-models.sh is not run.

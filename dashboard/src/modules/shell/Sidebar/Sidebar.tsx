@@ -26,6 +26,7 @@ interface NavItemProps {
 }
 
 interface SidebarProps {
+  items?: readonly { id: string; label: string; icon?: React.ReactNode }[];
   currentView: string;
   setView: (v: string) => void;
   workspace: Workspace | null;
@@ -92,6 +93,7 @@ function NavItem({ item, active, onClick }: NavItemProps): React.ReactElement {
 }
 
 export function Sidebar({
+  items = [],
   currentView,
   setView,
   workspace,
@@ -213,7 +215,7 @@ export function Sidebar({
           gap: 1,
         }}
       >
-        {NAV_ITEMS.map((item) => (
+        {[...NAV_ITEMS, ...items.map(item => ({ ...item, icon: item.icon ?? null }))].map((item) => (
           <NavItem
             key={item.id}
             item={item}
