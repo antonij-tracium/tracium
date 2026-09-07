@@ -33,7 +33,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: migrate
-          image: "{{ .Values.migrate.image.repository }}:{{ include "tracium.imageTag" (dict "component" .Values.migrate "global" .Values.global) }}"
+          image: "{{ .Values.migrate.image.repository }}:{{ include "tracium.imageTag" (dict "component" .Values.migrate "global" .Values.global "chart" .Chart) }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
           # Mirrors the env consumed by run-migrations.sh in docker-compose.
           env:
@@ -44,16 +44,24 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.clickhouse.existingSecret }}
                   key: {{ .Values.clickhouse.existingSecretKey }}
-            - name: POSTGRES_DSN
+            # POSTGRES_PASSWORD must precede POSTGRES_DSN: the DSN weaves it in
+            # via Kubernetes $(VAR) expansion (see tracium.postgresDSN).
+            - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "tracium.fullname" . }}-db
-                  key: postgres-dsn
+                  name: {{ .Values.postgres.existingSecret }}
+                  key: {{ .Values.postgres.existingSecretKey }}
+            - name: POSTGRES_DSN
+              value: {{ include "tracium.postgresDSN" . | quote }}
             - name: MIGRATIONS_DIR
               value: /migrations
             # Span retention in days; 0 keeps data forever (no TTL).
             - name: RETENTION_DAYS
               value: {{ .Values.retention.days | quote }}
+            - name: LEGACY_WORKSPACE_ID
+              value: {{ .Values.migrate.legacyWorkspaceId | quote }}
+            - name: LEGACY_INGESTION_PAUSED
+              value: {{ .Values.migrate.legacyIngestionPaused | quote }}
           resources:
             {{- toYaml .Values.migrate.resources | nindent 12 }}
           volumeMounts:

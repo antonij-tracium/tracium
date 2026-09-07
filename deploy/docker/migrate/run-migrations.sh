@@ -4,8 +4,8 @@
 set -euo pipefail
 
 CLICKHOUSE_HTTP="${CLICKHOUSE_HTTP:-http://clickhouse:8123}"
-CLICKHOUSE_PASSWORD="${CLICKHOUSE_PASSWORD:-changeme}"
-POSTGRES_DSN="${POSTGRES_DSN:-postgres://tracium:changeme@postgres:5432/tracium?sslmode=disable}"
+CLICKHOUSE_PASSWORD="${CLICKHOUSE_PASSWORD:?CLICKHOUSE_PASSWORD is required}"
+POSTGRES_DSN="${POSTGRES_DSN:?POSTGRES_DSN is required}"
 MIGRATIONS_DIR="${MIGRATIONS_DIR:-/migrations}"
 
 # Span retention, in days. Substituted into the spans schema's TTL clause at
@@ -31,7 +31,7 @@ apply_retention() {
 
 ch_query() {
   local sql="$1"
-  curl -s -f \
+  curl -sS --fail-with-body \
     -u "default:${CLICKHOUSE_PASSWORD}" \
     "${CLICKHOUSE_HTTP}/" \
     --data-binary "${sql}"
@@ -53,7 +53,7 @@ echo "▶ Creating ClickHouse database..."
 ch_query "CREATE DATABASE IF NOT EXISTS tracium"
 
 echo "▶ Ensuring migration tracking table..."
-psql "${POSTGRES_DSN}" -q -c "
+psql "${POSTGRES_DSN}" -v ON_ERROR_STOP=1 -q -c "
   CREATE TABLE IF NOT EXISTS schema_migrations (
     filename   TEXT PRIMARY KEY,
     applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -67,15 +67,18 @@ else
 fi
 
 echo "▶ Running migrations from ${MIGRATIONS_DIR}..."
-for sql_file in $(ls "${MIGRATIONS_DIR}"/*.sql 2>/dev/null | sort); do
+for sql_file in $(find -L "${MIGRATIONS_DIR}" -maxdepth 1 -type f \( -name "*.sql" -o -name "*.sh" \) | sort); do
   filename=$(basename "${sql_file}")
-  count=$(psql "${POSTGRES_DSN}" -t -c \
+  count=$(psql "${POSTGRES_DSN}" -v ON_ERROR_STOP=1 -t -c \
     "SELECT COUNT(*) FROM schema_migrations WHERE filename='${filename}'" | xargs)
 
   if [ "${count}" = "0" ]; then
     echo "  Applying: ${filename}"
-    ch_query "$(apply_retention < "${sql_file}")"
-    psql "${POSTGRES_DSN}" -q -c \
+    case "$sql_file" in
+      *.sql) ch_query "$(apply_retention < "${sql_file}")" ;;
+      *.sh) source "$sql_file" ;;
+    esac
+    psql "${POSTGRES_DSN}" -v ON_ERROR_STOP=1 -q -c \
       "INSERT INTO schema_migrations (filename) VALUES ('${filename}')"
     echo "  Applied:  ${filename}"
   else

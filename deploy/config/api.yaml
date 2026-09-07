@@ -9,6 +9,16 @@ storage:
 auth:
   enabled: true
   token_header: "Authorization"
+  # Max register/login attempts per client IP per minute (brute-force / account
+  # enumeration protection). Default 10; set a negative value to disable.
+  # Override with AUTH_RATE_LIMIT_PER_MINUTE.
+  rate_limit_per_minute: 10
+  # Reverse proxies (IPs/CIDRs) allowed to set X-Forwarded-For for the limiter.
+  # Empty means the header is ignored and the socket peer is always used, so a
+  # direct client cannot spoof its source IP. Set this to your ingress network
+  # only when that proxy overwrites the header from untrusted input (the shipped
+  # dashboard nginx does). Override with AUTH_TRUSTED_PROXIES (comma-separated).
+  trusted_proxies: []
 
 telemetry:
   log_level: "info"

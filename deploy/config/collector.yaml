@@ -17,25 +17,25 @@ receivers:
 
 processors:
   # Tracium LLM-span enrichment. OSS sources only; the Enterprise build accepts
-  # additional pricing/tenant sources here.
+  # additional pricing/user sources here.
   tracium:
     pricing:
       source: static
       static_file_path: ${env:PRICING_STATIC_PATH:-/etc/tracium/pricing.json}
-    tenant:
+    user:
       source: passthrough
     # Persist raw prompt/completion text to storage. Off by default since this
     # content may be sensitive; enabled here so input/output land on spans.
     capture_content: true
     # allowed_models: [gpt-4o, claude-3-5-sonnet]   # empty = allow all
 
-  batch:
-    # ClickHouse ingests far more efficiently in large batches (fewer parts to
-    # merge). Flush at 5k spans or 5s, whichever first; cap any single batch at
-    # 10k so a burst can't build an oversized insert.
-    send_batch_size: 5000
-    send_batch_max_size: 10000
-    timeout: 5s
+  # NOTE: there is deliberately no standalone `batch` processor here. A batch
+  # processor sits BEFORE the exporter's persistent queue: it buffers spans in
+  # memory and returns success to the receiver (HTTP 200) the moment they are
+  # buffered, so a crash or a full queue silently drops spans the client was
+  # already told were stored. Batching now happens INSIDE the exporter, after the
+  # durable queue (see exporters.clickhousespan.batcher), so acknowledgement lines
+  # up with a durable on-disk write.
 
 exporters:
   clickhousespan:
@@ -61,6 +61,16 @@ exporters:
       # exceeds 5 minutes. Indefinite retry is only safe because the queue above
       # is durable and bounded — the two settings go together.
       max_elapsed_time: ${env:RETRY_MAX_ELAPSED:-0}
+    batcher:
+      # Batches on the way OUT of the durable queue toward ClickHouse (fewer
+      # parts to merge), so it never sits between the receiver and durability.
+      # Every OTLP request is persisted to the queue before it is acknowledged;
+      # this only controls how persisted spans are grouped when flushed.
+      # Flush at 5k spans or 5s, whichever first; split anything over 10k.
+      enabled: true
+      flush_timeout: 5s
+      min_size_items: ${env:BATCH_MIN_SIZE:-5000}
+      max_size_items: ${env:BATCH_MAX_SIZE:-10000}
   # Uncomment for local dev without ClickHouse:
   # debug:
   #   verbosity: detailed
@@ -90,7 +100,7 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [tracium, batch]
+      processors: [tracium]
       exporters: [clickhousespan]
     # Metrics path: OpenLLMetry's gen_ai.client.token.usage points are priced by
     # the tracium processor and written as source="metric" rows into the same
@@ -99,5 +109,5 @@ service:
     # are written and all dashboard numbers fall back to spans.
     metrics:
       receivers: [otlp]
-      processors: [tracium, batch]
+      processors: [tracium]
       exporters: [clickhousespan]

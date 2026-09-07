@@ -38,15 +38,26 @@ spec:
                   key: {{ .Values.clickhouse.existingSecretKey }}
             - name: CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT
               value: "1"
+          # The default user requires CLICKHOUSE_PASSWORD (set above), so the
+          # probes MUST authenticate — a bare `clickhouse-client --query` fails
+          # auth and the pod would never become ready. Run via sh -c so
+          # $CLICKHOUSE_PASSWORD is expanded from the env at probe time (never
+          # baked into the manifest).
           readinessProbe:
             exec:
-              command: ["clickhouse-client", "--query", "SELECT 1"]
+              command:
+                - sh
+                - -c
+                - clickhouse-client --user default --password "$CLICKHOUSE_PASSWORD" --query "SELECT 1"
             initialDelaySeconds: 15
             periodSeconds: 10
             failureThreshold: 5
           livenessProbe:
             exec:
-              command: ["clickhouse-client", "--query", "SELECT 1"]
+              command:
+                - sh
+                - -c
+                - clickhouse-client --user default --password "$CLICKHOUSE_PASSWORD" --query "SELECT 1"
             initialDelaySeconds: 30
             periodSeconds: 30
             failureThreshold: 5

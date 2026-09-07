@@ -31,7 +31,7 @@ spec:
     spec:
       containers:
         - name: collector
-          image: "{{ .Values.collector.image.repository }}:{{ include "tracium.imageTag" (dict "component" .Values.collector "global" .Values.global) }}"
+          image: "{{ .Values.collector.image.repository }}:{{ include "tracium.imageTag" (dict "component" .Values.collector "global" .Values.global "chart" .Chart) }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
           ports:
             - name: grpc-otlp
@@ -44,16 +44,23 @@ spec:
               containerPort: {{ .Values.collector.service.healthPort }}
               protocol: TCP
           env:
+            # Passwords come from the ClickHouse/Postgres Secrets and are woven
+            # into the DSNs below via Kubernetes $(VAR) expansion, so they must be
+            # declared first (see tracium.clickhouseDSN / tracium.postgresDSN).
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.clickhouse.existingSecret }}
+                  key: {{ .Values.clickhouse.existingSecretKey }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.existingSecret }}
+                  key: {{ .Values.postgres.existingSecretKey }}
             - name: CLICKHOUSE_DSN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "tracium.fullname" . }}-db
-                  key: clickhouse-dsn
+              value: {{ include "tracium.clickhouseDSN" . | quote }}
             - name: POSTGRES_DSN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "tracium.fullname" . }}-db
-                  key: postgres-dsn
+              value: {{ include "tracium.postgresDSN" . | quote }}
             # The collector does not authenticate OTLP. To require a bearer token,
             # use the [ingest-auth] block in collector.yaml (mounted via the config
             # ConfigMap) and supply INGEST_TOKEN here from a secret.
@@ -69,14 +76,14 @@ spec:
               value: /etc/tracium/pricing.json
           readinessProbe:
             httpGet:
-              path: /ready
+              path: /
               port: health
             initialDelaySeconds: 5
             periodSeconds: 10
             failureThreshold: 3
           livenessProbe:
             httpGet:
-              path: /health
+              path: /
               port: health
             initialDelaySeconds: 10
             periodSeconds: 30

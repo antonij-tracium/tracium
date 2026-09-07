@@ -23,14 +23,14 @@ data:
         pricing:
           source: static
           static_file_path: /etc/tracium/pricing.json
-        tenant:
+        user:
           source: passthrough
         capture_content: true
 
-      batch:
-        send_batch_size: 5000
-        send_batch_max_size: 10000
-        timeout: 5s
+      # No standalone `batch` processor: it would sit BEFORE the durable queue
+      # and ACK spans to the client before they are persisted, so a crash or a
+      # full queue loses acknowledged spans. Batching is done by the exporter
+      # after the queue (see clickhousespan.batcher below).
 
     exporters:
       clickhousespan:
@@ -48,6 +48,13 @@ data:
           # bounded. The upstream 5m default drops batches across any longer
           # outage (a ClickHouse upgrade routinely exceeds it).
           max_elapsed_time: 0
+        batcher:
+          # Batches on the way OUT of the durable queue, so it never sits between
+          # the receiver and durability. Flush at 5k spans or 5s; split over 10k.
+          enabled: true
+          flush_timeout: 5s
+          min_size_items: 5000
+          max_size_items: 10000
 
     extensions:
       health_check:
@@ -67,11 +74,11 @@ data:
       pipelines:
         traces:
           receivers: [otlp]
-          processors: [tracium, batch]
+          processors: [tracium]
           exporters: [clickhousespan]
         metrics:
           receivers: [otlp]
-          processors: [tracium, batch]
+          processors: [tracium]
           exporters: [clickhousespan]
 
   api.yaml: |
@@ -84,8 +91,19 @@ data:
       clickhouse_dsn: "${CLICKHOUSE_DSN}"
 
     auth:
-      enabled: true
+      # jwt verifies tokens against the Postgres accounts (the default). Set to
+      # "none" only for local dev — it grants every request the admin role.
+      mode: "jwt"
       token_header: "Authorization"
+      # Register/login attempts per client IP per minute (default 10; negative
+      # disables). Override per-pod with AUTH_RATE_LIMIT_PER_MINUTE.
+      rate_limit_per_minute: 10
+      # Reverse proxies (IPs/CIDRs) trusted to set X-Forwarded-For for the
+      # limiter. Empty ignores the header and keys on the socket peer, so a
+      # direct client cannot spoof its source. Set to your ingress network when
+      # it overwrites the header from untrusted input. Override with
+      # AUTH_TRUSTED_PROXIES (comma-separated).
+      trusted_proxies: []
 
     telemetry:
       log_level: "info"

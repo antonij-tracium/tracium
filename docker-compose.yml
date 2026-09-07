@@ -13,10 +13,10 @@ services:
   clickhouse:
     image: clickhouse/clickhouse-server:24.6
     environment:
-      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-changeme}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?set CLICKHOUSE_PASSWORD in .env}
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
     ports:
-      - "8123:8123"   # HTTP — for dev tools and health checks
+      - "127.0.0.1:8123:8123"   # HTTP — for dev tools and health checks
       # 9000 (native TCP) is intentionally not exposed on the host;
       # internal services reach it via the Docker network.
     volumes:
@@ -32,10 +32,10 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: tracium
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: tracium
     ports:
-      - "5432:5432"   # exposed so the API can run natively against it during local dev
+      - "127.0.0.1:5432:5432"   # exposed so the API can run natively against it during local dev
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -51,10 +51,13 @@ services:
       context: ./deploy/docker/migrate
     environment:
       CLICKHOUSE_HTTP: http://clickhouse:8123
-      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-changeme}
-      POSTGRES_DSN: postgres://tracium:${POSTGRES_PASSWORD:-changeme}@postgres:5432/tracium?sslmode=disable
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?set CLICKHOUSE_PASSWORD in .env}
+      POSTGRES_DSN: postgres://tracium:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/tracium?sslmode=disable
       # Span retention in days; 0 keeps data forever (no TTL). See .env.
       RETENTION_DAYS: ${RETENTION_DAYS:-90}
+      # Required only when upgrading telemetry written before workspace scoping.
+      LEGACY_WORKSPACE_ID: ${LEGACY_WORKSPACE_ID:-}
+      LEGACY_INGESTION_PAUSED: ${LEGACY_INGESTION_PAUSED:-false}
     volumes:
       - ./collector/schema:/migrations:ro
     depends_on:
@@ -74,11 +77,11 @@ services:
       context: ./collector
       dockerfile: Dockerfile
     ports:
-      - "4317:4317"   # OTLP gRPC
-      - "4318:4318"   # OTLP HTTP
-      - "8080:8080"   # Health (health_check extension)
+      - "127.0.0.1:4317:4317"   # OTLP gRPC
+      - "127.0.0.1:4318:4318"   # OTLP HTTP
+      - "127.0.0.1:8080:8080"   # Health (health_check extension)
     environment:
-      CLICKHOUSE_DSN: clickhouse://default:${CLICKHOUSE_PASSWORD:-changeme}@clickhouse:9000/tracium
+      CLICKHOUSE_DSN: clickhouse://default:${CLICKHOUSE_PASSWORD:?set CLICKHOUSE_PASSWORD in .env}@clickhouse:9000/tracium
       PRICING_STATIC_PATH: /etc/tracium/pricing.json
     volumes:
       - ./spec/pricing/pricing.json:/etc/tracium/pricing.json:ro
@@ -97,10 +100,10 @@ services:
       context: ./api
       dockerfile: Dockerfile
     ports:
-      - "8090:8090"   # REST API
+      - "127.0.0.1:8090:8090"   # REST API
     environment:
-      CLICKHOUSE_DSN: clickhouse://default:${CLICKHOUSE_PASSWORD:-changeme}@clickhouse:9000/tracium
-      POSTGRES_DSN: postgres://tracium:${POSTGRES_PASSWORD:-changeme}@postgres:5432/tracium?sslmode=disable
+      CLICKHOUSE_DSN: clickhouse://default:${CLICKHOUSE_PASSWORD:?set CLICKHOUSE_PASSWORD in .env}@clickhouse:9000/tracium
+      POSTGRES_DSN: postgres://tracium:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/tracium?sslmode=disable
       # No default on purpose: a secret shared by every install is public, and
       # HS256 verifies with the same key it signs with — anyone holding it can
       # mint admin tokens. Compose fails with the message below until it is set.
@@ -117,10 +120,8 @@ services:
     build:
       context: ./dashboard
       dockerfile: Dockerfile
-      args:
-        VITE_API_URL: http://localhost:8090
     ports:
-      - "3000:3000"   # Dashboard UI
+      - "127.0.0.1:3000:3000"   # Dashboard UI
     depends_on:
       - api
     restart: unless-stopped
