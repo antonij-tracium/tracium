@@ -9,5 +9,4 @@ type Workspace struct {
 	Env     string `json:"env"`
 	Role    string `json:"role"`
 	Members int    `json:"members"`
-	Plan    string `json:"plan"`
 }

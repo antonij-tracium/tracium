@@ -30,7 +30,8 @@ type Span struct {
 	// same streaming reason SubtreeCostUSD has none.
 	SubtreeInputTokens  int64  `json:"subtree_input_tokens"`
 	SubtreeOutputTokens int64  `json:"subtree_output_tokens"`
-	TenantID            string `json:"tenant_id"`
+	UserID            string `json:"user_id"`
+	WorkspaceID         string `json:"workspace_id"`
 	ModelNormalized     string `json:"model_normalized"`
 	SchemaVersion       int    `json:"schema_version"`
 	ErrorType           string `json:"error_type"`

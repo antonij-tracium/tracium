@@ -14,6 +14,14 @@ import (
 	"github.com/tracium/api/testing/mocks"
 )
 
+// stubUserLookup satisfies handler.UserLookup for tests that don't exercise
+// member-by-email resolution.
+type stubUserLookup struct{}
+
+func (stubUserLookup) ByEmail(context.Context, string) (*model.User, error) {
+	return &model.User{ID: "user-b"}, nil
+}
+
 // stubAuthenticator authenticates every request as the given user, so the
 // handler under test sees a Principal the way the middleware chain provides it.
 type stubAuthenticator struct{ userID string }
@@ -40,7 +48,7 @@ func TestWorkspaceDelete(t *testing.T) {
 	store := &mocks.MockWorkspaceStore{
 		Workspaces: []model.Workspace{mocks.NewTestWorkspace("ws-1", "user-a")},
 	}
-	h := NewWorkspaceHandler(store)
+	h := NewWorkspaceHandler(store, stubUserLookup{})
 
 	rr := deleteWorkspace(h, "ws-1", "user-a")
 
@@ -56,7 +64,7 @@ func TestWorkspaceDeleteOtherUsersWorkspace(t *testing.T) {
 	store := &mocks.MockWorkspaceStore{
 		Workspaces: []model.Workspace{mocks.NewTestWorkspace("ws-1", "user-a")},
 	}
-	h := NewWorkspaceHandler(store)
+	h := NewWorkspaceHandler(store, stubUserLookup{})
 
 	rr := deleteWorkspace(h, "ws-1", "user-b")
 

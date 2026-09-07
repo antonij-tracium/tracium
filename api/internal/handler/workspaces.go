@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -8,19 +9,28 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"github.com/tracium/api/internal/auth"
 	"github.com/tracium/api/internal/middleware"
 	"github.com/tracium/api/internal/model"
 	"github.com/tracium/api/internal/workspace"
 )
 
-// WorkspaceHandler handles workspace CRUD for the authenticated user.
+// UserLookup resolves an account by email, so members can be added by email
+// rather than by opaque user id. Satisfied by the auth user store.
+type UserLookup interface {
+	ByEmail(ctx context.Context, email string) (*model.User, error)
+}
+
+// WorkspaceHandler handles workspace CRUD and member management for the
+// authenticated user.
 type WorkspaceHandler struct {
 	store workspace.Store
+	users UserLookup
 }
 
 // NewWorkspaceHandler constructs a WorkspaceHandler.
-func NewWorkspaceHandler(store workspace.Store) *WorkspaceHandler {
-	return &WorkspaceHandler{store: store}
+func NewWorkspaceHandler(store workspace.Store, users UserLookup) *WorkspaceHandler {
+	return &WorkspaceHandler{store: store, users: users}
 }
 
 // List handles GET /v1/workspaces — returns all workspaces for the current user.
@@ -73,7 +83,6 @@ func (h *WorkspaceHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Env:     body.Env,
 		Role:    "Owner",
 		Members: 1,
-		Plan:    "Free",
 	}
 	if err := h.store.Create(r.Context(), ws); err != nil {
 		respondError(w, http.StatusInternalServerError, "INTERNAL", "could not create workspace")
@@ -103,5 +112,92 @@ func (h *WorkspaceHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// AddMember handles POST /v1/workspaces/{id}/members — grants another account
+// access to the workspace. Owner-only. The member is named by email.
+func (h *WorkspaceHandler) AddMember(w http.ResponseWriter, r *http.Request) {
+	principal, ok := middleware.PrincipalFromContext(r.Context())
+	if !ok || principal.UserID == "" {
+		respondError(w, http.StatusUnauthorized, "UNAUTHORIZED", "user identity could not be resolved")
+		return
+	}
+	workspaceID := chi.URLParam(r, "id")
+
+	owner, err := h.store.IsOwner(r.Context(), workspaceID, principal.UserID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "INTERNAL", "could not verify ownership")
+		return
+	}
+	if !owner {
+		// 404, not 403 — never reveal that a workspace the caller can't manage exists.
+		respondError(w, http.StatusNotFound, "WORKSPACE_NOT_FOUND", "workspace not found")
+		return
+	}
+
+	var body struct {
+		Email string `json:"email"`
+		Role  string `json:"role"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Email == "" {
+		respondError(w, http.StatusBadRequest, "BAD_REQUEST", "email is required")
+		return
+	}
+	role := workspace.RoleMember
+	if body.Role == workspace.RoleOwner {
+		role = workspace.RoleOwner
+	}
+
+	member, err := h.users.ByEmail(r.Context(), body.Email)
+	if err != nil {
+		if errors.Is(err, auth.ErrUserNotFound) {
+			respondError(w, http.StatusNotFound, "USER_NOT_FOUND", "no account with that email")
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "INTERNAL", "could not look up account")
+		return
+	}
+
+	if err := h.store.AddMember(r.Context(), workspaceID, member.ID, role); err != nil {
+		respondError(w, http.StatusInternalServerError, "INTERNAL", "could not add member")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// RemoveMember handles DELETE /v1/workspaces/{id}/members/{userId} — revokes an
+// account's access. Owner-only; the owner cannot be removed.
+func (h *WorkspaceHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
+	principal, ok := middleware.PrincipalFromContext(r.Context())
+	if !ok || principal.UserID == "" {
+		respondError(w, http.StatusUnauthorized, "UNAUTHORIZED", "user identity could not be resolved")
+		return
+	}
+	workspaceID := chi.URLParam(r, "id")
+	memberID := chi.URLParam(r, "userId")
+
+	owner, err := h.store.IsOwner(r.Context(), workspaceID, principal.UserID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "INTERNAL", "could not verify ownership")
+		return
+	}
+	if !owner {
+		respondError(w, http.StatusNotFound, "WORKSPACE_NOT_FOUND", "workspace not found")
+		return
+	}
+
+	if err := h.store.RemoveMember(r.Context(), workspaceID, memberID); err != nil {
+		if errors.Is(err, workspace.ErrCannotRemoveOwner) {
+			respondError(w, http.StatusBadRequest, "CANNOT_REMOVE_OWNER", "the workspace owner cannot be removed")
+			return
+		}
+		if errors.Is(err, workspace.ErrNotFound) {
+			respondError(w, http.StatusNotFound, "MEMBER_NOT_FOUND", "member not found")
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "INTERNAL", "could not remove member")
+		return
+	}
 	w.WriteHeader(http.StatusNoContent)
 }

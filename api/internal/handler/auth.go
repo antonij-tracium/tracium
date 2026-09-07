@@ -68,9 +68,21 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, tokenResponse{Token: token})
 }
 
+// maxCredentialBody caps the request body for auth endpoints. Credentials are
+// tiny; anything larger is rejected before it is buffered or decoded so an
+// oversized payload cannot be used to exhaust memory or reach bcrypt.
+const maxCredentialBody = 4 << 10 // 4 KiB
+
 func decodeCredentials(w http.ResponseWriter, r *http.Request) (credentials, bool) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxCredentialBody)
+
 	var creds credentials
 	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
+		var maxErr *http.MaxBytesError
+		if errors.As(err, &maxErr) {
+			respondError(w, http.StatusRequestEntityTooLarge, "PAYLOAD_TOO_LARGE", "request body is too large")
+			return creds, false
+		}
 		respondError(w, http.StatusBadRequest, "BAD_REQUEST", "request body must be valid JSON")
 		return creds, false
 	}
@@ -78,6 +90,11 @@ func decodeCredentials(w http.ResponseWriter, r *http.Request) (credentials, boo
 	creds.Email = strings.TrimSpace(creds.Email)
 	if creds.Email == "" || creds.Password == "" {
 		respondError(w, http.StatusBadRequest, "MISSING_FIELDS", "email and password are required")
+		return creds, false
+	}
+
+	if err := auth.ValidateCredentials(creds.Email, creds.Password); err != nil {
+		respondError(w, http.StatusBadRequest, "INVALID_CREDENTIALS_FORMAT", err.Error())
 		return creds, false
 	}
 

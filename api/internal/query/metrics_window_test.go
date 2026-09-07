@@ -1,6 +1,7 @@
 package query
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -94,23 +95,71 @@ func TestKPIDeltaType(t *testing.T) {
 	}
 }
 
-func TestWindowSourceClause(t *testing.T) {
-	// Every metrics query is pinned to one ingestion source so metric-derived
-	// aggregate rows never mix with per-call spans.
-	clause, args := window("", 100, 200, sourceSpan)
-	if clause != "start_time_ms >= ? AND start_time_ms < ? AND source = ?" {
+func TestWindowClause(t *testing.T) {
+	// window carries no source predicate now — the relation (tracium.calls, or
+	// both cost relations) supplies that. It renders only the time bounds plus the
+	// business (user) and access (workspace) filters.
+	// An empty workspace scope is a hard deny (match nothing), never "match
+	// everything" — the read-side access boundary.
+	clause, args := window("", nil, 100, 200)
+	if clause != "start_time_ms >= ? AND start_time_ms < ? AND 1 = 0" {
 		t.Errorf("clause = %q", clause)
 	}
-	if len(args) != 3 || args[2] != sourceSpan {
-		t.Errorf("args = %v, want [...,%q]", args, sourceSpan)
+	if len(args) != 2 || args[0] != int64(100) || args[1] != int64(200) {
+		t.Errorf("args = %v, want [100 200]", args)
 	}
 
-	// A tenant adds a fourth bound after the source.
-	clause, args = window("acme", 100, 200, sourceMetric)
-	if clause != "start_time_ms >= ? AND start_time_ms < ? AND source = ? AND tenant_id = ?" {
-		t.Errorf("tenant clause = %q", clause)
+	// A user adds its own bound after the time range; the empty scope still denies.
+	clause, args = window("acme", nil, 100, 200)
+	if clause != "start_time_ms >= ? AND start_time_ms < ? AND user_id = ? AND 1 = 0" {
+		t.Errorf("user clause = %q", clause)
 	}
-	if len(args) != 4 || args[2] != sourceMetric || args[3] != "acme" {
+	if len(args) != 3 || args[2] != "acme" {
 		t.Errorf("args = %v", args)
+	}
+
+	// A single accessible workspace compiles to an equality, after the user.
+	clause, args = window("acme", []string{"ws_1"}, 100, 200)
+	if clause != "start_time_ms >= ? AND start_time_ms < ? AND user_id = ? AND workspace_id = ?" {
+		t.Errorf("workspace clause = %q", clause)
+	}
+	if len(args) != 4 || args[2] != "acme" || args[3] != "ws_1" {
+		t.Errorf("args = %v", args)
+	}
+
+	// Several accessible workspaces compile to an IN over the allowed set.
+	clause, args = window("", []string{"a", "b"}, 100, 200)
+	if clause != "start_time_ms >= ? AND start_time_ms < ? AND workspace_id IN (?,?)" {
+		t.Errorf("multi-workspace clause = %q", clause)
+	}
+	if len(args) != 4 || args[2] != "a" || args[3] != "b" {
+		t.Errorf("args = %v", args)
+	}
+}
+
+// The reconciled cost union reads BOTH typed relations — calls for span cost,
+// usage_metrics for metric cost — and never names `source`. Its args are the
+// window args once per branch, so a caller binds them calls-first.
+func TestReconciledCostUnionReadsBothRelations(t *testing.T) {
+	clause, args := window("acme", []string{"ws_1"}, 100, 200)
+	sql, both := reconciledCostUnion(clause, args)
+
+	if !strings.Contains(sql, "tracium.calls") || !strings.Contains(sql, "tracium.usage_metrics") {
+		t.Errorf("union does not read both relations:\n%s", sql)
+	}
+	if strings.Contains(sql, "source") {
+		t.Errorf("union should not mention source:\n%s", sql)
+	}
+	if !strings.Contains(sql, "cost_usd AS span_cost") || !strings.Contains(sql, "cost_usd AS metric_cost") {
+		t.Errorf("union does not tag cost by relation:\n%s", sql)
+	}
+	// Window args are repeated once per branch, in order.
+	if len(both) != 2*len(args) {
+		t.Fatalf("args = %v, want the window args twice (%d)", both, 2*len(args))
+	}
+	for i := range args {
+		if both[i] != args[i] || both[i+len(args)] != args[i] {
+			t.Errorf("args not duplicated per branch: %v", both)
+		}
 	}
 }

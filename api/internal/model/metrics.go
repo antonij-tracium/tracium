@@ -3,6 +3,29 @@ package model
 // Metrics power the dashboard overview. All values are raw numbers; the
 // dashboard owns formatting (currency, percentages, seconds).
 
+// Anomaly is one bucket of one series that deviated significantly from its own
+// recent history — the output of statistical anomaly detection. It is daily,
+// rollup-backed, and workspace-scoped like every other metric. Metric is
+// "cost" | "error_rate" | "runs"; Scope is "workspace" (the whole window) or
+// "agent" (Agent names which one). Direction is "spike" | "drop"; Severity is
+// "info" | "warning" | "critical". Observed is the bucket's value, Expected the
+// baseline median, Deviation their difference, and Score the signed robust
+// z-score behind the ranking. Summary is a ready-to-read sentence; the dashboard
+// may reformat from the raw fields instead.
+type Anomaly struct {
+	Metric    string  `json:"metric"`
+	Scope     string  `json:"scope"`
+	Agent     string  `json:"agent"` // set when Scope == "agent", else ""
+	BucketMs  int64   `json:"bucket_ms"`
+	Observed  float64 `json:"observed"`
+	Expected  float64 `json:"expected"`
+	Deviation float64 `json:"deviation"`
+	Score     float64 `json:"score"`
+	Direction string  `json:"direction"`
+	Severity  string  `json:"severity"`
+	Summary   string  `json:"summary"`
+}
+
 // KPI is a single headline metric with its period-over-period change.
 // Delta is a fraction (0.12 == +12%); DeltaType is "good" | "bad" | "neutral".
 type KPI struct {
@@ -131,12 +154,12 @@ type AttributeUsage struct {
 	OutputTokens int64   `json:"output_tokens"`
 }
 
-// TenantUsage is one tenant's spend over the current window paired with the
+// UserUsage is one user's spend over the current window paired with the
 // equal-length preceding window, so the usage table can show per-column change.
 // Trend is cost per time bucket across the current window (oldest first,
 // zero-filled) for the row sparkline.
-type TenantUsage struct {
-	TenantID string    `json:"tenant_id"`
+type UserUsage struct {
+	UserID string    `json:"user_id"`
 	Cost     float64   `json:"cost"`
 	CostPrev float64   `json:"cost_prev"`
 	Runs     int64     `json:"runs"`
@@ -145,7 +168,7 @@ type TenantUsage struct {
 }
 
 // AgentUsage is one agent's spend over the current window paired with the
-// preceding window (see TenantUsage). Model is the agent's most-used model.
+// preceding window (see UserUsage). Model is the agent's most-used model.
 type AgentUsage struct {
 	Name     string  `json:"name"`
 	Model    string  `json:"model"`

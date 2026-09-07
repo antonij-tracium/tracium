@@ -10,68 +10,103 @@ import (
 	"github.com/tracium/api/internal/model"
 )
 
-// Ingestion sources stored in tracium.spans.source. Real per-call spans are
-// "span"; aggregate rows synthesised from OTLP token-usage metrics are "metric".
+// The two ingestion relations. Real per-call spans are exposed by the
+// tracium.calls view (source='span'); token-usage metric rows by
+// tracium.usage_metrics (source='metric'). Both are views over tracium.spans
+// (collector migrations 009/010) that carry the source predicate, so a query
+// reading calls cannot see metric rows and vice versa — the exclusion is
+// structural, not a predicate each query must remember to add. The reads below
+// never mention `source`; they choose the relation instead.
 const (
-	sourceSpan   = "span"
-	sourceMetric = "metric"
+	tableCalls        = "tracium.calls"
+	tableUsageMetrics = "tracium.usage_metrics"
 )
 
 // window builds the time-range WHERE clause (and its args) shared by every
-// metrics query. lo/hi are epoch-millis bounds; an empty tenant means no filter.
-// source pins the query to one ingestion source so metric-derived aggregate rows
-// never mix with per-call spans (e.g. inflating trace counts or latency).
-func window(tenant string, lo, hi int64, source string) (string, []any) {
-	clause := "start_time_ms >= ? AND start_time_ms < ? AND source = ?"
-	args := []any{lo, hi, source}
-	if tenant != "" {
-		clause += " AND tenant_id = ?"
-		args = append(args, tenant)
+// metrics query. lo/hi are epoch-millis bounds; an empty user means no filter.
+// It carries no source predicate — the caller picks the relation (tableCalls for
+// per-call spans, or both relations for reconciled cost).
+// workspaceScope renders the workspace access clause. The workspaces slice is
+// the caller's allowed set (resolved from memberships): a single id compiles to
+// an equality, several to an IN, and an empty set to a clause that matches
+// nothing — so a caller with no accessible workspace sees no rows rather than
+// every row. This is the read-side access boundary; every metrics query appends
+// it.
+func workspaceScope(workspaces []string) (string, []any) {
+	switch len(workspaces) {
+	case 0:
+		return " AND 1 = 0", nil
+	case 1:
+		return " AND workspace_id = ?", []any{workspaces[0]}
+	default:
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(workspaces)), ",")
+		args := make([]any, len(workspaces))
+		for i, w := range workspaces {
+			args[i] = w
+		}
+		return " AND workspace_id IN (" + placeholders + ")", args
 	}
+}
+
+func window(user string, workspaces []string, lo, hi int64) (string, []any) {
+	clause := "start_time_ms >= ? AND start_time_ms < ?"
+	args := []any{lo, hi}
+	if user != "" {
+		clause += " AND user_id = ?"
+		args = append(args, user)
+	}
+	wsClause, wsArgs := workspaceScope(workspaces)
+	clause += wsClause
+	args = append(args, wsArgs...)
 	return clause, args
 }
 
-// costWindow builds the WHERE clause for cost reads, which reconcile both
-// ingestion sources instead of pinning one (see costReconcileExpr).
-func costWindow(tenant string, lo, hi int64) (string, []any) {
-	clause := "start_time_ms >= ? AND start_time_ms < ? AND source IN (?, ?)"
-	args := []any{lo, hi, sourceSpan, sourceMetric}
-	if tenant != "" {
-		clause += " AND tenant_id = ?"
-		args = append(args, tenant)
-	}
-	return clause, args
+// reconciledCostUnion builds the row-level UNION ALL over the two cost relations
+// for one window: every calls row contributes span_cost, every usage_metrics row
+// metric_cost, both carrying start_time_ms so the caller can bucket and reconcile
+// them. The window clause is identical for both branches, so its args are
+// returned once per branch (calls first, then usage_metrics) — bind them in that
+// order. Reconciliation itself (the per-bucket greatest) is the caller's, so the
+// same union serves both the KPI total and the cost series.
+//
+// Why greatest, not sum: spans and metrics meter the same spend, but either side
+// can be incomplete — spans may be sampled or lack usage (streamed calls),
+// metrics may cover only some services or part of the window. Four stray metric
+// rows in a 30d window once made the Cost KPI report 99.8% below reality, because
+// the old code committed the whole window to whichever source had any rows. Each
+// side is a lower bound on a bucket's true spend, so the greater is the tightest
+// estimate without per-call identity (metric rows have none) and can never
+// double-count. A bucket with only one source resolves to it, so a deployment
+// without metrics is bitwise-identical to the pre-metrics span sum.
+func reconciledCostUnion(clause string, args []any) (string, []any) {
+	sql := fmt.Sprintf(`SELECT start_time_ms, cost_usd AS span_cost, 0 AS metric_cost FROM %s WHERE %s
+    UNION ALL
+    SELECT start_time_ms, 0 AS span_cost, cost_usd AS metric_cost FROM %s WHERE %s`,
+		tableCalls, clause, tableUsageMetrics, clause)
+	both := make([]any, 0, len(args)*2)
+	both = append(both, args...)
+	both = append(both, args...)
+	return sql, both
 }
 
-// costReconcileExpr is the per-bucket reconciliation of the two cost sources.
-// Spans and metrics meter the same spend, but either side can be incomplete:
-// spans may be sampled or lack usage (streamed calls), metrics may cover only
-// some services or only part of the window — four stray metric rows in a 30d
-// window once made the Cost KPI report 99.8% below reality, because the old
-// code switched the whole window to whichever source had any rows at all.
-// Each side is a lower bound on the bucket's true spend, so the greater of the
-// two is the tightest estimate available without per-call identity (metric
-// rows have none), and it can never double-count. Buckets where only one
-// source reports resolve to that source, so a deployment without metrics is
-// bitwise-identical to the pre-metrics span sum.
-const costReconcileExpr = `greatest(sumIf(cost_usd, source = 'span'), sumIf(cost_usd, source = 'metric'))`
-
-// costTotal sums reconciled cost over [lo, hi), on the same bucket grid the
-// cost series uses so the headline KPI always equals the sum of the chart.
-// Summing span cost_usd over rows equals summing it per trace then across
-// traces, so a flat sum matches the pre-metrics per-trace rollup.
-func (r *ClickHouseRepository) costTotal(ctx context.Context, tenant string, lo, hi, bucketMs int64) (float64, error) {
-	clause, args := costWindow(tenant, lo, hi)
+// costTotal sums reconciled cost over [lo, hi), on the same bucket grid the cost
+// series uses so the headline KPI always equals the sum of the chart. Cost is
+// reconciled per bucket across both relations (see reconciledCostUnion); summing
+// the per-bucket greatest matches CostSeries bucket-for-bucket.
+func (r *ClickHouseRepository) costTotal(ctx context.Context, user string, workspaces []string, lo, hi, bucketMs int64) (float64, error) {
+	clause, args := window(user, workspaces, lo, hi)
+	union, uargs := reconciledCostUnion(clause, args)
 	var cost float64
+	// The GROUP BY bucket placeholder is textually after the union, so bucketMs
+	// binds last.
 	q := fmt.Sprintf(`
 SELECT sum(bucket_cost)
 FROM (
-    SELECT %s AS bucket_cost
-    FROM tracium.spans
-    WHERE %s
+    SELECT greatest(sum(span_cost), sum(metric_cost)) AS bucket_cost
+    FROM (%s)
     GROUP BY intDiv(start_time_ms, ?)
-)`, costReconcileExpr, clause)
-	if err := r.db.QueryRowContext(ctx, q, append(args, bucketMs)...).Scan(&cost); err != nil {
+)`, union)
+	if err := r.db.QueryRowContext(ctx, q, append(uargs, bucketMs)...).Scan(&cost); err != nil {
 		return 0, fmt.Errorf("clickhouse: cost total: %w", err)
 	}
 	return sanitize(cost), nil
@@ -92,8 +127,9 @@ const spanErrored = `(error_type != '' OR error_message != '')`
 
 // kpiAggregates rolls every span in the window up to its trace, then reduces the
 // traces to the trace-shaped headline numbers. Cost is computed separately (it
-// may come from the metric source), so it is not in this query — only spans
-// (source="span") carry trace identity, durations, and errors.
+// may come from the metric relation), so it is not in this query — it reads
+// tracium.calls, whose rows are the per-call spans that carry trace identity,
+// durations, and errors.
 var kpiAggregates = `
 SELECT
     toInt64(count())     AS runs,
@@ -103,7 +139,7 @@ FROM (
     SELECT
         ` + traceDurationExpr + ` AS dur,
         max(` + spanErrored + `)  AS errored
-    FROM tracium.spans
+    FROM tracium.calls
     WHERE %s
     GROUP BY trace_id
 )`
@@ -115,9 +151,10 @@ type kpiRow struct {
 }
 
 // kpiWindow computes one window's headline numbers: runs/latency/errors from
-// spans, and cost reconciled across both sources (see costReconcileExpr).
+// the per-call spans (tracium.calls), and cost reconciled across both relations
+// (see reconciledCostUnion).
 func (r *ClickHouseRepository) kpiWindow(ctx context.Context, f MetricsFilter, lo, hi int64) (kpiRow, error) {
-	clause, args := window(f.TenantID, lo, hi, sourceSpan)
+	clause, args := window(f.UserID, f.WorkspaceIDs, lo, hi)
 	var row kpiRow
 	err := r.db.QueryRowContext(ctx, fmt.Sprintf(kpiAggregates, clause), args...).
 		Scan(&row.runs, &row.p95, &row.errRate)
@@ -129,7 +166,7 @@ func (r *ClickHouseRepository) kpiWindow(ctx context.Context, f MetricsFilter, l
 	row.p95 = sanitize(row.p95)
 	row.errRate = sanitize(row.errRate)
 
-	cost, err := r.costTotal(ctx, f.TenantID, lo, hi, f.Bucket.Milliseconds())
+	cost, err := r.costTotal(ctx, f.UserID, f.WorkspaceIDs, lo, hi, f.Bucket.Milliseconds())
 	if err != nil {
 		return kpiRow{}, err
 	}
@@ -139,10 +176,13 @@ func (r *ClickHouseRepository) kpiWindow(ctx context.Context, f MetricsFilter, l
 
 // OverviewKPIs computes the four headline KPIs for the current window alongside
 // their change versus the equal-length preceding window. Cost reconciles both
-// ingestion sources per bucket (costReconcileExpr) on the same grid in both
+// ingestion relations per bucket (reconciledCostUnion) on the same grid in both
 // sub-windows and in CostSeries, so the delta compares like with like and the
 // KPI always equals the sum of the chart.
 func (r *ClickHouseRepository) OverviewKPIs(ctx context.Context, f MetricsFilter) (model.KPISet, error) {
+	ctx, cancel := r.withTimeout(ctx)
+	defer cancel()
+
 	if f.UseRollup() {
 		return r.overviewKPIsRollup(ctx, f)
 	}
@@ -180,7 +220,7 @@ func bucketAxis(f MetricsFilter) (base, bucketMs int64, n int) {
 
 // snapWindow rounds a window's end down to grid (preserving its length) so that
 // requests arriving within the same grid interval produce a byte-identical query
-// — the precondition for ClickHouse's query cache to hit. Tenant and bucket are
+// — the precondition for ClickHouse's query cache to hit. User and bucket are
 // unchanged. The caller trades up-to-grid staleness for cross-request caching.
 func snapWindow(f MetricsFilter, grid time.Duration) MetricsFilter {
 	span := f.End.Sub(f.Start)
@@ -193,16 +233,19 @@ func snapWindow(f MetricsFilter, grid time.Duration) MetricsFilter {
 // over the full window so quiet buckets read 0 spend rather than being dropped —
 // the sparkline and bar chart then show the true shape.
 func (r *ClickHouseRepository) CostSeries(ctx context.Context, f MetricsFilter) ([]model.CostPoint, error) {
+	ctx, cancel := r.withTimeout(ctx)
+	defer cancel()
+
 	if f.UseRollup() {
 		return r.costSeriesRollup(ctx, f)
 	}
 	bucketMs := f.Bucket.Milliseconds()
 
-	// Agent-scoped cost must use per-call spans (the metric source carries no
+	// Agent-scoped cost must use per-call spans (the metric relation carries no
 	// agent identity) and roll up to traces so the agent filter can apply. The
-	// unfiltered path keeps the cheaper span-level sum and metric-source choice.
+	// unfiltered path reconciles both relations instead.
 	if f.Agent != "" {
-		clause, args := window(f.TenantID, f.Start.UnixMilli(), f.End.UnixMilli(), sourceSpan)
+		clause, args := window(f.UserID, f.WorkspaceIDs, f.Start.UnixMilli(), f.End.UnixMilli())
 		q := fmt.Sprintf(`
 SELECT intDiv(ts, ?) * ? AS bucket_ms, sum(cost) AS value
 FROM (
@@ -210,12 +253,12 @@ FROM (
         min(start_time_ms) AS ts,
         sum(cost_usd)      AS cost,
         %s AS name
-    FROM tracium.spans
+    FROM %s
     WHERE %s
     GROUP BY trace_id
 )
 WHERE name = ?
-GROUP BY bucket_ms`, agentExpr, clause)
+GROUP BY bucket_ms`, agentExpr, tableCalls, clause)
 		qArgs := append([]any{bucketMs, bucketMs}, args...)
 		qArgs = append(qArgs, f.Agent)
 		points, err := bucketSeries(ctx, r.db, f, q, qArgs, scanCostBucket, costPoint)
@@ -225,16 +268,18 @@ GROUP BY bucket_ms`, agentExpr, clause)
 		return points, nil
 	}
 
-	// Reconcile the two cost sources per bucket (see costReconcileExpr) —
-	// the same grid and expression as the KPI, so chart and headline agree.
-	clause, args := costWindow(f.TenantID, f.Start.UnixMilli(), f.End.UnixMilli())
+	// Reconcile the two cost relations per bucket (see reconciledCostUnion) — the
+	// same grid and reconciliation as the KPI, so chart and headline agree. The
+	// bucket placeholders are in the outer SELECT/GROUP BY, textually before the
+	// union, so bucketMs binds first.
+	clause, args := window(f.UserID, f.WorkspaceIDs, f.Start.UnixMilli(), f.End.UnixMilli())
+	union, uargs := reconciledCostUnion(clause, args)
 	q := fmt.Sprintf(`
-SELECT intDiv(start_time_ms, ?) * ? AS bucket_ms, %s AS value
-FROM tracium.spans
-WHERE %s
-GROUP BY bucket_ms`, costReconcileExpr, clause)
+SELECT intDiv(start_time_ms, ?) * ? AS bucket_ms, greatest(sum(span_cost), sum(metric_cost)) AS value
+FROM (%s)
+GROUP BY bucket_ms`, union)
 
-	points, err := bucketSeries(ctx, r.db, f, q, append([]any{bucketMs, bucketMs}, args...), scanCostBucket, costPoint)
+	points, err := bucketSeries(ctx, r.db, f, q, append([]any{bucketMs, bucketMs}, uargs...), scanCostBucket, costPoint)
 	if err != nil {
 		return nil, fmt.Errorf("clickhouse: cost series: %w", err)
 	}
@@ -252,13 +297,16 @@ GROUP BY bucket_ms`, costReconcileExpr, clause)
 // carry nil percentiles rather than 0. Latency is undefined when nothing ran, so
 // the chart draws a genuine gap instead of a dip to the floor.
 func (r *ClickHouseRepository) LatencySeries(ctx context.Context, f MetricsFilter) ([]model.LatencyPoint, error) {
+	ctx, cancel := r.withTimeout(ctx)
+	defer cancel()
+
 	if f.UseRollup() {
 		// Trace-duration percentiles can't be derived from the daily rollup, and
 		// scanning a quarter/year of raw spans for them is exactly what we avoid.
 		// Return a null-filled axis; the dashboard hides latency for long windows.
 		return latencySeriesEmpty(f), nil
 	}
-	clause, args := window(f.TenantID, f.Start.UnixMilli(), f.End.UnixMilli(), sourceSpan)
+	clause, args := window(f.UserID, f.WorkspaceIDs, f.Start.UnixMilli(), f.End.UnixMilli())
 	base, bucketMs, n := bucketAxis(f)
 	q := fmt.Sprintf(`
 SELECT
@@ -270,7 +318,7 @@ FROM (
     SELECT
         intDiv(min(start_time_ms), ?) * ? AS bucket_ms,
         `+traceDurationExpr+` AS dur%s
-    FROM tracium.spans
+    FROM tracium.calls
     WHERE %s
     GROUP BY trace_id
 )%s
@@ -317,10 +365,13 @@ GROUP BY bucket_ms`, agentNameCol(f.Agent), clause, agentNameFilter(f.Agent))
 // as errored if any of its spans carries an error type. The series is zero-filled
 // over the full window so quiet buckets read 0 runs rather than being dropped.
 func (r *ClickHouseRepository) ErrorSeries(ctx context.Context, f MetricsFilter) ([]model.ErrorPoint, error) {
+	ctx, cancel := r.withTimeout(ctx)
+	defer cancel()
+
 	if f.UseRollup() {
 		return r.errorSeriesRollup(ctx, f)
 	}
-	clause, args := window(f.TenantID, f.Start.UnixMilli(), f.End.UnixMilli(), sourceSpan)
+	clause, args := window(f.UserID, f.WorkspaceIDs, f.Start.UnixMilli(), f.End.UnixMilli())
 	bucketMs := f.Bucket.Milliseconds()
 	q := fmt.Sprintf(`
 SELECT
@@ -331,7 +382,7 @@ FROM (
     SELECT
         intDiv(min(start_time_ms), ?) * ? AS bucket_ms,
         max(`+spanErrored+`)              AS errored%s
-    FROM tracium.spans
+    FROM tracium.calls
     WHERE %s
     GROUP BY trace_id
 )%s
@@ -348,13 +399,24 @@ GROUP BY bucket_ms`, agentNameCol(f.Agent), clause, agentNameFilter(f.Agent))
 	return points, nil
 }
 
-// agentExpr derives a trace's agent inside a `GROUP BY trace_id` subquery: the
-// collector-supplied agent_name of the earliest span, falling back to that
-// span's raw name for rows written before agent_name existed (which read back
-// as ”). Grouping on this — rather than the raw span name — keeps every
-// auto-instrumented trace from collapsing under a generic operation name like
-// "openai.chat".
-const agentExpr = `argMin(if(agent_name != '', agent_name, name), start_time_ms)`
+// agentExpr derives a trace's representative agent inside a `GROUP BY trace_id`
+// subquery. A trace's agent is the agent of its entry point, so we prefer the
+// root span (parent_span_id = ”): in a multi-agent trace the root is the
+// orchestrator/top-level agent, and preferring it also fixes the same-millisecond
+// tie-break where a wrapping span and its auto-instrumented child start together
+// and a plain argMin would land arbitrarily on the child. Fallbacks, in order:
+// the earliest span carrying any agent_name (traces whose root span exports late
+// or lacks one); the earliest span's service_name (a stable, always-present
+// resource name for in-flight traces, before any invoke_agent span arrives); and
+// finally the earliest span's raw name (rows written before agent_name/
+// service_name existed, which read back as ”). Grouping on this — rather than
+// the raw span name — keeps every auto-instrumented trace from collapsing under
+// a generic operation name like "openai.chat".
+const agentExpr = `coalesce(` +
+	`nullIf(argMinIf(agent_name, start_time_ms, agent_name != '' AND parent_span_id = ''), ''), ` +
+	`nullIf(argMinIf(agent_name, start_time_ms, agent_name != ''), ''), ` +
+	`nullIf(argMinIf(service_name, start_time_ms, service_name != ''), ''), ` +
+	`argMin(name, start_time_ms))`
 
 // agentNameCol / agentNameFilter add an optional single-agent filter to a series
 // query whose inner subquery rolls spans up to traces (GROUP BY trace_id). The
@@ -379,17 +441,20 @@ func agentNameFilter(agent string) string {
 // TopAgents returns the highest-spending agents in the window. An agent is the
 // trace's derived agent (see agentExpr).
 func (r *ClickHouseRepository) TopAgents(ctx context.Context, f MetricsFilter, limit int) ([]model.AgentCost, error) {
+	ctx, cancel := r.withTimeout(ctx)
+	defer cancel()
+
 	if f.UseRollup() {
 		return r.topAgentsRollup(ctx, f, limit)
 	}
-	clause, args := window(f.TenantID, f.Start.UnixMilli(), f.End.UnixMilli(), sourceSpan)
+	clause, args := window(f.UserID, f.WorkspaceIDs, f.Start.UnixMilli(), f.End.UnixMilli())
 	q := fmt.Sprintf(`
 SELECT name, sum(cost) AS cost, toInt64(count()) AS calls
 FROM (
     SELECT
         %s AS name,
         sum(cost_usd) AS cost
-    FROM tracium.spans
+    FROM tracium.calls
     WHERE %s
     GROUP BY trace_id
 )
@@ -423,7 +488,7 @@ FROM (
     SELECT
         %s AS name,
         intDiv(min(start_time_ms), ?) * ? AS bucket_ms
-    FROM tracium.spans
+    FROM tracium.calls
     WHERE %s
     GROUP BY trace_id
 )
@@ -453,11 +518,14 @@ const agentsCacheGrid = time.Minute
 //   - Cached: the window is snapped to agentsCacheGrid and the read opts into the
 //     query cache, so concurrent identical requests collapse to one scan.
 func (r *ClickHouseRepository) ListAgents(ctx context.Context, f MetricsFilter, limit int) ([]model.Agent, error) {
+	ctx, cancel := r.withTimeout(ctx)
+	defer cancel()
+
 	if f.UseRollup() {
 		return r.listAgentsRollup(ctx, f, limit)
 	}
 	cf := snapWindow(f, agentsCacheGrid)
-	clause, args := window(cf.TenantID, cf.Start.UnixMilli(), cf.End.UnixMilli(), sourceSpan)
+	clause, args := window(cf.UserID, cf.WorkspaceIDs, cf.Start.UnixMilli(), cf.End.UnixMilli())
 	bucketMs := cf.Bucket.Milliseconds()
 	q := fmt.Sprintf(`
 SELECT
@@ -477,7 +545,7 @@ FROM (
         max(`+spanErrored+`) AS errored,
         min(start_time_ms)   AS ts,
         intDiv(min(start_time_ms), ?) * ? AS bucket
-    FROM tracium.spans
+    FROM tracium.calls
     WHERE %s
     GROUP BY trace_id
 )
@@ -522,7 +590,10 @@ SETTINGS use_query_cache = 1, query_cache_ttl = 60`, agentExpr, clause)
 // model, start) and the outer reduces the agent's traces to the headline
 // numbers — the same two-level shape as ListAgents, filtered to one agent.
 func (r *ClickHouseRepository) AgentDetail(ctx context.Context, f MetricsFilter) (model.AgentDetail, error) {
-	clause, args := window(f.TenantID, f.Start.UnixMilli(), f.End.UnixMilli(), sourceSpan)
+	ctx, cancel := r.withTimeout(ctx)
+	defer cancel()
+
+	clause, args := window(f.UserID, f.WorkspaceIDs, f.Start.UnixMilli(), f.End.UnixMilli())
 	q := fmt.Sprintf(`
 SELECT
     toInt64(count())                 AS calls,
@@ -545,7 +616,7 @@ FROM (
         sum(input_tokens)    AS in_tok,
         sum(output_tokens)   AS out_tok,
         min(start_time_ms)   AS ts
-    FROM tracium.spans
+    FROM tracium.calls
     WHERE %s
     GROUP BY trace_id
 )
@@ -582,7 +653,7 @@ WHERE name = ?`, agentExpr, modelExpr, clause)
 	// recent run — cheap (one trace, bloom-indexed by trace_id) and representative
 	// of the current deployment. Empty when content/tool capture is off.
 	if lastTrace != "" {
-		spans, err := r.GetSpans(ctx, lastTrace)
+		spans, err := r.GetSpans(ctx, lastTrace, f.WorkspaceIDs)
 		if err != nil {
 			return model.AgentDetail{}, fmt.Errorf("clickhouse: agent detail tools: %w", err)
 		}
@@ -633,10 +704,13 @@ func unionTools(spans []model.Span) []model.AvailableTool {
 // Failures returns the agents with the most errored runs in the window, plus
 // the total number of failed runs across all agents.
 func (r *ClickHouseRepository) Failures(ctx context.Context, f MetricsFilter, limit int) ([]model.Failure, int64, error) {
+	ctx, cancel := r.withTimeout(ctx)
+	defer cancel()
+
 	if f.UseRollup() {
 		return r.failuresRollup(ctx, f, limit)
 	}
-	clause, args := window(f.TenantID, f.Start.UnixMilli(), f.End.UnixMilli(), sourceSpan)
+	clause, args := window(f.UserID, f.WorkspaceIDs, f.Start.UnixMilli(), f.End.UnixMilli())
 	// Per trace: its agent (see agentExpr), whether it errored, and one error
 	// type. Grouped by agent we get failed vs total runs and the most common error.
 	q := fmt.Sprintf(`
@@ -650,7 +724,7 @@ FROM (
         %s AS name,
         max(`+spanErrored+`)                AS errored,
         anyIf(error_type, error_type != '') AS err
-    FROM tracium.spans
+    FROM tracium.calls
     WHERE %s
     GROUP BY trace_id
 )
@@ -686,7 +760,7 @@ LIMIT ?`, agentExpr, clause)
 	totalQ := fmt.Sprintf(`
 SELECT toInt64(count())
 FROM (
-    SELECT trace_id FROM tracium.spans
+    SELECT trace_id FROM tracium.calls
     WHERE %s
     GROUP BY trace_id
     HAVING max(`+spanErrored+`) = 1
@@ -707,10 +781,13 @@ const modelExpr = `if(model_normalized != '', model_normalized, model)`
 // spans that named it, and Calls counts those model invocations. Spans with no
 // model (tool/internal spans) carry no model and are excluded.
 func (r *ClickHouseRepository) ModelCosts(ctx context.Context, f MetricsFilter, limit int) ([]model.ModelCost, error) {
+	ctx, cancel := r.withTimeout(ctx)
+	defer cancel()
+
 	if f.UseRollup() {
 		return r.modelCostsRollup(ctx, f, limit)
 	}
-	clause, args := window(f.TenantID, f.Start.UnixMilli(), f.End.UnixMilli(), sourceSpan)
+	clause, args := window(f.UserID, f.WorkspaceIDs, f.Start.UnixMilli(), f.End.UnixMilli())
 	q := fmt.Sprintf(`
 SELECT
     %s                 AS name,
@@ -718,7 +795,7 @@ SELECT
     toInt64(count())   AS calls,
     toInt64(sum(input_tokens))  AS input_tokens,
     toInt64(sum(output_tokens)) AS output_tokens
-FROM tracium.spans
+FROM tracium.calls
 WHERE %s AND %s != ''
 GROUP BY name
 ORDER BY cost DESC
@@ -742,36 +819,39 @@ LIMIT ?`, modelExpr, clause, modelExpr)
 	return models, rows.Err()
 }
 
-// TenantUsage returns the highest-spending tenants in the current window, each
+// UserUsage returns the highest-spending users in the current window, each
 // paired with its spend in the equal-length preceding window so the usage table
 // can show per-column change. Current and previous are computed in a single pass
-// over [PrevStart, End): the inner query rolls spans up to traces (cost, tenant,
+// over [PrevStart, End): the inner query rolls spans up to traces (cost, user,
 // start time), and the outer query splits the two windows with sumIf/countIf at
 // f.Start. Each row's cost-per-bucket Trend is filled separately over the
 // current window.
-func (r *ClickHouseRepository) TenantUsage(ctx context.Context, f MetricsFilter, limit int) ([]model.TenantUsage, error) {
+func (r *ClickHouseRepository) UserUsage(ctx context.Context, f MetricsFilter, limit int) ([]model.UserUsage, error) {
+	ctx, cancel := r.withTimeout(ctx)
+	defer cancel()
+
 	if f.UseRollup() {
-		return r.tenantUsageRollup(ctx, f, limit)
+		return r.userUsageRollup(ctx, f, limit)
 	}
 	cur := f.Start.UnixMilli()
-	clause, args := window(f.TenantID, f.PrevStart.UnixMilli(), f.End.UnixMilli(), sourceSpan)
+	clause, args := window(f.UserID, f.WorkspaceIDs, f.PrevStart.UnixMilli(), f.End.UnixMilli())
 	q := fmt.Sprintf(`
 SELECT
-    tenant_id,
+    user_id,
     sumIf(cost, ts >= ?)          AS cost_cur,
     sumIf(cost, ts <  ?)          AS cost_prev,
     toInt64(countIf(ts >= ?))     AS runs_cur,
     toInt64(countIf(ts <  ?))     AS runs_prev
 FROM (
     SELECT
-        any(tenant_id)     AS tenant_id,
+        any(user_id)     AS user_id,
         sum(cost_usd)      AS cost,
         min(start_time_ms) AS ts
-    FROM tracium.spans
+    FROM tracium.calls
     WHERE %s
     GROUP BY trace_id
 )
-GROUP BY tenant_id
+GROUP BY user_id
 ORDER BY cost_cur DESC
 LIMIT ?`, clause)
 
@@ -779,55 +859,58 @@ LIMIT ?`, clause)
 	qArgs = append(qArgs, limit)
 	rows, err := r.db.QueryContext(ctx, q, qArgs...)
 	if err != nil {
-		return nil, fmt.Errorf("clickhouse: tenant usage: %w", err)
+		return nil, fmt.Errorf("clickhouse: user usage: %w", err)
 	}
 	defer rows.Close()
 
-	tenants := []model.TenantUsage{}
+	users := []model.UserUsage{}
 	for rows.Next() {
-		var t model.TenantUsage
-		if err := rows.Scan(&t.TenantID, &t.Cost, &t.CostPrev, &t.Runs, &t.RunsPrev); err != nil {
-			return nil, fmt.Errorf("clickhouse: scan tenant usage: %w", err)
+		var t model.UserUsage
+		if err := rows.Scan(&t.UserID, &t.Cost, &t.CostPrev, &t.Runs, &t.RunsPrev); err != nil {
+			return nil, fmt.Errorf("clickhouse: scan user usage: %w", err)
 		}
 		t.Cost, t.CostPrev = sanitize(t.Cost), sanitize(t.CostPrev)
-		tenants = append(tenants, t)
+		users = append(users, t)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 
-	// Each tenant's per-bucket cost over the current window, on the shared axis.
+	// Each user's per-bucket cost over the current window, on the shared axis.
 	bucketMs := f.Bucket.Milliseconds()
-	trendClause, trendWArgs := window(f.TenantID, f.Start.UnixMilli(), f.End.UnixMilli(), sourceSpan)
+	trendClause, trendWArgs := window(f.UserID, f.WorkspaceIDs, f.Start.UnixMilli(), f.End.UnixMilli())
 	trendQ := fmt.Sprintf(`
-SELECT tenant_id, bucket_ms, sum(cost) AS cost
+SELECT user_id, bucket_ms, sum(cost) AS cost
 FROM (
     SELECT
-        any(tenant_id)                    AS tenant_id,
+        any(user_id)                    AS user_id,
         intDiv(min(start_time_ms), ?) * ? AS bucket_ms,
         sum(cost_usd)                     AS cost
-    FROM tracium.spans
+    FROM tracium.calls
     WHERE %s
     GROUP BY trace_id
 )
-GROUP BY tenant_id, bucket_ms`, trendClause)
-	if err := r.fillTenantTrends(ctx, f, tenants, trendQ, append([]any{bucketMs, bucketMs}, trendWArgs...)); err != nil {
-		return nil, fmt.Errorf("clickhouse: tenant trends: %w", err)
+GROUP BY user_id, bucket_ms`, trendClause)
+	if err := r.fillUserTrends(ctx, f, users, trendQ, append([]any{bucketMs, bucketMs}, trendWArgs...)); err != nil {
+		return nil, fmt.Errorf("clickhouse: user trends: %w", err)
 	}
-	return tenants, nil
+	return users, nil
 }
 
 // AgentUsage returns the highest-spending agents in the current window paired
-// with the preceding window (see TenantUsage), plus each agent's most-used
+// with the preceding window (see UserUsage), plus each agent's most-used
 // model. Single pass over [PrevStart, End): the inner query derives a trace's
 // agent (see agentExpr) and model and rolls up its cost; the outer query splits
 // the windows with sumIf/countIf and takes the modal model with topK.
 func (r *ClickHouseRepository) AgentUsage(ctx context.Context, f MetricsFilter, limit int) ([]model.AgentUsage, error) {
+	ctx, cancel := r.withTimeout(ctx)
+	defer cancel()
+
 	if f.UseRollup() {
 		return r.agentUsageRollup(ctx, f, limit)
 	}
 	cur := f.Start.UnixMilli()
-	clause, args := window(f.TenantID, f.PrevStart.UnixMilli(), f.End.UnixMilli(), sourceSpan)
+	clause, args := window(f.UserID, f.WorkspaceIDs, f.PrevStart.UnixMilli(), f.End.UnixMilli())
 	q := fmt.Sprintf(`
 SELECT
     name,
@@ -842,7 +925,7 @@ FROM (
         argMin(%s, start_time_ms) AS model,
         sum(cost_usd)      AS cost,
         min(start_time_ms) AS ts
-    FROM tracium.spans
+    FROM tracium.calls
     WHERE %s
     GROUP BY trace_id
 )
@@ -907,10 +990,13 @@ func sanitize(v float64) float64 {
 // so callers can populate an allocation-dimension picker. Bounded by the time
 // window (raw spans) and by limit; custom attributes live only on span rows.
 func (r *ClickHouseRepository) AttributeKeys(ctx context.Context, f MetricsFilter, limit int) ([]string, error) {
-	clause, args := window(f.TenantID, f.Start.UnixMilli(), f.End.UnixMilli(), sourceSpan)
+	ctx, cancel := r.withTimeout(ctx)
+	defer cancel()
+
+	clause, args := window(f.UserID, f.WorkspaceIDs, f.Start.UnixMilli(), f.End.UnixMilli())
 	q := fmt.Sprintf(`
 SELECT DISTINCT arrayJoin(mapKeys(attributes)) AS key
-FROM tracium.spans
+FROM tracium.calls
 WHERE %s
 ORDER BY key
 LIMIT ?`, clause)
@@ -938,7 +1024,10 @@ LIMIT ?`, clause)
 // attributes exist only on span rows, so this reads the span source over the
 // time window (metric rows carry no custom attributes).
 func (r *ClickHouseRepository) UsageByAttribute(ctx context.Context, f MetricsFilter, key string, limit int) ([]model.AttributeUsage, error) {
-	clause, args := window(f.TenantID, f.Start.UnixMilli(), f.End.UnixMilli(), sourceSpan)
+	ctx, cancel := r.withTimeout(ctx)
+	defer cancel()
+
+	clause, args := window(f.UserID, f.WorkspaceIDs, f.Start.UnixMilli(), f.End.UnixMilli())
 	q := fmt.Sprintf(`
 SELECT
     attributes[?]               AS value,
@@ -947,7 +1036,7 @@ SELECT
     toInt64(uniq(trace_id))     AS runs,
     toInt64(sum(input_tokens))  AS input_tokens,
     toInt64(sum(output_tokens)) AS output_tokens
-FROM tracium.spans
+FROM tracium.calls
 WHERE %s AND attributes[?] != ''
 GROUP BY value
 ORDER BY cost DESC
