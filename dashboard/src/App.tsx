@@ -1,3 +1,4 @@
+import { EMPTY_EXTENSIONS, type DashboardExtensions } from './extensions';
 import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { QueryProvider } from './common/providers/QueryProvider';
@@ -21,7 +22,8 @@ function RequireAuthRedirect() {
   return <Navigate to="/login" replace />;
 }
 
-export default function App() {
+export interface AppProps { extensions?: DashboardExtensions }
+export default function App({ extensions = EMPTY_EXTENSIONS }: AppProps = {}) {
   const [token, setToken] = useState<string | null>(readInitialToken);
 
   const handleLogin = (newToken: string, email: string) => {
@@ -40,8 +42,8 @@ export default function App() {
     return (
       <BrowserRouter>
         <Routes>
-          <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
-          <Route path="/signup" element={<SignupPage onLogin={handleLogin} />} />
+          <Route path="/login" element={<LoginPage appearance={extensions.authAppearance} onLogin={handleLogin} />} />
+          <Route path="/signup" element={<SignupPage appearance={extensions.authAppearance} onLogin={handleLogin} />} />
           <Route path="*" element={<RequireAuthRedirect />} />
         </Routes>
       </BrowserRouter>
@@ -53,10 +55,11 @@ export default function App() {
     apiKey: token,
   };
 
+  const Onboarding = extensions.onboarding ?? React.Fragment;
   return (
     <QueryProvider onUnauthorized={handleLogout}>
       <APIProvider config={apiConfig}>
-        <Dashboard onLogout={handleLogout} />
+        <Onboarding><Dashboard onLogout={handleLogout} extensions={extensions} /></Onboarding>
       </APIProvider>
     </QueryProvider>
   );

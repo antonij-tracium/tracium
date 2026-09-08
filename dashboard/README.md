@@ -95,3 +95,9 @@ up and Docker on your PATH. The scripts live in [`scripts/`](scripts).
 ## License
 
 Apache 2.0 — see [LICENSE](LICENSE).
+
+## Reusable application
+
+`npm run build:library` builds the importable dashboard and TypeScript declarations.
+Register navigation pages, settings sections, and onboarding through `TraciumApp`
+extensions. See [the extension guide](../docs/extending.md).

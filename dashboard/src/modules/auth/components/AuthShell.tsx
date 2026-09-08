@@ -1,3 +1,4 @@
+import type { AuthAppearance } from '../../../extensions';
 import { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { TraciumWordmark } from '../../shell/Logo/TraciumWordmark';
@@ -5,6 +6,7 @@ import { AuthBackground } from './AuthBackground';
 import styles from './AuthShell.module.css';
 
 interface AuthShellProps {
+  appearance?: AuthAppearance;
   active: 'signin' | 'signup';
   title: string;
   subtitle: string;
@@ -18,7 +20,7 @@ interface AuthShellProps {
  * /login and /signup routes, so each page keeps its own form logic while the
  * two read as one surface.
  */
-export function AuthShell({ active, title, subtitle, footnote, children }: AuthShellProps) {
+export function AuthShell({ active, title, subtitle, footnote, children, appearance }: AuthShellProps) {
   return (
     <div className={styles.page}>
       <AuthBackground />
@@ -28,7 +30,7 @@ export function AuthShell({ active, title, subtitle, footnote, children }: AuthS
           <TraciumWordmark height={26} className={styles.logo} />
           <span className={styles.status}>
             <span className={styles.statusDot} />
-            Open source · self-hosted
+            {appearance?.tagline ?? 'Open source · self-hosted'}
           </span>
         </header>
 
@@ -67,7 +69,7 @@ export function AuthShell({ active, title, subtitle, footnote, children }: AuthS
           </div>
         </div>
 
-        <p className={styles.legal}>Open source · self-hosted · your traces never leave your infrastructure</p>
+        <p className={styles.legal}>{appearance?.footer ?? 'Open source · self-hosted · your traces never leave your infrastructure'}</p>
       </div>
     </div>
   );

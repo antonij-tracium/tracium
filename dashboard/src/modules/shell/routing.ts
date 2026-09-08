@@ -1,3 +1,4 @@
+import type { ExtensionPage } from '../../extensions';
 import type { ViewId } from './ids';
 
 /**
@@ -18,7 +19,8 @@ export interface NavState {
 }
 
 /** Build the URL pathname for a given navigation state. */
-export function stateToPath(view: ViewId, selected: Record<string, string>): string {
+export function stateToPath(view: ViewId, selected: Record<string, string>, pages: readonly ExtensionPage[] = []): string {
+  if (pages.some(page => page.id === view)) return `/extensions/${view.slice(10)}`;
   const enc = (v: string) => encodeURIComponent(v);
   switch (view) {
     case 'overview':   return '/';
@@ -37,8 +39,11 @@ export function stateToPath(view: ViewId, selected: Record<string, string>): str
  * Parse a URL pathname back into navigation state. Returns null for paths that
  * don't correspond to a known view, so callers can fall back to a default.
  */
-export function pathToState(pathname: string): NavState | null {
-  const seg = pathname.split('/').filter(Boolean).map(decodeURIComponent);
+export function pathToState(pathname: string, pages: readonly ExtensionPage[] = []): NavState | null {
+  const page = pages.find(page => pathname === `/extensions/${page.id.slice(10)}`);
+  if (page) return { view: page.id, selected: {} };
+  let seg: string[];
+  try { seg = pathname.split('/').filter(Boolean).map(decodeURIComponent); } catch { return null; }
 
   if (seg.length === 0) return { view: 'overview', selected: {} };
 

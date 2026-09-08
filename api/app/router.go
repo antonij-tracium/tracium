@@ -1,0 +1,104 @@
+package app
+
+import (
+	"github.com/go-chi/chi/v5"
+	"github.com/tracium/api/extension"
+	"github.com/tracium/api/internal/auth"
+	"github.com/tracium/api/internal/handler"
+	"github.com/tracium/api/internal/middleware"
+	"github.com/tracium/api/internal/query"
+	"github.com/tracium/api/internal/version"
+	"github.com/tracium/api/internal/workspace"
+	"log"
+	"net/http"
+	"time"
+)
+
+func newRouter(cfg Config, repo query.Repository, wsStore workspace.Store, userStore *auth.UserStore, authenticator middleware.Authenticator, authService *auth.Service, healthChecks []handler.DependencyCheck, opts Options) http.Handler {
+	authHandler := handler.NewAuthHandler(authService)
+	workspaceHandler := handler.NewWorkspaceHandler(wsStore, userStore)
+	services := extension.Services{Mail: opts.Mail, Entitlements: opts.Entitlements, Workspaces: wsStore}
+	// ── Handlers ─────────────────────────────────────────────────────────────
+
+	traceHandler := handler.NewTraceHandler(repo, wsStore)
+	spanHandler := handler.NewSpanHandler(repo, wsStore)
+	metricsHandler := handler.NewMetricsHandler(repo, wsStore)
+	healthHandler := handler.NewHealthHandler(healthChecks...)
+
+	// ── Router ────────────────────────────────────────────────────────────────
+
+	r := chi.NewRouter()
+
+	// Global middleware chain — order matters; do not reorder.
+	r.Use(middleware.CORS())
+	r.Use(middleware.APIVersion(version.V1))
+
+	// Health and readiness probes are unauthenticated.
+	r.Get(version.Route(version.V1, "/health"), healthHandler.Health)
+	r.Get(version.Route(version.V1, "/ready"), healthHandler.Ready)
+
+	// Account registration and login are unauthenticated, so they are the most
+	// exposed surface — throttle them per client IP to blunt brute-force and
+	// enumeration. A negative limit disables it (see AuthConfig.RateLimitPerMinute).
+	r.Group(func(r chi.Router) {
+		if cfg.Auth.RateLimitPerMinute >= 0 {
+			limiter := middleware.NewRateLimiter(cfg.Auth.RateLimitPerMinute, time.Minute, cfg.Auth.TrustedProxies)
+			r.Use(limiter.Middleware())
+			log.Printf("auth endpoints throttled to %d requests/min per client IP", cfg.Auth.RateLimitPerMinute)
+		} else {
+			log.Println("WARNING: auth endpoint rate limiting is disabled")
+		}
+		r.Post(version.Route(version.V1, "/auth/register"), authHandler.Register)
+		r.Post(version.Route(version.V1, "/auth/login"), authHandler.Login)
+	})
+
+	// Workspace routes — auth only (no tenant required; workspaces are per-user).
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.Auth(authenticator))
+		r.Get(version.Route(version.V1, "/workspaces"), workspaceHandler.List)
+		r.Post(version.Route(version.V1, "/workspaces"), workspaceHandler.Create)
+		r.Delete(version.Route(version.V1, "/workspaces/{id}"), workspaceHandler.Delete)
+		r.Post(version.Route(version.V1, "/workspaces/{id}/members"), workspaceHandler.AddMember)
+		r.Delete(version.Route(version.V1, "/workspaces/{id}/members/{userId}"), workspaceHandler.RemoveMember)
+	})
+
+	for _, ext := range opts.Extensions {
+		ext := ext
+		if ext.Routes != nil {
+			r.Route("/v1/extensions/"+ext.Name, func(r chi.Router) {
+				r.Use(middleware.Auth(authenticator))
+				ext.Routes(r, services)
+			})
+		}
+		if ext.Webhooks != nil {
+			r.Mount("/v1/integrations/"+ext.Name, ext.Webhooks)
+		}
+	}
+
+	// Authenticated routes.
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.Auth(authenticator))
+		r.Use(middleware.RequireTenant())
+
+		r.Get(version.Route(version.V1, "/traces"), traceHandler.ListTraces)
+		r.Get(version.Route(version.V1, "/traces/{id}"), traceHandler.GetTrace)
+		r.Get(version.Route(version.V1, "/traces/{traceId}/spans"), spanHandler.ListSpans)
+
+		r.Get(version.Route(version.V1, "/metrics/kpis"), metricsHandler.KPIs)
+		r.Get(version.Route(version.V1, "/metrics/cost-series"), metricsHandler.CostSeries)
+		r.Get(version.Route(version.V1, "/metrics/latency-series"), metricsHandler.LatencySeries)
+		r.Get(version.Route(version.V1, "/metrics/error-series"), metricsHandler.ErrorSeries)
+		r.Get(version.Route(version.V1, "/metrics/top-agents"), metricsHandler.TopAgents)
+		r.Get(version.Route(version.V1, "/metrics/agents"), metricsHandler.Agents)
+		r.Get(version.Route(version.V1, "/metrics/agents/{name}"), metricsHandler.AgentDetail)
+		r.Get(version.Route(version.V1, "/metrics/failures"), metricsHandler.Failures)
+		r.Get(version.Route(version.V1, "/metrics/model-costs"), metricsHandler.ModelCosts)
+		r.Get(version.Route(version.V1, "/metrics/usage-users"), metricsHandler.UserUsage)
+		r.Get(version.Route(version.V1, "/metrics/usage-agents"), metricsHandler.AgentUsage)
+		r.Get(version.Route(version.V1, "/metrics/attribute-keys"), metricsHandler.AttributeKeys)
+		r.Get(version.Route(version.V1, "/metrics/usage-by-attribute"), metricsHandler.UsageByAttribute)
+		r.Get(version.Route(version.V1, "/metrics/anomalies"), metricsHandler.Anomalies)
+	})
+
+	return r
+}

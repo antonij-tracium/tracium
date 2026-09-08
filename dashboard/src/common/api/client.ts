@@ -126,14 +126,16 @@ export abstract class BaseAPIClient {
 
     if (!response.ok) {
       let code = 'UNKNOWN_ERROR';
+      let message = `Request failed with status ${response.status}`;
       try {
-        const json = (await response.json()) as { code?: string };
+        const json = (await response.json()) as { code?: string; message?: string };
         if (json.code) code = json.code;
+        if (typeof json.message === 'string') message = json.message;
       } catch {
         // ignore parse error
       }
       throw new APIError(
-        `Request failed with status ${response.status}`,
+        message,
         response.status,
         code,
       );

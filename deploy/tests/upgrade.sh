@@ -12,6 +12,10 @@ assert_equal() { [ "$1" = "$2" ] || { echo "Assertion at line ${BASH_LINENO[0]}:
 ch 'DROP DATABASE tracium; CREATE DATABASE tracium;'
 for file in deploy/tests/fixtures/legacy/*.sql; do ch "$(cat "$file")"; done
 pg "TRUNCATE schema_migrations; DROP TABLE IF EXISTS workspace_upgrade_state;"
+# The previous release had no application migration ledger. The fresh-stack
+# smoke test already applied the identity migration, so reset its ledger too.
+# Otherwise the API skips the legacy owner backfill when it starts below.
+pg "DROP TABLE app_schema_migrations;"
 for name in 001_create_spans.sql 002_create_metrics_daily.sql 003_create_metrics_daily_mv.sql; do
   pg "INSERT INTO schema_migrations (filename) VALUES ('$name')"
 done
@@ -48,8 +52,9 @@ ch "INSERT INTO tracium.spans (trace_id,span_id,name,start_time_ms,end_time_ms,u
 assert_equal "$(ch "SELECT workspace_id = '' FROM tracium.spans WHERE trace_id='new'")" '1'
 assert_equal "$(ch 'SELECT sum(cost) FROM tracium.metrics_daily')" '12'
 
-# Old workspace owners are backfilled when the new API starts.
+# Old workspace owners are backfilled on the first tracked application migration.
 pg "DELETE FROM workspace_members WHERE workspace_id='legacy-upgrade-check'"
+assert_equal "$(pg "SELECT to_regclass('app_schema_migrations') IS NULL")" 't'
 "${compose[@]}" start api
 for attempt in $(seq 1 30); do
   owners=$(pg "SELECT count(*) FROM workspace_members WHERE workspace_id='legacy-upgrade-check' AND role='owner'")
@@ -57,4 +62,5 @@ for attempt in $(seq 1 30); do
   sleep 1
 done
 assert_equal "$owners" '1'
+assert_equal "$(pg "SELECT count(*) FROM app_schema_migrations WHERE namespace='core' AND filename='001_identity.sql'")" '1'
 echo 'PASS: legacy upgrade rejects unsafe defaults, preserves expired rollup history, resumes after interruption, and restores owner access'

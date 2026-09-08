@@ -10,7 +10,8 @@
     "test:watch": "vitest",
     "seed": "node scripts/seed-account.mjs && node scripts/seed.mjs",
     "seed:account": "node scripts/seed-account.mjs",
-    "seed:data": "node scripts/seed.mjs"
+    "seed:data": "node scripts/seed.mjs",
+    "build:library": "vite build --config vite.library.config.ts && tsc -p tsconfig.library.json"
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -28,5 +29,24 @@
     "jsdom": "^24.1.1",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0"
+  },
+  "files": [
+    "dist-library"
+  ],
+  "types": "./dist-library/types/index.d.ts",
+  "module": "./dist-library/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist-library/types/index.d.ts",
+      "import": "./dist-library/index.js"
+    },
+    "./style.css": "./dist-library/style.css"
+  },
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "peerDependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   }
 }

@@ -1,3 +1,4 @@
+import { EMPTY_EXTENSIONS, validateExtensions, type DashboardExtensions, type ExtensionPage } from '../../../extensions';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAPIClient } from '../../../common/providers/APIProvider';
 import { Sidebar } from '../Sidebar';
@@ -20,7 +21,8 @@ import type { ViewId } from '../ids';
 import { stateToPath, pathToState, type NavState } from '../routing';
 import { REDIRECT_KEY } from '../../auth';
 
-interface DashboardProps {
+export interface DashboardProps {
+  extensions?: DashboardExtensions;
   /**
    * When true, the dashboard renders as a contained, interactive product
    * preview (e.g. inside the auth screen). It fits its parent container
@@ -102,25 +104,28 @@ function WorkspaceEmptyState({ onCreate }: { onCreate: () => void }) {
  * Resolve the navigation state the dashboard should open on. See the call site
  * for the precedence rationale. Reads from the URL / storage once at mount.
  */
-function computeInitialNav(persist: boolean): NavState {
+function computeInitialNav(persist: boolean, pages: readonly ExtensionPage[]): NavState {
   if (!persist) return { view: 'overview', selected: {} };
 
-  const fromUrl = pathToState(window.location.pathname);
+  const fromUrl = pathToState(window.location.pathname, pages);
   if (fromUrl) return fromUrl;
 
   // Peek only — this runs during render, so it must be idempotent. The stash
   // is cleared in the history-init effect once the dashboard is mounted.
   const redirect = sessionStorage.getItem(REDIRECT_KEY);
   if (redirect) {
-    const fromRedirect = pathToState(redirect);
+    const fromRedirect = pathToState(redirect, pages);
     if (fromRedirect) return fromRedirect;
   }
 
   const stored = localStorage.getItem('tracium_view') as ViewId | null;
-  return { view: stored ?? 'overview', selected: {} };
+  const valid = stored && (pages.some(p => p.id === stored) || ['overview','agents','trace','usage','keys','settings','users','user'].includes(stored));
+  return { view: valid ? stored : 'overview', selected: {} };
 }
 
-export function Dashboard({ embedded = false, onLogout }: DashboardProps = {}) {
+export function Dashboard({ embedded = false, onLogout, extensions = EMPTY_EXTENSIONS }: DashboardProps = {}) {
+  validateExtensions(extensions);
+  const pages = extensions.pages ?? [];
   const persist = !embedded;
 
   // Initial page comes from the URL so deep links open the right view. Order:
@@ -130,7 +135,7 @@ export function Dashboard({ embedded = false, onLogout }: DashboardProps = {}) {
   // embedded auth preview is never URL-driven. Computed once via a ref.
   const initialNavRef = useRef<NavState | null>(null);
   if (initialNavRef.current === null) {
-    initialNavRef.current = computeInitialNav(persist);
+    initialNavRef.current = computeInitialNav(persist, pages);
   }
   const initialNav = initialNavRef.current;
 
@@ -249,7 +254,7 @@ export function Dashboard({ embedded = false, onLogout }: DashboardProps = {}) {
       return;
     }
     const entry = { tracium: true, view, selected };
-    const path = stateToPath(view, selected);
+    const path = stateToPath(view, selected, pages);
     if (!histInit.current) {
       histInit.current = true;
       // A deep link stashed before login has now been applied to the initial
@@ -268,7 +273,7 @@ export function Dashboard({ embedded = false, onLogout }: DashboardProps = {}) {
       // History entries we created carry our marker; for anything else (e.g.
       // the user manually editing the URL) fall back to parsing the path.
       if (!s?.tracium || !s.view) {
-        const parsed = pathToState(window.location.pathname);
+        const parsed = pathToState(window.location.pathname, pages);
         if (!parsed) return;
         s = { tracium: true, view: parsed.view, selected: parsed.selected };
       }
@@ -283,6 +288,8 @@ export function Dashboard({ embedded = false, onLogout }: DashboardProps = {}) {
   }, [persist]);
 
   const breadcrumb = useMemo((): BreadcrumbItem[] => {
+    const page = pages.find(p => p.id === view);
+    if (page) return [{ label: page.label }];
     if (view === 'trace')      return [{ label: 'Overview', onClick: () => setView('overview') }, { label: selected.traceId ?? TRACE_DETAIL.id }];
     if (view === 'agents')     return selected.agent
       ? [{ label: 'Agents', onClick: () => { setSelected(s => { const n = { ...s }; delete n.agent; return n; }); setView('agents'); } }, { label: selected.agent }]
@@ -310,6 +317,8 @@ export function Dashboard({ embedded = false, onLogout }: DashboardProps = {}) {
     if (action.view) setView(action.view);
   };
 
+  const activePage = pages.find(p => p.id === view);
+  const Page = activePage?.component;
   return (
     <div
       style={{
@@ -321,6 +330,7 @@ export function Dashboard({ embedded = false, onLogout }: DashboardProps = {}) {
       }}
     >
       <Sidebar
+        items={pages}
         currentView={view}
         setView={setView}
         workspace={workspace}
@@ -356,12 +366,13 @@ export function Dashboard({ embedded = false, onLogout }: DashboardProps = {}) {
           onOpenNav={() => setNavOpen(true)}
         />
         <div style={embedded ? { flex: 1, minHeight: 0, overflow: 'auto' } : { flex: 1 }}>
-          {!workspace && view !== 'settings' ? (
+          {!workspace && view !== 'settings' && (!activePage || activePage.requiresWorkspace) ? (
             <WorkspaceEmptyState onCreate={goCreateWorkspace} />
           ) : !embedded && DATA_EMPTY[view] ? (
             <EmptyState message={DATA_EMPTY[view]!.message} description={DATA_EMPTY[view]!.description} />
           ) : (
           <>
+          {Page && <Page workspace={workspace} navigate={setView} />}
           {view === 'overview'    && (embedded
             ? <OverviewPage range={range} setView={setView} setSelected={setSelected} tweaks={tweaks} />
             : <OverviewLivePage range={range} setView={setView} setSelected={setSelected} tweaks={tweaks} />)}
@@ -381,7 +392,7 @@ export function Dashboard({ embedded = false, onLogout }: DashboardProps = {}) {
             ? <UsagePage range={range} />
             : <UsageLivePage range={range} setView={setView} setSelected={setSelected} />)}
           {view === 'keys'        && <ApiKeysPage demo={embedded} />}
-          {view === 'settings'    && <SettingsPage createWorkspace={embedded ? undefined : createWorkspace} createMode={createWsIntent} onCancelCreate={() => setCreateWsIntent(false)} onOpenOverview={() => setView('overview')} demo={embedded} workspace={workspace} account={embedded ? null : readAccount()} />}
+          {view === 'settings'    && <SettingsPage sections={extensions.settingsSections} createWorkspace={embedded ? undefined : createWorkspace} createMode={createWsIntent} onCancelCreate={() => setCreateWsIntent(false)} onOpenOverview={() => setView('overview')} demo={embedded} workspace={workspace} account={embedded ? null : readAccount()} />}
           {view === 'users'     && (embedded
             ? <UsersPage users={USERS} periodLabel="Apr 1 – Apr 30" setView={setView} setSelected={setSelected} />
             : <UsersLivePage range={range} setView={setView} setSelected={setSelected} />)}

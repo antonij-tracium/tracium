@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/tracium/api/migrations"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -36,28 +37,11 @@ func NewUserStore(ctx context.Context, dsn string) (*UserStore, error) {
 	}
 
 	store := &UserStore{pool: pool}
-	if err := store.ensureSchema(ctx); err != nil {
+	if err := migrations.Apply(ctx, pool, migrations.Core); err != nil {
 		pool.Close()
 		return nil, err
 	}
 	return store, nil
-}
-
-func (s *UserStore) ensureSchema(ctx context.Context) error {
-	_, err := s.pool.Exec(ctx, `
-		CREATE TABLE IF NOT EXISTS users (
-			id            UUID PRIMARY KEY,
-			email         TEXT NOT NULL UNIQUE,
-			password_hash TEXT NOT NULL,
-			tenant_id     TEXT NOT NULL,
-			role          TEXT NOT NULL,
-			created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
-		)
-	`)
-	if err != nil {
-		return fmt.Errorf("postgres: ensure users schema: %w", err)
-	}
-	return nil
 }
 
 // Create inserts a new user, returning ErrEmailTaken on a duplicate email.

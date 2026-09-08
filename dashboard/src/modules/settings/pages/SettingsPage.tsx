@@ -1,3 +1,4 @@
+import type { SettingsSection } from '../../../extensions';
 // ---------------------------------------------------------------------------
 // SettingsPage — Account, Workspace, Danger Zone
 // Inline styles only (no CSS modules).
@@ -29,6 +30,7 @@ export interface WorkspaceDraft {
 }
 
 export interface SettingsPageProps {
+  sections?: readonly SettingsSection[];
   /** Persists a new workspace and selects it. Provided by the Dashboard shell. */
   createWorkspace?: (draft: WorkspaceDraft) => Promise<Workspace>;
   onOpenOverview?: () => void;
@@ -304,6 +306,7 @@ function Segmented({ value, onChange, options }: SegmentedProps) {
 // ---------------------------------------------------------------------------
 
 interface TabRailProps {
+  sections: readonly SettingsSection[];
   tab: TabId;
   setTab: (t: TabId) => void;
   /** Renders the rail as a horizontally scrolling strip (stacked layouts). */
@@ -311,7 +314,7 @@ interface TabRailProps {
   demo?: boolean;
 }
 
-function TabRail({ tab, setTab, horizontal = false, demo = false }: TabRailProps) {
+function TabRail({ sections, tab, setTab, horizontal = false, demo = false }: TabRailProps) {
   return (
     <aside style={{
       ...(horizontal
@@ -323,7 +326,7 @@ function TabRail({ tab, setTab, horizontal = false, demo = false }: TabRailProps
         <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 500, padding: '0 10px 10px' }}>Settings</div>
       )}
       <nav style={{ display: 'flex', flexDirection: horizontal ? 'row' : 'column', gap: horizontal ? 4 : 1 }}>
-        {SET_TABS.filter(t => demo || t.id !== "danger").map(t => {
+        {[...SET_TABS.filter(t => demo || t.id !== "danger"), ...sections.map(t => ({...t, icon: t.icon ?? null, count: undefined}))].map(t => {
           const active = t.id === tab;
           const danger = t.id === 'danger';
           const count = t.count;
@@ -722,6 +725,7 @@ function DangerView() {
 // ---------------------------------------------------------------------------
 
 export default function SettingsPage({
+  sections = [],
   createWorkspace,
   onOpenOverview,
   onCancelCreate,
@@ -772,7 +776,7 @@ export default function SettingsPage({
         members: workspace?.members ?? 1,
       };
 
-  const viewMap: Record<TabId, React.ReactNode> = {
+  const viewMap: Partial<Record<TabId, React.ReactNode>> = {
     account:   <AccountView user={user} demo={demo} />,
     workspace: creating && createWorkspace
       ? <CreateWorkspaceView onCreate={async draft => {
@@ -800,8 +804,8 @@ export default function SettingsPage({
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: stackRail ? '1fr' : '220px 1fr', gap: stackRail ? 24 : 48, alignItems: 'start' }}>
-        <TabRail tab={tab} setTab={selectTab} horizontal={stackRail} demo={demo} />
-        <div style={{ minWidth: 0 }}>{viewMap[tab]}</div>
+        <TabRail sections={sections} tab={tab} setTab={selectTab} horizontal={stackRail} demo={demo} />
+        <div style={{ minWidth: 0 }}>{sections.some(s => s.id === tab) ? React.createElement(sections.find(s => s.id === tab)!.component, {workspace}) : viewMap[tab]}</div>
       </div>
     </div>
   );

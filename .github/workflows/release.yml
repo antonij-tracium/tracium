@@ -24,6 +24,7 @@ jobs:
       - uses: azure/setup-helm@v4
       - run: make test
       - run: npm --prefix dashboard run build
+      - run: npm --prefix dashboard run build:library
       - run: bash spec/codegen/gen-ts-types.sh
       - run: git diff --exit-code -- dashboard/src/types
       - run: make helm-lint
