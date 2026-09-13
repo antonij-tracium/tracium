@@ -81,8 +81,8 @@ const kv = (k, v) => ({ key: k, value: v });
 
 // ---- metering users (tracium.user.id) — dashboard breaks cost down by this ---
 const USERS = [
-  ["u_aqtos", 34], ["u_acme_corp", 22], ["u_globex", 16],
-  ["u_initech", 12], ["u_aqtos_dev", 9], ["u_personal", 7],
+  ["u_umbrella", 34], ["u_acme_corp", 22], ["u_globex", 16],
+  ["u_initech", 12], ["u_umbrella_dev", 9], ["u_personal", 7],
 ];
 const ENVIRONMENTS = ["production", "production", "production", "staging", "development"];
 const REGIONS = ["us-east-1", "us-west-2", "eu-west-1", "ap-south-1"];

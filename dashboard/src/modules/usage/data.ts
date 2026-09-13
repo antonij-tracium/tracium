@@ -24,9 +24,9 @@ export const USAGE_DATA: UsageData = {
     };
   }),
   users: [
-    { id: "u_aqtos"     as UserId, name: "AQTOS Production", cost: 2.8412, costPrev: 2.4880, runs: 3204, runsPrev: 2961, avg: 0.000887, trend: [80,85,92,88,96,102,108,112]},
-    { id: "u_aqtos_dev" as UserId, name: "AQTOS Dev",         cost: 0.9812, costPrev: 0.9078, runs: 1802, runsPrev: 1741, avg: 0.000545, trend: [30,32,35,33,38,40,42,44]},
-    { id: "u_aqtos_stg" as UserId, name: "AQTOS Staging",     cost: 0.3204, costPrev: 0.3283, runs: 612,  runsPrev: 641,  avg: 0.000524, trend: [18,20,19,22,21,20,22,21]},
+    { id: "u_umbrella"     as UserId, name: "Umbrella Production", cost: 2.8412, costPrev: 2.4880, runs: 3204, runsPrev: 2961, avg: 0.000887, trend: [80,85,92,88,96,102,108,112]},
+    { id: "u_umbrella_dev" as UserId, name: "Umbrella Dev",         cost: 0.9812, costPrev: 0.9078, runs: 1802, runsPrev: 1741, avg: 0.000545, trend: [30,32,35,33,38,40,42,44]},
+    { id: "u_umbrella_stg" as UserId, name: "Umbrella Staging",     cost: 0.3204, costPrev: 0.3283, runs: 612,  runsPrev: 641,  avg: 0.000524, trend: [18,20,19,22,21,20,22,21]},
     { id: "u_personal"  as UserId, name: "Personal",           cost: 0.0384, costPrev: 0.0291, runs: 133,  runsPrev: 96,   avg: 0.000289, trend: [2,3,4,3,5,6,5,8]},
   ],
   agents: [
