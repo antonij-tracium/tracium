@@ -74,6 +74,6 @@ jobs:
           make sync-generated
           V="${GITHUB_REF_NAME#v}"
           helm package deploy/helm/tracium --version "$V" --app-version "$V"
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           files: tracium-*.tgz
