@@ -21,7 +21,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 20
-      - uses: azure/setup-helm@v4
+      - uses: azure/setup-helm@v5
       - run: make test
       - run: npm --prefix dashboard run build
       - run: npm --prefix dashboard run build:library
@@ -68,7 +68,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: azure/setup-helm@v4
+      - uses: azure/setup-helm@v5
       - name: Package the Helm chart (version = tag without the leading v)
         run: |
           make sync-generated
