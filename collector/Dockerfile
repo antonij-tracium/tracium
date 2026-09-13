@@ -4,7 +4,7 @@
 # Network access is required at build time to download the collector framework
 # and contrib components referenced by builder/oss.builder.yaml.
 
-FROM golang:1.25-alpine AS builder
+FROM golang:1.27-alpine AS builder
 RUN apk --no-cache add ca-certificates git
 WORKDIR /src
 
