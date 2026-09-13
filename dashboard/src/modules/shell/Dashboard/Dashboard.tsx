@@ -1,5 +1,5 @@
 import { EMPTY_EXTENSIONS, validateExtensions, type DashboardExtensions, type ExtensionPage } from '../../../extensions';
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useAPIClient } from '../../../common/providers/APIProvider';
 import { Sidebar } from '../Sidebar';
 import { TopBar } from '../TopBar';
@@ -16,7 +16,7 @@ import { EmptyState, useMaxWidth, BREAKPOINTS } from '../../../common';
 import { readAccount } from '../../auth';
 import { createDemoWorkspace, TWEAK_DEFAULTS } from '../data';
 import { useWorkspaces } from '../hooks/useWorkspaces';
-import type { Workspace, Tweaks, BreadcrumbItem, CommandAction } from '../interfaces';
+import type { Workspace, BreadcrumbItem, CommandAction } from '../interfaces';
 import type { ViewId } from '../ids';
 import { stateToPath, pathToState, type NavState } from '../routing';
 import { REDIRECT_KEY } from '../../auth';
@@ -174,7 +174,6 @@ export function Dashboard({ embedded = false, onLogout, extensions = EMPTY_EXTEN
     setWorkspaceId(workspace?.id);
   }, [persist, workspace?.id, setWorkspaceId]);
   const [cmdOpen, setCmdOpen] = useState(false);
-  const [tweaks, setTweaks] = useState<Tweaks>(TWEAK_DEFAULTS);
   // Below this width the sidebar collapses into an off-canvas drawer. The
   // embedded auth preview is never shown at mobile widths, so it keeps the
   // static sidebar regardless.
@@ -374,8 +373,8 @@ export function Dashboard({ embedded = false, onLogout, extensions = EMPTY_EXTEN
           <>
           {Page && <Page workspace={workspace} navigate={setView} />}
           {view === 'overview'    && (embedded
-            ? <OverviewPage range={range} setView={setView} setSelected={setSelected} tweaks={tweaks} />
-            : <OverviewLivePage range={range} setView={setView} setSelected={setSelected} tweaks={tweaks} />)}
+            ? <OverviewPage range={range} setView={setView} setSelected={setSelected} tweaks={TWEAK_DEFAULTS} />
+            : <OverviewLivePage range={range} setView={setView} setSelected={setSelected} tweaks={TWEAK_DEFAULTS} />)}
           {view === 'agents'      && (selected.agent
             ? (embedded
               ? <AgentDetailDemoPage agent={AGENTS.find(a => a.name === selected.agent) ?? AGENTS[0]} range={range} setView={setView} setSelected={setSelected} />
@@ -390,8 +389,8 @@ export function Dashboard({ embedded = false, onLogout, extensions = EMPTY_EXTEN
               : <EmptyState message="No trace selected" description="Open a trace from an agent or the overview to see its detail." />)}
           {view === 'usage'       && (embedded
             ? <UsagePage range={range} />
-            : <UsageLivePage range={range} setView={setView} setSelected={setSelected} />)}
-          {view === 'keys'        && <ApiKeysPage demo={embedded} />}
+            : <UsageLivePage range={range} />)}
+          {view === 'keys'        && <ApiKeysPage demo={embedded} workspaceId={workspace?.id} />}
           {view === 'settings'    && <SettingsPage sections={extensions.settingsSections} createWorkspace={embedded ? undefined : createWorkspace} createMode={createWsIntent} onCancelCreate={() => setCreateWsIntent(false)} onOpenOverview={() => setView('overview')} demo={embedded} workspace={workspace} account={embedded ? null : readAccount()} />}
           {view === 'users'     && (embedded
             ? <UsersPage users={USERS} periodLabel="Apr 1 – Apr 30" setView={setView} setSelected={setSelected} />

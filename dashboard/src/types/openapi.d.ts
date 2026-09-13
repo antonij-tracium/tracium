@@ -408,6 +408,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{id}/api-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List a workspace's ingest API keys
+         * @description Every API key bound to the workspace, newest first, including revoked ones (so history is visible). The secret token itself is never returned here — only its non-secret prefix and metadata. Requires membership of the workspace.
+         */
+        get: operations["listApiKeys"];
+        put?: never;
+        /**
+         * Create an ingest API key
+         * @description Issues a new key bound to this workspace for authenticating trace ingestion. The key both authenticates the sender and determines the workspace its telemetry lands in, so senders need not set a workspace attribute. The plaintext token is returned in this response exactly once and cannot be retrieved again — capture it now. Only its hash is stored. Requires membership of the workspace; the caller is recorded as the key's creator, for provenance only.
+         */
+        post: operations["createApiKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{id}/api-keys/{keyId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke an ingest API key
+         * @description Disables a key in this workspace. Ingest requests presenting it are rejected thereafter (subject to the collector's short verification cache). The row is retained, marked revoked, for audit. Requires membership of the workspace.
+         */
+        delete: operations["revokeApiKey"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ingest/keys/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verify an ingest API key (collector-facing)
+         * @description Resolves a presented ingest key to the workspace it grants. This endpoint is called by the collector's authenticator extension, not by end users, so it is unauthenticated (it carries no session) but rate-limited. It leaks no detail about why a key failed.
+         */
+        post: operations["verifyApiKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -453,6 +517,47 @@ export interface components {
              * @enum {string}
              */
             role: "owner" | "member";
+        };
+        APIKey: {
+            /** Format: uuid */
+            id: string;
+            /** @description The workspace this key is bound to and ingests into. */
+            workspace_id: string;
+            /** @description The account that created the key, for provenance only. It carries no authority — the key keeps working regardless of this account. */
+            created_by: string;
+            /** @description Human label for the key. */
+            name: string;
+            /** @description Non-secret leading slice of the token (e.g. "trc_9f3a1b2c"), shown so the key is identifiable in the UI without revealing it. */
+            prefix: string;
+            /** Format: date-time */
+            created_at: string;
+            /**
+             * Format: date-time
+             * @description When the key was last accepted at ingest, or null if never.
+             */
+            last_used_at?: string | null;
+            /**
+             * Format: date-time
+             * @description When the key was revoked, or null if still active.
+             */
+            revoked_at?: string | null;
+        };
+        APIKeyInput: {
+            /** @description Optional label; defaults to "default" when omitted. */
+            name?: string;
+        };
+        APIKeyCreated: {
+            key: components["schemas"]["APIKey"];
+            /** @description The plaintext ingest key (e.g. "trc_..."). Returned only here, only once; it is stored hashed and cannot be recovered later. Send it as "Authorization: Bearer <token>" on OTLP ingest. */
+            token: string;
+        };
+        APIKeyVerifyRequest: {
+            /** @description The plaintext ingest key to verify. */
+            key: string;
+        };
+        APIKeyVerifyResponse: {
+            /** @description The workspace the key grants. The collector stamps this onto every span the request carries, overriding any sender-supplied workspace — the key, not the payload, decides where data lands. */
+            workspace_id: string;
         };
         Span: {
             /** @description Globally unique identifier for the trace this span belongs to. */
@@ -1550,6 +1655,144 @@ export interface operations {
             };
             /** @description Workspace not owned by the caller, or member not found. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listApiKeys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The workspace's API keys (metadata only). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIKey"][];
+                };
+            };
+            /** @description The caller is not a member of the workspace. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    createApiKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["APIKeyInput"];
+            };
+        };
+        responses: {
+            /** @description The created key, including the one-time plaintext token. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIKeyCreated"];
+                };
+            };
+            /** @description The caller is not a member of the workspace. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    revokeApiKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                keyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Revoked. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The caller is not a member of the workspace. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such active key in this workspace. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    verifyApiKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["APIKeyVerifyRequest"];
+            };
+        };
+        responses: {
+            /** @description The key is valid; the workspace it grants is returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIKeyVerifyResponse"];
+                };
+            };
+            /** @description The key is missing, malformed, unknown, or revoked. */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

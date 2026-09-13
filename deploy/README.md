@@ -28,6 +28,19 @@ helm install tracium ./helm/tracium
 Every tunable is documented in [`helm/tracium/values.yaml`](helm/tracium/values.yaml).
 Ingress exposes the API and dashboard. OTLP and database services stay internal.
 
+Browser login limits use the original client IP. Compose trusts only the
+`dashboard` service's resolved addresses; Helm uses a dedicated headless
+dashboard Service to discover proxy pod addresses. The API refreshes these
+addresses every five seconds on demand and ignores forwarded headers from
+other peers. Keep service discovery under deployment control.
+
+When enabling Helm ingress, also set `ingress.trustedProxies` to the ingress
+controller's actual peer IPs/CIDRs, or `dns:` followed by a headless Service
+name that resolves to its pods. The chart refuses an ingress configuration
+without this list. The controller must sanitize `X-Forwarded-For`; do not
+trust the entire pod network. Standalone API deployments can use the same
+IP/CIDR/`dns:service-name` entries in `AUTH_TRUSTED_PROXIES`.
+
 Existing installations: follow [the workspace upgrade guide](docs/upgrading.md).
 
 ## Notes
@@ -36,5 +49,5 @@ Existing installations: follow [the workspace upgrade guide](docs/upgrading.md).
   `collector/schema/`. The Helm chart needs its own copies under
   `helm/tracium/files/`; regenerate them with **`make sync-generated`** from the
   repo root after any change (don't hand-edit the copies).
-- **OTLP is unauthenticated by default** — [securing the collector](docs/collector-auth.md).
+- **OTLP ingest requires a per-workspace API key** — [securing the collector](docs/collector-auth.md).
 - **Runbook:** [repairing the daily rollup](docs/rollup-repair.md).

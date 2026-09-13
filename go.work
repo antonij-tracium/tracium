@@ -7,5 +7,6 @@ use (
 	./collector
 	./collector/processor/traciumprocessor
 	./collector/exporter/clickhousespanexporter
+	./collector/extension/traciumauthextension
 	./api
 )

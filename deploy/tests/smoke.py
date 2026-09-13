@@ -53,11 +53,18 @@ def workspace(token, name):
     return result['id']
 
 
+def apikey(token, workspace_id):
+    """Mint an ingest key for a workspace and return its one-time plaintext token."""
+    status, result = request(API, '/v1/workspaces/' + workspace_id + '/api-keys', {'name': 'smoke'}, token)
+    assert status == 201, (status, result)
+    return result['token']
+
+
 def attr(key, value):
     return {'key': key, 'value': {'stringValue': value}}
 
 
-def ingest(workspace_id, trace_id, text):
+def span_payload(trace_id, text):
     now = time.time_ns()
     span = {
         'traceId': trace_id, 'spanId': secrets.token_hex(8), 'name': 'chat gpt-4o-mini', 'kind': 3,
@@ -67,9 +74,14 @@ def ingest(workspace_id, trace_id, text):
                        {'key': 'gen_ai.usage.input_tokens', 'value': {'intValue': '100'}},
                        {'key': 'gen_ai.usage.output_tokens', 'value': {'intValue': '20'}}],
     }
-    payload = {'resourceSpans': [{'resource': {'attributes': [attr('service.name', 'oss-smoke'),
-               attr('tracium.workspace.id', workspace_id)]}, 'scopeSpans': [{'spans': [span]}]}]}
-    status, result = request(OTLP, '/v1/traces', payload)
+    # No tracium.workspace.id: ingest is key-only and the key decides the
+    # workspace. The collector stamps it, overriding anything the sender sets.
+    return {'resourceSpans': [{'resource': {'attributes': [attr('service.name', 'oss-smoke')]},
+            'scopeSpans': [{'spans': [span]}]}]}
+
+
+def ingest(ingest_key, trace_id, text):
+    status, result = request(OTLP, '/v1/traces', span_payload(trace_id, text), token=ingest_key)
     assert status == 200, (status, result)
 
 
@@ -78,10 +90,21 @@ owner = account()
 outsider = account()
 ws = workspace(owner, 'smoke-owner')
 other_ws = workspace(outsider, 'smoke-other')
+ws_key = apikey(owner, ws)
+other_key = apikey(outsider, other_ws)
+
+# Ingest is mandatory-auth: no key and a bogus key are both rejected, nothing stored.
+probe_id = secrets.token_hex(16)
+status, _ = request(OTLP, '/v1/traces', span_payload(probe_id, 'NO_KEY'))
+assert status == 401, ('keyless ingest must be rejected', status)
+status, _ = request(OTLP, '/v1/traces', span_payload(probe_id, 'BOGUS_KEY'),
+                    token='trc_' + secrets.token_hex(32))
+assert status == 401, ('bogus-key ingest must be rejected', status)
+
 trace_id = secrets.token_hex(16)
-ingest(ws, trace_id, 'OWNER_ONLY_CONTENT')
-# The same trace ID in another workspace must never join into the owner's trace.
-ingest(other_ws, trace_id, 'OTHER_WORKSPACE_CONTENT')
+ingest(ws_key, trace_id, 'OWNER_ONLY_CONTENT')
+# The same trace ID under another workspace's key must never join the owner's trace.
+ingest(other_key, trace_id, 'OTHER_WORKSPACE_CONTENT')
 
 
 def visible():
@@ -105,4 +128,4 @@ for suffix in ('', '/spans'):
 
 status, kpis = request(API, '/v1/metrics/kpis?range=24h&workspace_id=' + ws, token=owner)
 assert status == 200 and kpis['runs']['value'] > 0, (status, kpis)
-print('PASS: register, login, workspace, OTLP ingestion, dashboard API proxy, trace visibility, metrics, and cross-workspace isolation')
+print('PASS: register, login, workspace, ingest key issuance, mandatory-key OTLP ingestion (keyless/bogus rejected), dashboard API proxy, trace visibility, metrics, and cross-workspace isolation')

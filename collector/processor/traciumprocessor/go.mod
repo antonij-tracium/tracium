@@ -11,6 +11,7 @@ replace github.com/tracium/collector => ../../
 // Collector framework deps are resolved at build time by the OCB builder.
 // Versions MUST match the collector core version pinned in builder/*.builder.yaml.
 require (
+	go.opentelemetry.io/collector/client v1.22.0
 	go.opentelemetry.io/collector/component v0.116.0
 	go.opentelemetry.io/collector/consumer v1.22.0
 	go.opentelemetry.io/collector/pdata v1.22.0

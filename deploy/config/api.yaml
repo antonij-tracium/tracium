@@ -13,7 +13,14 @@ auth:
   # enumeration protection). Default 10; set a negative value to disable.
   # Override with AUTH_RATE_LIMIT_PER_MINUTE.
   rate_limit_per_minute: 10
-  # Reverse proxies (IPs/CIDRs) allowed to set X-Forwarded-For for the limiter.
+  # Max ingest-key verification attempts per client IP per minute, on its own
+  # bucket (not shared with login). The caller is a collector — machine traffic,
+  # one IP fronting many senders — so it needs a larger, dedicated allowance;
+  # sharing login's tiny bucket let a few invalid keys exhaust it and block
+  # verification of legitimate keys. Default 120; negative disables. Override
+  # with AUTH_VERIFY_RATE_LIMIT_PER_MINUTE.
+  verify_rate_limit_per_minute: 120
+  # Reverse proxies (IPs/CIDRs or dns:service-name) allowed to set X-Forwarded-For.
   # Empty means the header is ignored and the socket peer is always used, so a
   # direct client cannot spoof its source IP. Set this to your ingress network
   # only when that proxy overwrites the header from untrusted input (the shipped

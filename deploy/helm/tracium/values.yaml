@@ -177,6 +177,10 @@ postgres:
 
 # Ingress — exposes collector OTLP ports, API, and dashboard externally
 ingress:
+  # Required when enabled: actual ingress controller peer IPs/CIDRs, or an
+  # explicit dns:headless-service name resolving to controller pod addresses.
+  # The controller must sanitize X-Forwarded-For. Do not trust the whole cluster.
+  trustedProxies: []
   # enabled: set to true to create an Ingress resource.
   # Databases (ClickHouse, Postgres) are never exposed via ingress.
   enabled: false

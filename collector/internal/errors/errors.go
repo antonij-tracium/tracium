@@ -20,6 +20,11 @@ const (
 	ErrTokenCountOutOfRange SpanErrorCode = "token_count_out_of_range"
 	// ErrFieldTooLong marks a client-controlled string past its ingest cap.
 	ErrFieldTooLong SpanErrorCode = "field_too_long"
+	// ErrUnauthenticated marks a span that reached the pipeline without a
+	// verified ingest key. Ingest requires a per-workspace API key; this is the
+	// processor's fail-closed backstop for any span that was not key-authenticated
+	// (e.g. the receiver authenticator was removed from config).
+	ErrUnauthenticated SpanErrorCode = "unauthenticated"
 )
 
 // SpanError represents a permanent validation or parsing failure for one span.

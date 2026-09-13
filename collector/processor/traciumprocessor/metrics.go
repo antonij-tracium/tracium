@@ -26,7 +26,7 @@ import (
 type metricsProcessor struct {
 	logger  *zap.Logger
 	pricing pricing.Resolver
-	user  user.Resolver
+	user    user.Resolver
 }
 
 // Metric and attribute keys for the token-usage instrument. Duplicated from the
@@ -51,6 +51,13 @@ const (
 func (p *metricsProcessor) processMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
 	var retryErr error
 
+	// Resolve the ingest key's workspace once for the whole request, exactly as the
+	// traces path does. When no verified key authenticated the request, every
+	// token-usage point is dropped below — the same fail-closed backstop that keeps
+	// keyless spans out, so keyless usage is never priced or stored even if the
+	// receiver's authenticator is absent.
+	scope := ingestScope(ctx)
+
 	rms := md.ResourceMetrics()
 	for i := 0; i < rms.Len(); i++ {
 		rm := rms.At(i)
@@ -60,6 +67,10 @@ func (p *metricsProcessor) processMetrics(ctx context.Context, md pmetric.Metric
 			sms.At(j).Metrics().RemoveIf(func(m pmetric.Metric) bool {
 				if m.Name() != metricTokenUsage {
 					return false
+				}
+				if !scope.authenticated {
+					p.rejectUnauthenticated(m, numDataPoints(m))
+					return true
 				}
 				if temporality(m) == pmetric.AggregationTemporalityCumulative {
 					p.rejectCumulative(m, numDataPoints(m))
@@ -121,6 +132,19 @@ func (p *metricsProcessor) rejectCumulative(m pmetric.Metric, points int) {
 	)
 }
 
+// rejectUnauthenticated drops a token-usage metric that arrived without a
+// verified ingest key and says so. It mirrors the traces path's keyless-span
+// backstop: the receiver's traciumauth authenticator normally rejects such a
+// request with 401 first, so reaching here means that authenticator is absent or
+// misconfigured — in which case the workspace is unknown and the usage must not
+// be priced or stored.
+func (p *metricsProcessor) rejectUnauthenticated(m pmetric.Metric, points int) {
+	p.logger.Warn("dropped token-usage metric: ingest requires a verified API key",
+		zap.String("metric", m.Name()),
+		zap.Int("dropped_data_points", points),
+	)
+}
+
 // usagePoint is one token-usage data point reduced to what enrichment needs:
 // its attribute map (mutated in place) and the token total for the interval.
 type usagePoint struct {
@@ -140,13 +164,12 @@ func numDataPoints(m pmetric.Metric) int {
 	}
 }
 
-// boundAndEnrich enforces the shared ingest token bound on every data point and
+// boundAndEnrich enforces the ingest token bound on every data point and
 // enriches those that pass. Points whose token count is out of range are dropped
-// (removed from the metric) rather than priced: the metrics path arrives on the
-// same unauthenticated port as spans and must apply the same ceiling the span
-// chain does, or a single point claiming 1e15 tokens would be priced at billions
-// and corrupt every sum(cost_usd) aggregate. Identifier sanitization happens in
-// enrichPoint.
+// (removed from the metric) rather than priced: the metrics path shares the OTLP
+// receivers with spans and must apply the same ceiling the span chain does, or a
+// single point claiming 1e15 tokens would be priced at billions and corrupt every
+// sum(cost_usd) aggregate. Identifier sanitization happens in enrichPoint.
 func (p *metricsProcessor) boundAndEnrich(
 	ctx context.Context,
 	m pmetric.Metric,
@@ -232,6 +255,14 @@ func (p *metricsProcessor) enrichPoint(
 	attrs.PutStr(attrModelNormalized, modelNormalized)
 	if userID != "" {
 		attrs.PutStr(attrUserID, userID)
+	}
+	// The ingest key decides the workspace for metrics exactly as for spans: stamp
+	// the verified key's workspace onto the point (the exporter reads workspace_id
+	// from the point, not the resource), overriding anything the sender set. Empty
+	// only when no key authenticated the request — which the receiver's traciumauth
+	// authenticator rejects before the pipeline runs.
+	if ws := ingestScope(ctx).workspace; ws != "" {
+		attrs.PutStr(attrWorkspaceID, ws)
 	}
 }
 

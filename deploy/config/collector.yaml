@@ -12,8 +12,13 @@ receivers:
     protocols:
       grpc:
         endpoint: ${env:GRPC_ADDR:-0.0.0.0:4317}
+        # Ingest requires a per-workspace API key on every request (traciumauth,
+        # see extensions). Not optional — unknown or revoked keys get 401.
+        auth: { authenticator: traciumauth }
       http:
         endpoint: ${env:HTTP_ADDR:-0.0.0.0:4318}
+        # Same required authenticator guards HTTP ingest.
+        auth: { authenticator: traciumauth }
 
 processors:
   # Tracium LLM-span enrichment. OSS sources only; the Enterprise build accepts
@@ -88,9 +93,26 @@ extensions:
     compaction:
       on_start: true
       directory: ${env:QUEUE_STORAGE_DIR:-/var/lib/tracium/queue}
+  # REQUIRED ingest authentication — per-workspace API keys. Every OTLP request
+  # must carry a Tracium API key; the authenticator verifies it against the API
+  # (which owns the key store) and rejects unknown or revoked keys with 401. The
+  # key decides the workspace, so senders send only the key:
+  #   OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer <api-key>"
+  # INGEST_VERIFY_URL must point at the API's verify endpoint.
+  traciumauth:
+    endpoint: ${env:INGEST_VERIFY_URL:-http://api:8090/v1/ingest/keys/verify}
+    cache_ttl: 60s
+    cache_max_entries: 10000
+    # Per-sender cap on verify calls forced against the API per window; only
+    # cache misses count, so one abusive sender streaming invalid keys cannot
+    # spend the collector's shared verify budget. <= 0 disables.
+    sender_verify_limit: 20
+    sender_verify_window: 1m
 
 service:
-  extensions: [health_check, file_storage]
+  # traciumauth is required: without it the receivers have no authenticator and
+  # the tracium processor rejects every (keyless) span as unauthenticated.
+  extensions: [health_check, file_storage, traciumauth]
   telemetry:
     metrics:
       # Bound to all interfaces so the collector's own metrics — including the

@@ -3,7 +3,7 @@
 // polls recent traces); this component only owns the Live/Pause toggle, which
 // freezes the displayed list so a row can be read without it scrolling away.
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { IconDot } from '../../../common';
 import type { ActivityItem } from '../interfaces';
 import type { ActivityId } from '../ids';

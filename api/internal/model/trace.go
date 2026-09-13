@@ -7,7 +7,7 @@ type Trace struct {
 	StartTimeMs  int64   `json:"start_time_ms"`
 	EndTimeMs    int64   `json:"end_time_ms"`
 	DurationMs   int64   `json:"duration_ms"`
-	UserID     string  `json:"user_id"`
+	UserID       string  `json:"user_id"`
 	WorkspaceID  string  `json:"workspace_id"`
 	SpanCount    int     `json:"span_count"`
 	HasError     bool    `json:"has_error"`

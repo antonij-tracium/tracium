@@ -15,3 +15,21 @@ spec:
       port: {{ .Values.dashboard.service.port }}
       targetPort: http
       protocol: TCP
+---
+# The API trusts these pod addresses as forwarding proxies. The ordinary
+# ClusterIP above is a destination address and never identifies the caller.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "tracium.fullname" . }}-dashboard-peers
+  labels:
+    {{- include "tracium.labels" . | nindent 4 }}
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: dashboard
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  ports:
+    - name: http
+      port: {{ .Values.dashboard.service.port }}
+      targetPort: http

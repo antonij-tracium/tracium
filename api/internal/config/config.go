@@ -53,7 +53,15 @@ type AuthConfig struct {
 	// RateLimitPerMinute caps register/login attempts per client IP per minute.
 	// Defaults to 10; set a negative value to disable throttling entirely.
 	RateLimitPerMinute int `yaml:"rate_limit_per_minute"`
-	// TrustedProxies lists the IPs/CIDRs of reverse proxies allowed to set
+	// VerifyRateLimitPerMinute caps ingest-key verification attempts per client
+	// IP per minute. It is kept separate from RateLimitPerMinute on purpose: the
+	// verify endpoint's caller is a collector (machine traffic, one IP fronting
+	// many senders), so it needs a larger, dedicated allowance. Sharing the tiny
+	// login bucket let a handful of invalid keys exhaust the collector's budget
+	// and starve verification of legitimate keys. Defaults to 120; a negative
+	// value disables throttling of the verify endpoint.
+	VerifyRateLimitPerMinute int `yaml:"verify_rate_limit_per_minute"`
+	// TrustedProxies lists IPs/CIDRs or dns:service-name entries for proxies allowed to set
 	// X-Forwarded-For for the rate limiter. Empty (the default) means the header
 	// is ignored and the socket peer is always used, so a direct client cannot
 	// spoof its source IP. Set this to your ingress/proxy network only when that
@@ -101,6 +109,9 @@ func (c *Config) Default() {
 	}
 	if c.Auth.RateLimitPerMinute == 0 {
 		c.Auth.RateLimitPerMinute = 10
+	}
+	if c.Auth.VerifyRateLimitPerMinute == 0 {
+		c.Auth.VerifyRateLimitPerMinute = 120
 	}
 	// auth.jwt_secret is deliberately not defaulted: a signing secret shared by
 	// every install is no secret at all. Absence must fail the deploy.
@@ -212,6 +223,11 @@ func (c *Config) ApplyEnv() {
 	if v := os.Getenv("AUTH_RATE_LIMIT_PER_MINUTE"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			c.Auth.RateLimitPerMinute = n
+		}
+	}
+	if v := os.Getenv("AUTH_VERIFY_RATE_LIMIT_PER_MINUTE"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			c.Auth.VerifyRateLimitPerMinute = n
 		}
 	}
 	if v := os.Getenv("AUTH_TRUSTED_PROXIES"); v != "" {

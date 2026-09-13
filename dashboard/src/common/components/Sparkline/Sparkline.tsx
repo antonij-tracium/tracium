@@ -1,4 +1,3 @@
-import React from 'react';
 
 export interface SparklineProps {
   // null entries are gaps (no data): the point keeps its x-slot so the spark

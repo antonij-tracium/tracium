@@ -159,7 +159,7 @@ type AttributeUsage struct {
 // Trend is cost per time bucket across the current window (oldest first,
 // zero-filled) for the row sparkline.
 type UserUsage struct {
-	UserID string    `json:"user_id"`
+	UserID   string    `json:"user_id"`
 	Cost     float64   `json:"cost"`
 	CostPrev float64   `json:"cost_prev"`
 	Runs     int64     `json:"runs"`

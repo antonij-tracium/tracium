@@ -10,6 +10,7 @@ import (
 	"github.com/tracium/collector/internal/genai"
 	"github.com/tracium/collector/pkg/spanmodel"
 
+	"go.opentelemetry.io/collector/client"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.opentelemetry.io/otel/attribute"
@@ -39,6 +40,13 @@ type traciumProcessor struct {
 func (p *traciumProcessor) processTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
 	var retryErr error
 
+	// Resolve the ingest key's workspace once for the whole request. Ingest
+	// requires a per-workspace API key: the traciumauth authenticator on the
+	// receiver verifies it and attaches the workspace here. When no verified key
+	// authenticated the request, scope.authenticated is false and every span in
+	// the request is rejected below — the pipeline never accepts keyless spans.
+	scope := ingestScope(ctx)
+
 	rss := td.ResourceSpans()
 	for i := 0; i < rss.Len(); i++ {
 		rs := rss.At(i)
@@ -53,6 +61,18 @@ func (p *traciumProcessor) processTraces(ctx context.Context, td ptrace.Traces) 
 				// the ingest hot path.
 				attrs := attrMap(otelSpan.Attributes())
 				model := toSpanModel(otelSpan, resourceAttrs, attrs)
+				// Fail closed: a request with no verified ingest key never reaches
+				// the exporter. The receiver authenticator normally rejects it with
+				// 401 first; this drop is the backstop if that authenticator is
+				// absent, so keyless spans are counted and dead-lettered, not stored.
+				if !scope.authenticated {
+					p.recordDrop(ctx, model, customerrors.InvalidSpan(
+						customerrors.ErrUnauthenticated, "ingest requires a verified API key"))
+					return true
+				}
+				// The ingest key decides the workspace: stamp its workspace onto
+				// the span, overriding any value the sender supplied.
+				scope.apply(model)
 				res, err := applyChain(ctx, p.chain, model)
 				if res == enrich.ResultDrop {
 					// Permanently rejected: count it and dead-letter it before
@@ -82,6 +102,47 @@ func (p *traciumProcessor) processTraces(ctx context.Context, td ptrace.Traces) 
 		return td, retryErr
 	}
 	return td, nil
+}
+
+// authAttrWorkspace is the client.Info attribute key under which the traciumauth
+// extension puts the verified key's workspace. It is a wire contract with that
+// extension (kept as a literal string here to avoid a build-time dependency from
+// the processor onto the extension module).
+const authAttrWorkspace = "tracium.workspace"
+
+// authScope is the workspace a verified ingest key resolved to. When
+// authenticated is false the request carried no verified key, and the processor
+// rejects every span in it — ingest is key-only, there is no keyless path.
+type authScope struct {
+	authenticated bool
+	workspace     string
+}
+
+// ingestScope reads the authenticated ingest key's workspace off the request
+// context. The traciumauth extension puts it on client.Info.Auth; any other case
+// (no authenticator ran, a different authenticator, an empty value) yields a
+// non-authenticated scope, which the caller rejects.
+func ingestScope(ctx context.Context) authScope {
+	auth := client.FromContext(ctx).Auth
+	if auth == nil {
+		return authScope{}
+	}
+	workspace, ok := auth.GetAttribute(authAttrWorkspace).(string)
+	if !ok || workspace == "" {
+		// Authenticated by something that is not our extension, or with no
+		// workspace — not a valid ingest key.
+		return authScope{}
+	}
+	return authScope{authenticated: true, workspace: workspace}
+}
+
+// apply stamps the key's workspace onto the span, making the key — not the
+// sender-supplied attribute — authoritative for where the data lands. Callers
+// only reach this for an authenticated scope.
+func (s authScope) apply(span *spanmodel.Span) {
+	if s.authenticated {
+		span.WorkspaceID = s.workspace
+	}
 }
 
 // applyChain runs the enrichment chain like enrich.Chain.Apply, but preserves
@@ -154,7 +215,7 @@ const (
 	attrModelResponse = "gen_ai.response.model"
 	attrFinishReason  = "gen_ai.response.finish_reasons"
 
-	attrUserID        = "tracium.user.id"
+	attrUserID          = "tracium.user.id"
 	attrWorkspaceID     = "tracium.workspace.id"
 	attrCostUSD         = "tracium.cost_usd"
 	attrModelNormalized = "tracium.model_normalized"
@@ -210,7 +271,7 @@ func toSpanModel(s ptrace.Span, resourceAttrs pcommon.Map, attrs map[string]stri
 		// Read from the raw attributes, not the flattened attrs map: the map
 		// holds the JSON-encoded array (see finishReason).
 		FinishReason: finishReason(s.Attributes()),
-		UserID:     userID,
+		UserID:       userID,
 		WorkspaceID:  workspaceID,
 	}
 }

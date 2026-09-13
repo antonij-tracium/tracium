@@ -159,11 +159,12 @@ func (e UserEnricher) Enrich(ctx context.Context, span *spanmodel.Span) error {
 // matching the OSS pricing policy.
 //
 // A cost the instrumentation reported itself (gen_ai.usage.cost) is ignored
-// unless TrustReportedCost is set. The OTLP ports are unauthenticated, so an
-// unconditionally trusted client cost lets anyone who can reach the collector
-// declare a span worth $1,000,000 and have it stored verbatim — and every cost
-// figure in the product is a sum(cost_usd). Operators whose instrumentation
-// prices calls the table cannot (private or self-hosted models) can opt in.
+// unless TrustReportedCost is set. A valid ingest key authenticates the sender
+// and its workspace, but does not make the sender's self-reported cost true —
+// trusting it unconditionally would let any authenticated sender declare a span
+// worth $1,000,000 and have it stored verbatim, and every cost figure in the
+// product is a sum(cost_usd). Operators whose instrumentation prices calls the
+// table cannot (private or self-hosted models) can opt in.
 type PricingEnricher struct {
 	Resolver          pricing.Resolver
 	TrustReportedCost bool

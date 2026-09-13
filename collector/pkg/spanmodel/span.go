@@ -29,9 +29,10 @@ type Span struct {
 	CacheWriteTokens int64
 
 	// ReportedCostUSD is a cost the upstream instrumentation already computed
-	// (gen_ai.usage.cost / llm.usage.total_cost). It is client-controlled and the
-	// OTLP ports are unauthenticated, so it is IGNORED unless the operator opts
-	// in via PricingEnricher.TrustReportedCost — otherwise the price table wins.
+	// (gen_ai.usage.cost / llm.usage.total_cost). It is client-controlled — a
+	// valid ingest key identifies the sender, not the truth of its numbers — so it
+	// is IGNORED unless the operator opts in via PricingEnricher.TrustReportedCost;
+	// otherwise the price table wins.
 	ReportedCostUSD float64
 
 	// tracium.* enriched attributes (set by EnrichStage)

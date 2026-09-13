@@ -36,25 +36,25 @@ run automatically before the app services start.
 | Collector — OTLP HTTP | `localhost:4318` | Same, HTTP/protobuf |
 | Collector — health | http://localhost:8080/ | Liveness / readiness |
 
-Open the dashboard, create an account, and create your first workspace. Open
-**Settings → Workspace** and copy its workspace ID. In your instrumented app, set:
+Open the dashboard, create an account, and create your first workspace. Open the
+workspace's **API keys** screen, create a key, and copy the `trc_…` token — it is
+shown only once. In your instrumented app, set:
 
 ```bash
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
 OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
-OTEL_RESOURCE_ATTRIBUTES=tracium.workspace.id=YOUR_WORKSPACE_ID
+OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer YOUR_API_KEY"
 ```
 
-Append the workspace attribute if you already set `OTEL_RESOURCE_ATTRIBUTES`.
-Telemetry without a workspace ID is stored but is not visible in workspace reads.
-The workspace ID routes telemetry; it is not an ingestion credential. Runnable
-Python senders are in [`examples/`](examples/); set `TRACIUM_WORKSPACE_ID` when
-using those examples.
+The key both authenticates the sender and decides which workspace the telemetry
+lands in — you do not set a workspace attribute. Ingest is key-only: a request
+with no key, or an unknown or revoked one, is rejected with 401 and nothing is
+stored. Runnable Python senders are in [`examples/`](examples/); set
+`TRACIUM_API_KEY` when using those examples.
 
-Compose binds published ports to loopback. For applications on other machines,
-configure a trusted network endpoint and collector authentication explicitly.
-The dashboard uses its own origin for API requests, so it also works through a
-reverse proxy without rebuilding the frontend.
+Compose binds published ports to loopback. The dashboard uses its own origin for
+API requests, so it also works through a reverse proxy without rebuilding the
+frontend.
 
 **Want data to look at right away?** With the stack up, seed a demo account,
 workspaces, and ~520 realistic traces in one command (requires Node.js 20+):
@@ -66,8 +66,9 @@ cd dashboard && npm run seed
 Then sign in at http://localhost:3000 with `demo@tracium.ai` / `tracium-demo-1234`.
 See [dashboard/README.md](dashboard/README.md#seed-demo-data) for options.
 
-> The OTLP ports are **unauthenticated by default** — keep them on a trusted
-> network. See [securing the collector](deploy/docs/collector-auth.md).
+> OTLP ingest **requires a per-workspace API key** on every request — there is no
+> anonymous path. Keeping the ports on a trusted network is still sound defense in
+> depth. See [securing the collector](deploy/docs/collector-auth.md).
 
 ## Architecture
 
@@ -115,10 +116,16 @@ Helm chart in [`deploy/helm/tracium`](deploy/helm/tracium/); steps in
 ## Alpha scope and upgrades
 
 Live traces, overview metrics, user usage, workspace creation, and workspace
-access checks are available. Per-client API keys, profile/password editing,
-workspace editing, and retention controls in the UI are unavailable; the UI
-labels these limitations. Configure ingestion authentication and retention in
-the deployment instead.
+access checks are available. Ingest requires a per-workspace API key on every
+request — issue keys from the dashboard's API-keys screen or via
+`POST /v1/workspaces/{id}/api-keys`; the collector's `traciumauth` authenticator
+verifies each one and rejects anything unknown or revoked
+([securing the collector](deploy/docs/collector-auth.md)). A key is bound to one
+workspace and is the source of truth for where its telemetry lands: the collector
+stamps the key's workspace onto every span, so senders don't set a workspace
+attribute at all. Profile/password editing, workspace editing, and retention
+controls in the UI are unavailable; the UI labels these limitations. Configure
+retention in the deployment.
 
 Existing installations must follow [the upgrade guide](deploy/docs/upgrading.md)
 before adopting workspace scoping. The migration preserves legacy aggregates and

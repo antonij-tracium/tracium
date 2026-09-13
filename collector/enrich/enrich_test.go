@@ -62,7 +62,7 @@ func TestValidate_DropsInvalidSpan(t *testing.T) {
 func TestPricing_ReportedCostIsIgnoredByDefault(t *testing.T) {
 	chain := DefaultChain(pricing.NewStaticResolver(pricing.DefaultPrices()), nil, nil)
 	span := validSpan()
-	span.ReportedCostUSD = 1_000_000 // hostile client on an unauthenticated port
+	span.ReportedCostUSD = 1_000_000 // authenticated but untrusted: a key proves the sender, not its numbers
 
 	if _, err := chain.Apply(context.Background(), span); err != nil {
 		t.Fatalf("unexpected error: %v", err)

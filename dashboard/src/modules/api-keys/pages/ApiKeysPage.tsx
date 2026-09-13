@@ -6,17 +6,19 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   IconSearch,
-  IconPlus,
   IconCopy,
   IconTrash,
   IconKey,
   IconCheck,
-  Sparkline,
+  IconAlert,
   StatusPill,
+  Spinner,
+  SlicedButton,
+  relativeTime,
 } from '../../../common';
-import { API_KEYS } from '../data';
-import type { ApiKey } from '../interfaces';
-import type { ApiKeyId, TabId } from '../ids';
+import { useApiKeys, useDemoApiKeys } from '../hooks/useApiKeys';
+import type { UseApiKeysResult } from '../hooks/useApiKeys';
+import type { ApiKeyRecord, CreatedApiKey } from '../../../common/api';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -25,20 +27,12 @@ import type { ApiKeyId, TabId } from '../ids';
 export interface ApiKeysPageProps {
   /** Seed the demo keys (auth-page preview). A real workspace starts with none. */
   demo?: boolean;
+  /** The workspace to manage keys for, in the live (non-demo) page. */
+  workspaceId?: string;
 }
 
 // ---------------------------------------------------------------------------
 // Helpers
-// ---------------------------------------------------------------------------
-
-function fmtNum(n: number): string {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M';
-  if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
-  return n.toLocaleString();
-}
-
-// ---------------------------------------------------------------------------
-// SectionHead
 // ---------------------------------------------------------------------------
 
 interface SectionHeadProps {
@@ -108,814 +102,73 @@ function SectionHead({ title, hint, right, first = false }: SectionHeadProps) {
 // KPI tile
 // ---------------------------------------------------------------------------
 
-interface KpiProps {
-  label: string;
-  value: string | number;
-  hint: string;
-  last?: boolean;
+function fmtDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
-function Kpi({ label, value, hint, last = false }: KpiProps) {
+function fmtLastUsed(iso: string | null): string {
+  if (!iso) return 'Never';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return relativeTime(d.getTime());
+}
+
+// --- Field label -----------------------------------------------------------
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
     <div
       style={{
-        padding: '0 28px 0 0',
-        borderRight: last
-          ? 'none'
-          : '1px solid color-mix(in srgb, var(--border) 45%, transparent)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 10,
-      }}
-    >
-      <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 500 }}>
-        {label}
-      </span>
-      <span
-        style={{
-          fontSize: 34,
-          fontWeight: 500,
-          letterSpacing: '-0.03em',
-          color: 'var(--foreground)',
-          fontVariantNumeric: 'tabular-nums',
-          lineHeight: 1,
-        }}
-      >
-        {value}
-      </span>
-      <div
-        style={{
-          fontSize: 12,
-          color: 'var(--muted)',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        }}
-      >
-        {hint}
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Tabs
-// ---------------------------------------------------------------------------
-
-
-interface TabDef {
-  id: TabId;
-  label: string;
-  count: number;
-}
-
-interface TabsProps {
-  tab: TabId;
-  setTab: (t: TabId) => void;
-  tabs: TabDef[];
-}
-
-function Tabs({ tab, setTab, tabs }: TabsProps) {
-  return (
-    <div style={{ display: 'flex', gap: 18 }}>
-      {tabs.map((t) => (
-        <button
-          key={t.id}
-          onClick={() => setTab(t.id)}
-          style={{
-            padding: '0 0 8px',
-            fontSize: 13,
-            fontWeight: 500,
-            background: 'transparent',
-            color: tab === t.id ? 'var(--foreground)' : 'var(--muted)',
-            border: 'none',
-            borderBottom:
-              tab === t.id
-                ? '1.5px solid var(--accent)'
-                : '1.5px solid transparent',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-          }}
-        >
-          {t.label}
-          <span
-            style={{
-              fontSize: 11,
-              color: 'var(--muted)',
-              fontVariantNumeric: 'tabular-nums',
-              padding: '1px 6px',
-              background: 'var(--surface-alt)',
-              border: '1px solid var(--border)',
-              borderRadius: 4,
-            }}
-          >
-            {t.count}
-          </span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// EnvChip
-// ---------------------------------------------------------------------------
-
-function EnvChip({ env }: { env: ApiKey['env'] }) {
-  const map: Record<ApiKey['env'], { fg: string; label: string }> = {
-    production:  { fg: 'var(--accent)',   label: 'prod' },
-    staging:     { fg: 'var(--warning)',  label: 'stg'  },
-    development: { fg: 'var(--muted)',    label: 'dev'  },
-  };
-  const m = map[env];
-
-  return (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 5,
-        padding: '2px 7px',
-        borderRadius: 999,
-        fontSize: 10.5,
-        fontWeight: 500,
+        fontSize: 11,
+        color: 'var(--muted)',
         textTransform: 'uppercase',
-        letterSpacing: '0.06em',
-        background: `color-mix(in srgb, ${m.fg} 12%, transparent)`,
-        color: m.fg,
-        border: `1px solid color-mix(in srgb, ${m.fg} 22%, transparent)`,
+        letterSpacing: '0.08em',
+        fontWeight: 500,
+        marginBottom: 8,
       }}
     >
-      {m.label}
-    </span>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// ModalShell
-// ---------------------------------------------------------------------------
-
-interface ModalShellProps {
-  children: React.ReactNode;
-  onClose: () => void;
-  width?: number;
-}
-
-function ModalShell({ children, onClose, width = 520 }: ModalShellProps) {
-  return (
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(4,8,7,0.7)',
-        backdropFilter: 'blur(8px)',
-        zIndex: 100,
-        display: 'grid',
-        placeItems: 'center',
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width,
-          maxWidth: '92vw',
-          background: 'var(--surface)',
-          border: '1px solid var(--border-strong, rgba(255,255,255,0.12))',
-          borderRadius: 12,
-          boxShadow: '0 30px 80px rgba(0,0,0,0.6)',
-          overflow: 'hidden',
-        }}
-      >
-        {children}
-      </div>
+      {children}
     </div>
   );
 }
 
-// ---------------------------------------------------------------------------
-// CreateKeyModal
-// ---------------------------------------------------------------------------
+// --- InlineCreateForm ------------------------------------------------------
+// Inline, flat create form shown in the page flow at all times (no modal).
 
-interface CreateKeyPayload {
-  name: string;
-  env: ApiKey['env'];
-  scopes: string[];
-  expiry: string;
+interface InlineCreateFormProps {
+  onCreate: (name: string) => void;
+  submitting: boolean;
+  error: string | null;
 }
 
-interface CreateKeyModalProps {
-  open: boolean;
-  onClose: () => void;
-  onCreate: (payload: CreateKeyPayload) => void;
-}
-
-type ScopeMap = Record<string, boolean>;
-
-const ALL_SCOPES = [
-  { id: 'traces:write',  hint: 'Send trace data'           },
-  { id: 'traces:read',   hint: 'Read trace data'           },
-  { id: 'metrics:read',  hint: 'Read aggregate metrics'    },
-  { id: 'agents:write',  hint: 'Create or update agents'   },
-];
-
-const DEFAULT_SCOPES: ScopeMap = {
-  'traces:write':  true,
-  'traces:read':   false,
-  'metrics:read':  true,
-  'agents:write':  false,
-};
-
-function CreateKeyModal({ open, onClose, onCreate }: CreateKeyModalProps) {
+function InlineCreateForm({ onCreate, submitting, error }: InlineCreateFormProps) {
   const [name, setName] = useState('');
-  const [env, setEnv] = useState<ApiKey['env']>('production');
-  const [scopes, setScopes] = useState<ScopeMap>(DEFAULT_SCOPES);
-  const [expiry, setExpiry] = useState('never');
 
-  useEffect(() => {
-    if (open) {
-      setName('');
-      setEnv('production');
-      setScopes(DEFAULT_SCOPES);
-      setExpiry('never');
-    }
-  }, [open]);
-
-  if (!open) return null;
-
-  const canCreate =
-    name.trim().length > 0 && Object.values(scopes).some(Boolean);
-
-  const envOptions: { id: ApiKey['env']; label: string; prefix: string }[] = [
-    { id: 'production',  label: 'Production',  prefix: 'tr_live' },
-    { id: 'staging',     label: 'Staging',     prefix: 'tr_test' },
-    { id: 'development', label: 'Development', prefix: 'tr_test' },
-  ];
-
-  const expiryOptions = [
-    { id: '30d',   label: '30 days'       },
-    { id: '90d',   label: '90 days'       },
-    { id: '1y',    label: '1 year'        },
-    { id: 'never', label: 'No expiration' },
-  ];
-
-  function handleSubmit() {
-    if (!canCreate) return;
-    const activeScopes = Object.entries(scopes)
-      .filter(([, v]) => v)
-      .map(([k]) => k);
-    onCreate({ name, env, scopes: activeScopes, expiry });
-  }
+  const canCreate = name.trim().length > 0 && !submitting;
 
   return (
-    <ModalShell onClose={onClose}>
-      <div
-        style={{
-          padding: '20px 24px',
-          borderBottom: '1px solid var(--border)',
-        }}
-      >
-        <div
-          style={{
-            fontSize: 16,
-            fontWeight: 600,
-            letterSpacing: '-0.015em',
-            color: 'var(--foreground)',
-          }}
-        >
-          Create API key
-        </div>
-        <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 3 }}>
-          The full secret will be shown once after creation.
-        </div>
-      </div>
-
-      <div
-        style={{
-          padding: '22px 24px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 22,
-        }}
-      >
-        {/* Name */}
-        <div>
-          <div
-            style={{
-              fontSize: 11,
-              color: 'var(--muted)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
-              fontWeight: 500,
-              marginBottom: 8,
-            }}
-          >
-            Name
-          </div>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            autoFocus
-            placeholder="e.g. Production · Web app"
-            style={{
-              width: '100%',
-              padding: '9px 12px',
-              background: 'transparent',
-              border:
-                '1px solid var(--border-strong, rgba(255,255,255,0.12))',
-              borderRadius: 7,
-              color: 'var(--foreground)',
-              fontSize: 13,
-              outline: 'none',
-              fontFamily: 'inherit',
-              boxSizing: 'border-box',
-            }}
-          />
-        </div>
-
-        {/* Environment */}
-        <div>
-          <div
-            style={{
-              fontSize: 11,
-              color: 'var(--muted)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
-              fontWeight: 500,
-              marginBottom: 8,
-            }}
-          >
-            Environment
-          </div>
-          <div
-            style={{
-              display: 'flex',
-              gap: 0,
-              borderBottom:
-                '1px solid color-mix(in srgb, var(--border) 70%, transparent)',
-            }}
-          >
-            {envOptions.map((e) => (
-              <button
-                key={e.id}
-                onClick={() => setEnv(e.id)}
-                style={{
-                  padding: '8px 16px 10px',
-                  marginRight: 4,
-                  background: 'transparent',
-                  border: 'none',
-                  borderBottom:
-                    env === e.id
-                      ? '1.5px solid var(--accent)'
-                      : '1.5px solid transparent',
-                  marginBottom: -1,
-                  fontSize: 13,
-                  fontWeight: 500,
-                  color:
-                    env === e.id ? 'var(--foreground)' : 'var(--muted)',
-                  fontFamily: 'inherit',
-                  cursor: 'pointer',
-                }}
-              >
-                {e.label}
-                <span
-                  style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 10.5,
-                    color: 'var(--muted)',
-                    marginLeft: 8,
-                  }}
-                >
-                  {e.prefix}_…
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Scopes */}
-        <div>
-          <div
-            style={{
-              fontSize: 11,
-              color: 'var(--muted)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
-              fontWeight: 500,
-              marginBottom: 8,
-            }}
-          >
-            Scopes
-          </div>
-          <div>
-            {ALL_SCOPES.map((s, i) => (
-              <label
-                key={s.id}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'auto 1fr auto',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: '10px 0',
-                  borderBottom:
-                    i < ALL_SCOPES.length - 1
-                      ? '1px solid color-mix(in srgb, var(--border) 50%, transparent)'
-                      : 'none',
-                  cursor: 'pointer',
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={scopes[s.id] ?? false}
-                  onChange={(e) =>
-                    setScopes({ ...scopes, [s.id]: e.target.checked })
-                  }
-                  style={{ accentColor: 'var(--accent)' }}
-                />
-                <span
-                  style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 12.5,
-                    color: 'var(--foreground)',
-                  }}
-                >
-                  {s.id}
-                </span>
-                <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-                  {s.hint}
-                </span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        {/* Expiration */}
-        <div>
-          <div
-            style={{
-              fontSize: 11,
-              color: 'var(--muted)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
-              fontWeight: 500,
-              marginBottom: 8,
-            }}
-          >
-            Expiration
-          </div>
-          <div style={{ display: 'flex', gap: 18 }}>
-            {expiryOptions.map((e) => (
-              <button
-                key={e.id}
-                onClick={() => setExpiry(e.id)}
-                style={{
-                  padding: '0 0 6px',
-                  background: 'transparent',
-                  border: 'none',
-                  borderBottom:
-                    expiry === e.id
-                      ? '1.5px solid var(--accent)'
-                      : '1.5px solid transparent',
-                  fontSize: 13,
-                  fontWeight: 500,
-                  color:
-                    expiry === e.id ? 'var(--foreground)' : 'var(--muted)',
-                  fontFamily: 'inherit',
-                  cursor: 'pointer',
-                }}
-              >
-                {e.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'flex-end',
-          gap: 8,
-          padding: '14px 24px',
-          borderTop: '1px solid var(--border)',
-        }}
-      >
-        <button
-          onClick={onClose}
-          style={{
-            padding: '7px 13px',
-            background: 'transparent',
-            border:
-              '1px solid var(--border-strong, rgba(255,255,255,0.12))',
-            borderRadius: 7,
-            color: 'var(--foreground)',
-            fontSize: 13,
-            fontFamily: 'inherit',
-            cursor: 'pointer',
-          }}
-        >
-          Cancel
-        </button>
-        <button
-          disabled={!canCreate}
-          onClick={handleSubmit}
-          style={{
-            padding: '7px 13px',
-            background: canCreate
-              ? 'var(--accent)'
-              : 'color-mix(in srgb, var(--accent) 35%, transparent)',
-            border:
-              '1px solid ' + (canCreate ? 'var(--accent)' : 'transparent'),
-            borderRadius: 7,
-            color: 'var(--accent-contrast)',
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: canCreate ? 'pointer' : 'not-allowed',
-            fontFamily: 'inherit',
-          }}
-        >
-          Create key
-        </button>
-      </div>
-    </ModalShell>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// RevealKeyModal
-// ---------------------------------------------------------------------------
-
-interface RevealKeyModalProps {
-  keyData: ApiKey | null;
-  onClose: () => void;
-}
-
-function RevealKeyModal({ keyData, onClose }: RevealKeyModalProps) {
-  const [copied, setCopied] = useState(false);
-
-  if (!keyData) return null;
-
-  const fullKey = `${keyData.prefix}_${keyData.fullSecret ?? '(secret)'}`;
-
-  function handleCopy() {
-    void navigator.clipboard?.writeText(fullKey);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1800);
-  }
-
-  return (
-    <ModalShell onClose={onClose} width={580}>
-      <div
-        style={{
-          padding: '20px 24px',
-          borderBottom: '1px solid var(--border)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-        }}
-      >
-        <span
-          style={{
-            width: 30,
-            height: 30,
-            borderRadius: 8,
-            background:
-              'color-mix(in srgb, var(--accent) 14%, transparent)',
-            border:
-              '1px solid color-mix(in srgb, var(--accent) 25%, transparent)',
-            display: 'grid',
-            placeItems: 'center',
-            color: 'var(--accent)',
-            flexShrink: 0,
-          }}
-        >
-          <IconKey size={15} />
-        </span>
-        <div>
-          <div
-            style={{
-              fontSize: 15,
-              fontWeight: 600,
-              letterSpacing: '-0.015em',
-              color: 'var(--foreground)',
-            }}
-          >
-            Key created — copy it now
-          </div>
-          <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 2 }}>
-            You won't see the full secret again.
-          </div>
-        </div>
-      </div>
-
-      <div style={{ padding: '22px 24px' }}>
-        <div
-          style={{
-            fontSize: 11,
-            color: 'var(--muted)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-            fontWeight: 500,
-            marginBottom: 8,
-          }}
-        >
-          {keyData.name}
-        </div>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            padding: '12px 14px',
-            background: 'var(--surface-alt)',
-            border:
-              '1px solid var(--border-strong, rgba(255,255,255,0.12))',
-            borderRadius: 8,
-            fontFamily: 'var(--font-mono)',
-            fontSize: 12.5,
-            color: 'var(--foreground)',
-            wordBreak: 'break-all',
-          }}
-        >
-          <span style={{ flex: 1 }}>{fullKey}</span>
-          <button
-            onClick={handleCopy}
-            style={{
-              padding: '5px 11px',
-              background: copied ? 'var(--accent)' : 'transparent',
-              border:
-                '1px solid ' +
-                (copied
-                  ? 'var(--accent)'
-                  : 'var(--border-strong, rgba(255,255,255,0.12))'),
-              borderRadius: 6,
-              color: copied ? 'var(--accent-contrast)' : 'var(--foreground)',
-              fontSize: 11.5,
-              fontWeight: 500,
-              fontFamily: 'inherit',
-              flexShrink: 0,
-              cursor: 'pointer',
-            }}
-          >
-            {copied ? 'Copied' : 'Copy'}
-          </button>
-        </div>
-
-        <div
-          style={{
-            marginTop: 14,
-            fontSize: 12.5,
-            color: 'var(--muted)',
-            display: 'flex',
-            gap: 10,
-            alignItems: 'flex-start',
-          }}
-        >
-          <span style={{ color: 'var(--warning)', flexShrink: 0, marginTop: 1 }}>
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 8v4M12 16h.01" />
-            </svg>
-          </span>
-          <span>
-            Store this in a secrets manager. The dashboard will only ever show{' '}
-            <code
-              style={{
-                fontFamily: 'var(--font-mono)',
-                color: 'var(--foreground)',
-              }}
-            >
-              {keyData.prefix}_…{keyData.tail}
-            </code>{' '}
-            from now on.
-          </span>
-        </div>
-      </div>
-
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'flex-end',
-          padding: '14px 24px',
-          borderTop: '1px solid var(--border)',
-        }}
-      >
-        <button
-          onClick={onClose}
-          style={{
-            padding: '7px 13px',
-            background: 'var(--accent)',
-            border: '1px solid var(--accent)',
-            borderRadius: 7,
-            color: 'var(--accent-contrast)',
-            fontSize: 13,
-            fontWeight: 600,
-            fontFamily: 'inherit',
-            cursor: 'pointer',
-          }}
-        >
-          Done — I've stored it safely
-        </button>
-      </div>
-    </ModalShell>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// RevokeModal
-// ---------------------------------------------------------------------------
-
-interface RevokeModalProps {
-  targetKey: ApiKey | null;
-  onClose: () => void;
-  onConfirm: (id: string, reason: string) => void;
-}
-
-function RevokeModal({ targetKey, onClose, onConfirm }: RevokeModalProps) {
-  const [reason, setReason] = useState('');
-
-  useEffect(() => {
-    if (targetKey) setReason('');
-  }, [targetKey]);
-
-  if (!targetKey) return null;
-
-  return (
-    <ModalShell onClose={onClose} width={460}>
-      <div
-        style={{
-          padding: '20px 24px',
-          borderBottom: '1px solid var(--border)',
-        }}
-      >
-        <div
-          style={{
-            fontSize: 15,
-            fontWeight: 600,
-            letterSpacing: '-0.015em',
-            color: 'var(--foreground)',
-          }}
-        >
-          Revoke key
-        </div>
-        <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 3 }}>
-          Requests using{' '}
-          <code style={{ fontFamily: 'var(--font-mono)' }}>
-            {targetKey.prefix}_…{targetKey.tail}
-          </code>{' '}
-          will fail with{' '}
-          <code style={{ fontFamily: 'var(--font-mono)' }}>401</code>{' '}
-          immediately.
-        </div>
-      </div>
-      <div style={{ padding: '20px 24px' }}>
-        <div style={{ fontSize: 12.5, color: 'var(--muted)', marginBottom: 14 }}>
-          This key handled{' '}
-          <span
-            style={{
-              color: 'var(--foreground)',
-              fontWeight: 500,
-              fontVariantNumeric: 'tabular-nums',
-            }}
-          >
-            {fmtNum(targetKey.requests7d)}
-          </span>{' '}
-          requests in the last 7 days.
-        </div>
-        <div
-          style={{
-            fontSize: 11,
-            color: 'var(--muted)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-            fontWeight: 500,
-            marginBottom: 8,
-          }}
-        >
-          Reason
-        </div>
+    <div style={{ padding: '4px 0 18px' }}>
+      <FieldLabel>New key name</FieldLabel>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <input
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          placeholder="e.g. Routine rotation"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && canCreate) onCreate(name.trim());
+          }}
+          placeholder="e.g. Production ingest"
           style={{
-            width: '100%',
+            flex: '1 1 260px',
+            minWidth: 200,
             padding: '9px 12px',
             background: 'transparent',
-            border:
-              '1px solid var(--border-strong, rgba(255,255,255,0.12))',
+            border: '1px solid var(--border-strong, rgba(255,255,255,0.12))',
             borderRadius: 7,
             color: 'var(--foreground)',
             fontSize: 13,
@@ -924,95 +177,297 @@ function RevokeModal({ targetKey, onClose, onConfirm }: RevokeModalProps) {
             boxSizing: 'border-box',
           }}
         />
+        <SlicedButton disabled={!canCreate} onClick={() => onCreate(name.trim())}>
+          {submitting ? 'Creating…' : 'Create key'}
+        </SlicedButton>
       </div>
+      <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8 }}>
+        A label to recognise this key later — it grants ingest access to this
+        workspace. The full token is shown once, right after it's created.
+      </div>
+      {error && (
+        <div
+          style={{
+            marginTop: 12,
+            fontSize: 12.5,
+            color: 'var(--error)',
+            display: 'flex',
+            gap: 8,
+            alignItems: 'center',
+          }}
+        >
+          <IconAlert size={14} />
+          {error}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- InlineReveal ----------------------------------------------------------
+// Inline, flat one-time token reveal. Shown in the page flow after a key is
+// created (no modal); the token box itself is a mono code field, not a card.
+
+interface InlineRevealProps {
+  created: CreatedApiKey;
+  onClose: () => void;
+}
+
+function InlineReveal({ created, onClose }: InlineRevealProps) {
+  const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
+
+  useEffect(() => {
+    setCopied(false);
+    setCopyFailed(false);
+  }, [created]);
+
+  const token = created.token;
+
+  // Only report success once the write actually resolves. The Clipboard API is
+  // absent outside secure contexts and writeText can reject (denied permission),
+  // and this is the one time the token is shown — claiming "Copied" when nothing
+  // reached the clipboard would let the user dismiss it having lost the key. On
+  // failure, flag it so the user copies the still-visible token manually.
+  async function handleCopy() {
+    try {
+      if (!navigator.clipboard) throw new Error('clipboard unavailable');
+      await navigator.clipboard.writeText(token);
+      setCopyFailed(false);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setCopied(false);
+      setCopyFailed(true);
+      setTimeout(() => setCopyFailed(false), 3000);
+    }
+  }
+
+  return (
+    <div
+      style={{
+        padding: '18px 0',
+        borderBottom: '1px solid color-mix(in srgb, var(--border) 50%, transparent)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        <span style={{ color: 'var(--accent)', flexShrink: 0 }}>
+          <IconKey size={15} />
+        </span>
+        <div
+          style={{
+            fontSize: 14,
+            fontWeight: 600,
+            letterSpacing: '-0.015em',
+            color: 'var(--foreground)',
+          }}
+        >
+          Key created — copy it now
+        </div>
+        <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>
+          This is the only time the full token is shown.
+        </span>
+      </div>
+
+      <FieldLabel>{created.key.name}</FieldLabel>
       <div
         style={{
           display: 'flex',
-          justifyContent: 'flex-end',
-          gap: 8,
-          padding: '14px 24px',
-          borderTop: '1px solid var(--border)',
+          alignItems: 'center',
+          gap: 10,
+          padding: '12px 14px',
+          background: 'var(--surface-alt)',
+          border: '1px solid var(--border-strong, rgba(255,255,255,0.12))',
+          borderRadius: 8,
+          fontFamily: 'var(--font-mono)',
+          fontSize: 12.5,
+          color: 'var(--foreground)',
+          wordBreak: 'break-all',
         }}
       >
+        <span style={{ flex: 1 }}>{token}</span>
         <button
-          onClick={onClose}
+          onClick={handleCopy}
+          style={{
+            padding: '5px 11px',
+            background: copied ? 'var(--accent)' : 'transparent',
+            border:
+              '1px solid ' +
+              (copied
+                ? 'var(--accent)'
+                : copyFailed
+                  ? 'var(--error)'
+                  : 'var(--border-strong, rgba(255,255,255,0.12))'),
+            borderRadius: 6,
+            color: copied
+              ? 'var(--accent-contrast)'
+              : copyFailed
+                ? 'var(--error)'
+                : 'var(--foreground)',
+            fontSize: 11.5,
+            fontWeight: 500,
+            fontFamily: 'inherit',
+            flexShrink: 0,
+            cursor: 'pointer',
+          }}
+        >
+          {copied ? 'Copied' : copyFailed ? 'Copy failed' : 'Copy'}
+        </button>
+      </div>
+      {copyFailed && (
+        <div style={{ marginTop: 8, fontSize: 12, color: 'var(--error)' }}>
+          Couldn't copy automatically — select the token above and copy it manually.
+        </div>
+      )}
+
+      <div
+        style={{
+          marginTop: 12,
+          fontSize: 12.5,
+          color: 'var(--muted)',
+          display: 'flex',
+          gap: 10,
+          alignItems: 'flex-start',
+        }}
+      >
+        <span style={{ color: 'var(--warning)', flexShrink: 0, marginTop: 1 }}>
+          <IconAlert size={14} />
+        </span>
+        <span>
+          Store it in a secrets manager and send it as{' '}
+          <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--foreground)' }}>
+            Authorization: Bearer &lt;token&gt;
+          </code>{' '}
+          on OTLP ingest. From now on the dashboard shows only{' '}
+          <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--foreground)' }}>
+            {created.key.prefix}…
+          </code>
+        </span>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
+        <SlicedButton onClick={onClose}>
+          Done — I've stored it safely
+        </SlicedButton>
+      </div>
+    </div>
+  );
+}
+
+// --- RevokeConfirmRow ------------------------------------------------------
+// Inline, flat confirmation shown directly beneath the key being revoked (no
+// modal). A left accent rule in the error colour flags the danger.
+
+interface RevokeConfirmRowProps {
+  target: ApiKeyRecord;
+  onCancel: () => void;
+  onConfirm: (id: string) => void;
+  submitting: boolean;
+  error: string | null;
+}
+
+function RevokeConfirmRow({ target, onCancel, onConfirm, submitting, error }: RevokeConfirmRowProps) {
+  return (
+    <div
+      style={{
+        padding: '14px 14px',
+        borderLeft: '2px solid var(--error)',
+        background: 'color-mix(in srgb, var(--error) 6%, transparent)',
+        borderBottom: '1px solid color-mix(in srgb, var(--border) 50%, transparent)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12,
+      }}
+    >
+      <div style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.55 }}>
+        <span style={{ color: 'var(--foreground)', fontWeight: 500 }}>
+          Revoke “{target.name}”?
+        </span>{' '}
+        Ingest requests presenting{' '}
+        <code style={{ fontFamily: 'var(--font-mono)' }}>{target.prefix}…</code>{' '}
+        will be rejected shortly after (subject to the collector's short
+        verification cache). This cannot be undone.
+      </div>
+      {error && (
+        <div
+          style={{
+            fontSize: 12.5,
+            color: 'var(--error)',
+            display: 'flex',
+            gap: 8,
+            alignItems: 'center',
+          }}
+        >
+          <IconAlert size={14} />
+          {error}
+        </div>
+      )}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <button
+          onClick={onCancel}
+          disabled={submitting}
           style={{
             padding: '7px 13px',
             background: 'transparent',
-            border:
-              '1px solid var(--border-strong, rgba(255,255,255,0.12))',
+            border: '1px solid var(--border-strong, rgba(255,255,255,0.12))',
             borderRadius: 7,
             color: 'var(--foreground)',
             fontSize: 13,
             fontFamily: 'inherit',
-            cursor: 'pointer',
+            cursor: submitting ? 'not-allowed' : 'pointer',
           }}
         >
           Cancel
         </button>
         <button
-          onClick={() => onConfirm(targetKey.id, reason)}
+          onClick={() => onConfirm(target.id)}
+          disabled={submitting}
           style={{
             padding: '7px 13px',
-            background:
-              'color-mix(in srgb, var(--error) 12%, transparent)',
-            border:
-              '1px solid color-mix(in srgb, var(--error) 30%, transparent)',
+            background: 'color-mix(in srgb, var(--error) 12%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--error) 30%, transparent)',
             borderRadius: 7,
             color: 'var(--error)',
             fontSize: 13,
             fontWeight: 500,
             fontFamily: 'inherit',
-            cursor: 'pointer',
+            cursor: submitting ? 'not-allowed' : 'pointer',
           }}
         >
-          Revoke key
+          {submitting ? 'Revoking…' : 'Revoke key'}
         </button>
       </div>
-    </ModalShell>
+    </div>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Column definitions
-// ---------------------------------------------------------------------------
+// --- LiveKeyRow ------------------------------------------------------------
 
-const ACTIVE_COLS = [
-  { label: 'Name',      w: 'minmax(220px,1.5fr)', align: 'left'  as const },
-  { label: 'Key',       w: 'minmax(230px,1.3fr)', align: 'left'  as const },
-  { label: 'Env',       w: '60px',                align: 'left'  as const },
-  { label: 'Last used', w: '130px',               align: 'left'  as const },
-  { label: 'Usage 7d',  w: '90px',                align: 'left'  as const },
-  { label: 'Scopes',    w: '130px',               align: 'left'  as const },
-  { label: 'Created',   w: '110px',               align: 'left'  as const },
-  { label: '',          w: '32px',                align: 'right' as const },
+const LIVE_COLS = [
+  { label: 'Name',       w: 'minmax(200px,1.6fr)', align: 'left'  as const },
+  { label: 'Key',        w: 'minmax(150px,1fr)',   align: 'left'  as const },
+  { label: 'Status',     w: '96px',                align: 'left'  as const },
+  { label: 'Last used',  w: '120px',               align: 'left'  as const },
+  { label: 'Created',    w: '120px',               align: 'left'  as const },
+  { label: '',           w: '36px',                align: 'right' as const },
 ];
-const ACTIVE_TMPL = ACTIVE_COLS.map((c) => c.w).join(' ');
+const LIVE_TMPL = LIVE_COLS.map((c) => c.w).join(' ');
 
-// ---------------------------------------------------------------------------
-// KeyRow — active key row with hover state
-// ---------------------------------------------------------------------------
-
-interface KeyRowProps {
-  k: ApiKey;
+interface LiveKeyRowProps {
+  k: ApiKeyRecord;
   isLast: boolean;
-  onRevoke: (k: ApiKey) => void;
+  confirming: boolean;
+  onRevoke: (k: ApiKeyRecord) => void;
 }
 
-function KeyRow({ k, isLast, onRevoke }: KeyRowProps) {
+function LiveKeyRow({ k, isLast, confirming, onRevoke }: LiveKeyRowProps) {
   const [hover, setHover] = useState(false);
   const [copied, setCopied] = useState(false);
-  const masked = `${k.prefix}_••••••••••••••${k.tail}`;
-  const sparkColor =
-    k.env === 'production'
-      ? 'var(--accent)'
-      : k.env === 'staging'
-        ? 'var(--warning)'
-        : 'var(--muted)';
+  const revoked = !!k.revoked_at;
 
   function handleCopy(e: React.MouseEvent) {
     e.stopPropagation();
-    void navigator.clipboard?.writeText(masked);
+    void navigator.clipboard?.writeText(k.prefix);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   }
@@ -1023,69 +478,46 @@ function KeyRow({ k, isLast, onRevoke }: KeyRowProps) {
       onMouseLeave={() => setHover(false)}
       style={{
         display: 'grid',
-        gridTemplateColumns: ACTIVE_TMPL,
-        minWidth: 1120,
+        gridTemplateColumns: LIVE_TMPL,
+        minWidth: 760,
         gap: 14,
         alignItems: 'center',
-        padding: hover ? '14px 14px' : '14px 0',
-        borderBottom: isLast
-          ? 'none'
-          : '1px solid color-mix(in srgb, var(--border) 50%, transparent)',
-        transition: 'background .12s, padding .12s',
+        padding: '14px 0',
+        borderBottom:
+          isLast || confirming
+            ? 'none'
+            : '1px solid color-mix(in srgb, var(--border) 50%, transparent)',
         background: hover
-          ? 'color-mix(in srgb, var(--surface) 50%, transparent)'
+          ? 'color-mix(in srgb, var(--surface-alt) 60%, transparent)'
           : 'transparent',
-        borderRadius: hover ? 7 : 0,
+        opacity: revoked ? 0.6 : 1,
       }}
     >
       {/* Name */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span
-            style={{
-              fontSize: 13.5,
-              fontWeight: 500,
-              color: 'var(--foreground)',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            {k.name}
-          </span>
-          {k.status === 'stale' && (
-            <span
-              style={{
-                fontSize: 10,
-                padding: '1px 6px',
-                borderRadius: 999,
-                background:
-                  'color-mix(in srgb, var(--warning) 12%, transparent)',
-                color: 'var(--warning)',
-                border:
-                  '1px solid color-mix(in srgb, var(--warning) 22%, transparent)',
-                fontWeight: 500,
-                flexShrink: 0,
-              }}
-            >
-              Stale
-            </span>
-          )}
-        </div>
-        <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>
-          by {k.createdBy}
-        </div>
+        <span
+          style={{
+            fontSize: 13.5,
+            fontWeight: 500,
+            color: 'var(--foreground)',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            textDecoration: revoked ? 'line-through' : 'none',
+            textDecorationColor: 'var(--muted)',
+          }}
+        >
+          {k.name}
+        </span>
+        {revoked && k.revoked_at && (
+          <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>
+            Revoked {fmtDate(k.revoked_at)}
+          </div>
+        )}
       </div>
 
-      {/* Key masked */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          minWidth: 0,
-        }}
-      >
+      {/* Key prefix */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
         <code
           style={{
             fontFamily: 'var(--font-mono)',
@@ -1097,20 +529,16 @@ function KeyRow({ k, isLast, onRevoke }: KeyRowProps) {
             flex: 1,
           }}
         >
-          {masked}
+          {k.prefix}…
         </code>
         <button
           onClick={handleCopy}
-          title="Copy id"
+          title="Copy prefix"
           style={{
             padding: '4px 6px',
             background: 'transparent',
             border: 'none',
-            color: copied
-              ? 'var(--accent)'
-              : hover
-                ? 'var(--muted)'
-                : 'transparent',
+            color: copied ? 'var(--accent)' : hover ? 'var(--muted)' : 'transparent',
             flexShrink: 0,
             transition: 'color .12s',
             fontFamily: 'inherit',
@@ -1121,503 +549,235 @@ function KeyRow({ k, isLast, onRevoke }: KeyRowProps) {
         </button>
       </div>
 
-      {/* Env chip */}
-      <div>
-        <EnvChip env={k.env} />
+      {/* Status */}
+      <div style={{ minWidth: 0 }}>
+        <StatusPill status={revoked ? 'failed' : 'ok'}>
+          {revoked ? 'Revoked' : 'Active'}
+        </StatusPill>
       </div>
 
       {/* Last used */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-        <span
-          style={{
-            fontSize: 12.5,
-            color: 'var(--foreground)',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-        >
-          {k.lastUsedAt}
-        </span>
-        <span
-          style={{
-            fontSize: 11,
-            color: 'var(--muted)',
-            fontFamily: 'var(--font-mono)',
-          }}
-        >
-          {k.lastUsedIp ?? '—'}
-        </span>
-      </div>
-
-      {/* Sparkline + count */}
-      <div>
-        <Sparkline
-          data={k.spark}
-          width={70}
-          height={18}
-          color={sparkColor}
-          fillOpacity={0}
-        />
-        <div
-          style={{
-            fontSize: 11,
-            color: 'var(--muted)',
-            marginTop: 3,
-            fontVariantNumeric: 'tabular-nums',
-          }}
-        >
-          {fmtNum(k.requests7d)}
-        </div>
-      </div>
-
-      {/* Scopes */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-        {k.scopes.slice(0, 2).map((s) => (
-          <span
-            key={s}
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 10.5,
-              padding: '2px 6px',
-              background: 'var(--surface-alt)',
-              border: '1px solid var(--border)',
-              borderRadius: 4,
-              color: 'var(--muted)',
-            }}
-          >
-            {s}
-          </span>
-        ))}
-        {k.scopes.length > 2 && (
-          <span
-            style={{
-              fontSize: 10.5,
-              color: 'var(--muted)',
-              padding: '2px 4px',
-              fontFamily: 'var(--font-mono)',
-            }}
-          >
-            +{k.scopes.length - 2}
-          </span>
-        )}
+      <div style={{ fontSize: 12.5, color: 'var(--foreground)' }}>
+        {fmtLastUsed(k.last_used_at)}
       </div>
 
       {/* Created */}
-      <div
-        style={{
-          fontSize: 12.5,
-          color: 'var(--muted)',
-          fontVariantNumeric: 'tabular-nums',
-        }}
-      >
-        {k.createdAt}
+      <div style={{ fontSize: 12.5, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>
+        {fmtDate(k.created_at)}
       </div>
 
-      {/* Revoke button */}
+      {/* Revoke */}
       <div style={{ textAlign: 'right' }}>
-        <button
-          onClick={() => onRevoke(k)}
-          title="Revoke"
-          style={{
-            padding: '5px 6px',
-            background: 'transparent',
-            border: 'none',
-            color: hover ? 'var(--muted)' : 'transparent',
-            transition: 'color .12s',
-            fontFamily: 'inherit',
-            cursor: 'pointer',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.color = 'var(--error)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = hover ? 'var(--muted)' : 'transparent';
-          }}
-        >
-          <IconTrash size={13} />
-        </button>
+        {!revoked && !confirming && (
+          <button
+            onClick={() => onRevoke(k)}
+            title="Revoke"
+            style={{
+              padding: '5px 6px',
+              background: 'transparent',
+              border: 'none',
+              color: hover ? 'var(--muted)' : 'transparent',
+              transition: 'color .12s',
+              fontFamily: 'inherit',
+              cursor: 'pointer',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'var(--error)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = hover ? 'var(--muted)' : 'transparent';
+            }}
+          >
+            <IconTrash size={13} />
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
-// ---------------------------------------------------------------------------
-// RevokedRow
-// ---------------------------------------------------------------------------
+// --- LiveApiKeysPage -------------------------------------------------------
 
-interface RevokedRowProps {
-  k: ApiKey;
-  isLast: boolean;
-}
+// ApiKeysView is the presentational page: it owns the create/reveal/revoke UI
+// state and renders whatever key data it is handed. The data source is injected
+// so the live page (real backend) and the demo (in-memory mock) share one UI.
+function ApiKeysView({ data, workspaceId }: { data: UseApiKeysResult; workspaceId?: string }) {
+  const {
+    keys,
+    isLoading,
+    isError,
+    createKey,
+    isCreating,
+    revokeKey,
+    isRevoking,
+  } = data;
 
-function RevokedRow({ k, isLast }: RevokedRowProps) {
+  const [search, setSearch] = useState('');
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [created, setCreated] = useState<CreatedApiKey | null>(null);
+  const [revokeTarget, setRevokeTarget] = useState<ApiKeyRecord | null>(null);
+  const [revokeError, setRevokeError] = useState<string | null>(null);
+
+  // This component is not remounted when the active workspace changes, so any
+  // state carried over would belong to the previous workspace. `created` is the
+  // plaintext key shown once at creation — leaving it on screen would reveal one
+  // workspace's secret while another is selected — and `revokeTarget` points at a
+  // key from the old list. Clear the per-workspace state whenever workspaceId
+  // changes so nothing from the previous workspace leaks into the new one.
+  useEffect(() => {
+    setCreated(null);
+    setRevokeTarget(null);
+    setCreateError(null);
+    setRevokeError(null);
+    setSearch('');
+  }, [workspaceId]);
+
+  const active = useMemo(() => keys.filter((k) => !k.revoked_at), [keys]);
+  const revoked = useMemo(() => keys.filter((k) => !!k.revoked_at), [keys]);
+
+  const visible = useMemo(() => {
+    if (!search.trim()) return keys;
+    const s = search.toLowerCase();
+    return keys.filter(
+      (k) => k.name.toLowerCase().includes(s) || k.prefix.toLowerCase().includes(s),
+    );
+  }, [keys, search]);
+
+  async function handleCreate(name: string) {
+    setCreateError(null);
+    try {
+      const result = await createKey(name);
+      setCreated(result);
+    } catch {
+      setCreateError('Could not create the key. Please try again.');
+    }
+  }
+
+  async function handleRevoke(id: string) {
+    setRevokeError(null);
+    try {
+      await revokeKey(id);
+      setRevokeTarget(null);
+    } catch {
+      setRevokeError('Could not revoke the key. Please try again.');
+    }
+  }
+
   return (
     <div
       style={{
-        display: 'grid',
-        gridTemplateColumns: 'minmax(220px,1.4fr) minmax(220px,1.2fr) 1fr 130px',
-        minWidth: 720,
-        gap: 14,
-        alignItems: 'center',
-        padding: '13px 0',
-        borderBottom: isLast
-          ? 'none'
-          : '1px solid color-mix(in srgb, var(--border) 50%, transparent)',
-        opacity: 0.65,
+        padding: 'clamp(24px, 4vw, 40px) clamp(16px, 4vw, 28px) 96px',
+        maxWidth: 1080,
+        margin: '0 auto',
       }}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-        <span
-          style={{
-            fontSize: 13,
-            color: 'var(--foreground)',
-            textDecoration: 'line-through',
-            textDecorationColor: 'var(--muted)',
-          }}
-        >
-          {k.name}
-        </span>
-        <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>
-          by {k.createdBy} · {k.createdAt}
-        </span>
-      </div>
-      <code
-        style={{
-          fontFamily: 'var(--font-mono)',
-          fontSize: 12,
-          color: 'var(--muted)',
-          justifySelf: 'start',
-        }}
-      >
-        {k.prefix}_••••••••••••••{k.tail}
-      </code>
-      <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>
-        {k.revokedReason ?? 'Revoked'}
-      </div>
-      <div
-        style={{
-          fontSize: 12.5,
-          color: 'var(--muted)',
-          textAlign: 'right',
-          fontVariantNumeric: 'tabular-nums',
-        }}
-      >
-        Revoked {k.revokedAt}
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// StatusPill adapter — map key status to ui StatusPill values
-// ---------------------------------------------------------------------------
-
-function KeyStatusPill({ status }: { status: ApiKey['status'] }) {
-  const s = status === 'active' ? 'ok' : status === 'stale' ? 'warning' : 'failed';
-  return <StatusPill status={s} />;
-}
-
-// ---------------------------------------------------------------------------
-// ApiKeysPage
-// ---------------------------------------------------------------------------
-
-function DemoApiKeysPage({ demo = true }: ApiKeysPageProps) {
-  const [keys, setKeys] = useState<ApiKey[]>(demo ? API_KEYS : []);
-  const [filter, setFilter] = useState<TabId>('active');
-  const [envFilter, setEnvFilter] = useState('all');
-  const [search, setSearch] = useState('');
-  const [createOpen, setCreateOpen] = useState(false);
-  const [revokeTarget, setRevokeTarget] = useState<ApiKey | null>(null);
-  const [revealed, setRevealed] = useState<ApiKey | null>(null);
-
-  const active = useMemo(
-    () => keys.filter((k) => k.status !== 'revoked'),
-    [keys],
-  );
-  const revoked = useMemo(
-    () => keys.filter((k) => k.status === 'revoked'),
-    [keys],
-  );
-
-  const visible = useMemo(() => {
-    let list = filter === 'revoked' ? revoked : active;
-    if (envFilter !== 'all') list = list.filter((k) => k.env === envFilter);
-    if (search.trim()) {
-      const s = search.toLowerCase();
-      list = list.filter(
-        (k) =>
-          k.name.toLowerCase().includes(s) ||
-          k.prefix.toLowerCase().includes(s) ||
-          k.tail.toLowerCase().includes(s),
-      );
-    }
-    return list;
-  }, [keys, filter, envFilter, search, active, revoked]);
-
-  const totalRequests = active.reduce((a, k) => a + k.requests7d, 0);
-  const oldestActive = active.length
-    ? active.reduce((a, b) =>
-        new Date(a.createdAt) < new Date(b.createdAt) ? a : b,
-      )
-    : null;
-  const staleCount = active.filter((k) => k.status === 'stale').length;
-
-  function handleCreate({ name, env, scopes }: CreateKeyPayload) {
-    const tail = Math.random().toString(36).slice(-4);
-    const fullSecret = Array.from({ length: 32 }, () => {
-      const c = Math.random().toString(36)[2];
-      return c ?? 'x';
-    }).join('');
-    const newKey: ApiKey = {
-      id: ('k_' + Math.random().toString(36).slice(2, 6)) as ApiKeyId,
-      name,
-      prefix: env === 'production' ? 'tr_live' : 'tr_test',
-      tail,
-      env,
-      scopes,
-      createdBy: 'Mark Gonzales',
-      createdAt: new Date().toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      }),
-      lastUsedAt: 'Never',
-      lastUsedIp: null,
-      requests7d: 0,
-      spark: [0, 0, 0, 0, 0, 0, 0],
-      status: 'active',
-      fullSecret,
-    };
-    setKeys([newKey, ...keys]);
-    setCreateOpen(false);
-    setRevealed(newKey);
-  }
-
-  function handleRevoke(id: string, reason: string) {
-    setKeys(
-      keys.map((k) =>
-        k.id === id
-          ? {
-              ...k,
-              status: 'revoked' as const,
-              revokedAt: new Date().toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-              }),
-              revokedBy: 'Mark Gonzales',
-              revokedReason: reason || 'Manual revocation',
-            }
-          : k,
-      ),
-    );
-    setRevokeTarget(null);
-  }
-
-  // Suppress unused-var warning — StatusPill is used in KeyStatusPill which
-  // is exported but we don't render it directly in this component; keep it.
-  void KeyStatusPill;
-
-  return (
-    <div style={{ padding: 'clamp(24px, 4vw, 40px) clamp(16px, 4vw, 28px) 96px', maxWidth: 1280, margin: '0 auto' }}>
       {/* Page title */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          marginBottom: 36,
-          flexWrap: 'wrap',
-          gap: 16,
-        }}
-      >
-        <div style={{ minWidth: 0 }}>
-          <h1
-            style={{
-              fontSize: 26,
-              fontWeight: 600,
-              color: 'var(--foreground)',
-              margin: 0,
-              letterSpacing: '-0.02em',
-              lineHeight: 1.15,
-            }}
-          >
-            API keys
-          </h1>
-          <p
-            style={{
-              fontSize: 13,
-              color: 'var(--muted)',
-              margin: '6px 0 0',
-              maxWidth: 620,
-              lineHeight: 1.55,
-            }}
-          >
-            Authenticate SDKs and HTTP requests against this workspace. Keys
-            are scoped per environment — production keys never authenticate
-            against staging.
-          </p>
-        </div>
-        <button
-          onClick={() => setCreateOpen(true)}
+      <div style={{ marginBottom: 28, minWidth: 0 }}>
+        <h1
           style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 7,
-            padding: '7px 13px',
-            background: 'var(--accent)',
-            color: 'var(--accent-contrast)',
-            border: '1px solid var(--accent)',
-            borderRadius: 7,
-            fontSize: 13,
+            fontSize: 26,
             fontWeight: 600,
-            fontFamily: 'inherit',
-            cursor: 'pointer',
-            flexShrink: 0,
+            color: 'var(--foreground)',
+            margin: 0,
+            letterSpacing: '-0.02em',
+            lineHeight: 1.15,
           }}
         >
-          <IconPlus size={13} />
-          Create key
-        </button>
-      </div>
-
-      {/* KPI strip */}
-      <SectionHead
-        first
-        title="Overview"
-        hint="Active keys, recent traffic, and rotation health for this workspace."
-      />
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-          gap: 28,
-          paddingTop: 4,
-          marginBottom: 8,
-        }}
-      >
-        <Kpi
-          label="Active keys"
-          value={active.length}
-          hint={`${revoked.length} revoked`}
-        />
-        <Kpi
-          label="Requests · 7d"
-          value={fmtNum(totalRequests)}
-          hint="across all keys"
-        />
-        <Kpi
-          label="Oldest active"
-          value={
-            oldestActive
-              ? oldestActive.createdAt.split(',')[0] ?? oldestActive.createdAt
-              : '—'
-          }
-          hint={oldestActive ? oldestActive.name : ''}
-        />
-        <Kpi
-          label="Stale (>30d idle)"
-          value={staleCount}
-          hint="consider rotating"
-          last
-        />
+          API keys
+        </h1>
+        <p
+          style={{
+            fontSize: 13,
+            color: 'var(--muted)',
+            margin: '6px 0 0',
+            maxWidth: 620,
+            lineHeight: 1.55,
+          }}
+        >
+          Ingest keys authenticate trace data sent to this workspace. Each key
+          both proves the sender and decides which workspace the telemetry lands
+          in.
+        </p>
       </div>
 
       {/* Keys table */}
       <SectionHead
+        first
         title="Keys"
-        hint="Click a row to inspect usage, IP allow-list, and rotation history."
+        hint="Active and revoked keys for this workspace, newest first."
         right={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <select
-              value={envFilter}
-              onChange={(e) => setEnvFilter(e.target.value)}
+          <div style={{ position: 'relative' }}>
+            <span
               style={{
-                padding: '7px 10px',
+                position: 'absolute',
+                left: 11,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'var(--muted)',
+                pointerEvents: 'none',
+              }}
+            >
+              <IconSearch size={13} />
+            </span>
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search keys…"
+              style={{
+                padding: '7px 10px 7px 32px',
+                width: 220,
                 background: 'transparent',
-                border:
-                  '1px solid var(--border-strong, rgba(255,255,255,0.12))',
+                border: '1px solid var(--border-strong, rgba(255,255,255,0.12))',
                 borderRadius: 7,
                 color: 'var(--foreground)',
                 fontSize: 13,
                 outline: 'none',
                 fontFamily: 'inherit',
-                cursor: 'pointer',
               }}
-            >
-              <option value="all">All environments</option>
-              <option value="production">Production</option>
-              <option value="staging">Staging</option>
-              <option value="development">Development</option>
-            </select>
-
-            <div style={{ position: 'relative' }}>
-              <span
-                style={{
-                  position: 'absolute',
-                  left: 11,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: 'var(--muted)',
-                  pointerEvents: 'none',
-                }}
-              >
-                <IconSearch size={13} />
-              </span>
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search keys…"
-                style={{
-                  padding: '7px 10px 7px 32px',
-                  width: 220,
-                  background: 'transparent',
-                  border:
-                    '1px solid var(--border-strong, rgba(255,255,255,0.12))',
-                  borderRadius: 7,
-                  color: 'var(--foreground)',
-                  fontSize: 13,
-                  outline: 'none',
-                  fontFamily: 'inherit',
-                }}
-              />
-            </div>
+            />
           </div>
         }
       />
 
-      {/* Tab row */}
-      <div
-        style={{
-          paddingBottom: 14,
-          borderBottom:
-            '1px solid color-mix(in srgb, var(--border) 70%, transparent)',
-          marginBottom: 0,
-        }}
-      >
-        <Tabs
-          tab={filter}
-          setTab={setFilter}
-          tabs={[
-            { id: 'active',  label: 'Active',  count: active.length  },
-            { id: 'revoked', label: 'Revoked', count: revoked.length },
-          ]}
+      {workspaceId && (
+        <InlineCreateForm
+          key={created?.key.id ?? 'new'}
+          onCreate={handleCreate}
+          submitting={isCreating}
+          error={createError}
         />
-      </div>
+      )}
 
-      {/* Column headers + rows */}
-      {filter === 'active' ? (
+      {created && (
+        <InlineReveal created={created} onClose={() => setCreated(null)} />
+      )}
+
+      {isLoading ? (
+        <div style={{ padding: '60px 20px', display: 'grid', placeItems: 'center' }}>
+          <Spinner />
+        </div>
+      ) : isError ? (
+        <div
+          style={{
+            padding: '48px 20px',
+            textAlign: 'center',
+            color: 'var(--muted)',
+            fontSize: 13,
+          }}
+          role="alert"
+        >
+          Could not load API keys for this workspace.
+        </div>
+      ) : (
         <div style={{ overflowX: 'auto' }}>
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: ACTIVE_TMPL,
-              minWidth: 1120,
+              gridTemplateColumns: LIVE_TMPL,
+              minWidth: 760,
               gap: 14,
               padding: '12px 0',
-              borderBottom:
-                '1px solid color-mix(in srgb, var(--border) 70%, transparent)',
+              borderBottom: '1px solid color-mix(in srgb, var(--border) 70%, transparent)',
               fontSize: 11,
               color: 'var(--muted)',
               textTransform: 'uppercase',
@@ -1625,7 +785,7 @@ function DemoApiKeysPage({ demo = true }: ApiKeysPageProps) {
               fontWeight: 500,
             }}
           >
-            {ACTIVE_COLS.map((c, i) => (
+            {LIVE_COLS.map((c, i) => (
               <div key={i} style={{ textAlign: c.align }}>
                 {c.label}
               </div>
@@ -1641,62 +801,60 @@ function DemoApiKeysPage({ demo = true }: ApiKeysPageProps) {
                 fontSize: 13,
               }}
             >
-              {search ? `No keys match "${search}"` : 'No active keys'}
+              {search
+                ? `No keys match “${search}”`
+                : 'No API keys yet. Create one to start sending traces.'}
             </div>
           ) : (
             visible.map((k, i) => (
-              <KeyRow
-                key={k.id}
-                k={k}
-                isLast={i === visible.length - 1}
-                onRevoke={setRevokeTarget}
-              />
-            ))
-          )}
-        </div>
-      ) : (
-        <div style={{ overflowX: 'auto' }}>
-          {visible.length === 0 ? (
-            <div
-              style={{
-                padding: '60px 20px',
-                textAlign: 'center',
-                color: 'var(--muted)',
-                fontSize: 13,
-              }}
-            >
-              No revoked keys
-            </div>
-          ) : (
-            visible.map((k, i) => (
-              <RevokedRow key={k.id} k={k} isLast={i === visible.length - 1} />
+              <React.Fragment key={k.id}>
+                <LiveKeyRow
+                  k={k}
+                  isLast={i === visible.length - 1}
+                  confirming={revokeTarget?.id === k.id}
+                  onRevoke={(target) => {
+                    setRevokeError(null);
+                    setRevokeTarget(target);
+                  }}
+                />
+                {revokeTarget?.id === k.id && (
+                  <RevokeConfirmRow
+                    target={revokeTarget}
+                    onCancel={() => setRevokeTarget(null)}
+                    onConfirm={handleRevoke}
+                    submitting={isRevoking}
+                    error={revokeError}
+                  />
+                )}
+              </React.Fragment>
             ))
           )}
         </div>
       )}
 
-      <CreateKeyModal
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        onCreate={handleCreate}
-      />
-      <RevealKeyModal keyData={revealed} onClose={() => setRevealed(null)} />
-      <RevokeModal
-        targetKey={revokeTarget}
-        onClose={() => setRevokeTarget(null)}
-        onConfirm={handleRevoke}
-      />
+      {!isLoading && !isError && keys.length > 0 && (
+        <div style={{ marginTop: 16, fontSize: 12, color: 'var(--muted)' }}>
+          {active.length} active · {revoked.length} revoked
+        </div>
+      )}
     </div>
   );
 }
 
-// Simulated credentials are restricted to the embedded preview.
-export default function ApiKeysPage({ demo = false }: ApiKeysPageProps) {
-  if (demo) return <DemoApiKeysPage demo />;
-  return <div style={{ padding: 32, maxWidth: 760, margin: '0 auto' }}>
-    <h1>Ingestion authentication</h1>
-    <p>Per-client API keys are unavailable in this alpha. No keys can be created or revoked here.</p>
-    <p>Keep the collector on a trusted network. To authenticate senders, configure a shared bearer token or mutual TLS on the collector.</p>
-    <p>See <a href="https://github.com/tracium/tracium/blob/main/deploy/docs/collector-auth.md" target="_blank" rel="noreferrer">the collector authentication guide</a> for setup instructions.</p>
-  </div>;
+// The live page wires the shared view to the backend for the active workspace.
+function LiveApiKeysPage({ workspaceId }: { workspaceId?: string }) {
+  return <ApiKeysView data={useApiKeys(workspaceId)} workspaceId={workspaceId} />;
+}
+
+// The demo (auth-page preview) renders the same view against an in-memory mock,
+// so signed-out visitors get a populated, interactive page with no backend. The
+// non-empty "demo" workspace id switches on the create form, exactly as a real
+// workspace does.
+function DemoApiKeysPage() {
+  return <ApiKeysView data={useDemoApiKeys()} workspaceId="demo" />;
+}
+
+export default function ApiKeysPage({ demo = false, workspaceId }: ApiKeysPageProps) {
+  if (demo) return <DemoApiKeysPage />;
+  return <LiveApiKeysPage workspaceId={workspaceId} />;
 }

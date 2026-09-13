@@ -34,8 +34,10 @@ strictly additive: set TRACIUM_ENABLE_METRICS=0 — or just run against a
 collector with no metrics pipeline — and everything falls back to span-only,
 exactly as before.
 
-Run the stack first:   docker compose up -d collector clickhouse postgres
-Then:                  export OPENAI_API_KEY=sk-...
+Run the stack first:   docker compose up -d collector clickhouse postgres api
+Create an ingest key in the dashboard (or POST /v1/workspaces/{id}/api-keys), then:
+                       export OPENAI_API_KEY=sk-...
+                       export TRACIUM_API_KEY=trc_...   # authenticates ingest + picks the workspace
                        python examples/openai_to_tracium.py
 
 Install deps:
@@ -83,11 +85,14 @@ METRICS_ENDPOINT = os.getenv(
 
 USER_ID = os.getenv("TRACIUM_USER_ID", "acme-corp")
 
-# The workspace these spans belong to — the access boundary. The API shows a
-# span only to accounts that are members of its workspace, so this defaults to
-# the demo "Production" workspace created by `npm run seed:account`; point it at
-# a workspace your account owns, or the data won't appear in the dashboard.
-WORKSPACE_ID = os.getenv("TRACIUM_WORKSPACE_ID", "c4ef3026-f040-4221-ad58-d6345dd4570c")
+# Ingest requires a per-workspace API key. It both authenticates the sender and
+# decides which workspace these spans land in — so there is no workspace
+# attribute to set. Create a key on the workspace's API-keys screen (or via
+# POST /v1/workspaces/{id}/api-keys) and export it as TRACIUM_API_KEY.
+API_KEY = os.getenv("TRACIUM_API_KEY")
+if not API_KEY:
+    raise SystemExit("TRACIUM_API_KEY is required — create an ingest key in the dashboard and export it")
+OTLP_HEADERS = {"Authorization": f"Bearer {API_KEY}"}
 
 MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
@@ -116,6 +121,7 @@ def _build_metrics_exporter() -> "OTLPMetricExporter | None":
     try:
         return OTLPMetricExporter(
             endpoint=METRICS_ENDPOINT,
+            headers=OTLP_HEADERS,
             preferred_temporality=_DELTA_TEMPORALITY,
         )
     except Exception as exc:  # noqa: BLE001 — metrics must never break tracing
@@ -128,23 +134,23 @@ def configure_tracing() -> bool:
     metrics_exporter = _build_metrics_exporter()
     Traceloop.init(
         app_name="openai-tracium-example",
-        exporter=OTLPSpanExporter(endpoint=OTLP_ENDPOINT),
+        exporter=OTLPSpanExporter(endpoint=OTLP_ENDPOINT, headers=OTLP_HEADERS),
         metrics_exporter=metrics_exporter,
         # Carry the user on the OTel resource so it lands on BOTH signals.
         # Metric data points don't inherit per-span attributes, so without this
         # the collector would write metric rows with an empty user_id; the
         # processor reads tracium.user.id from the resource as a fallback.
-        resource_attributes={"tracium.user.id": USER_ID, "tracium.workspace.id": WORKSPACE_ID},
+        # No workspace attribute: the ingest key decides the workspace.
+        resource_attributes={"tracium.user.id": USER_ID},
         disable_batch=False,
     )
     return metrics_exporter is not None
 
 
 def _tag_user() -> None:
-    """Stamp the current span with the user + workspace so every gen_ai.* span carries them."""
+    """Stamp the current span with the user so every gen_ai.* span carries it."""
     span = trace.get_current_span()
     span.set_attribute("tracium.user.id", USER_ID)
-    span.set_attribute("tracium.workspace.id", WORKSPACE_ID)
 
 
 # --------------------------------------------------------------------------- #
@@ -362,7 +368,7 @@ def main() -> None:
 
     # Flush spans (and metrics, if enabled) before the process exits.
     trace.get_tracer_provider().force_flush()
-    print(f"\nTrace exported to {OTLP_ENDPOINT} (user={USER_ID}, workspace={WORKSPACE_ID}).")
+    print(f"\nTrace exported to {OTLP_ENDPOINT} (user={USER_ID}; workspace resolved from the ingest key).")
     if metrics_enabled:
         metrics.get_meter_provider().force_flush()
         print(f"Metrics exported to {METRICS_ENDPOINT} (user={USER_ID}).")

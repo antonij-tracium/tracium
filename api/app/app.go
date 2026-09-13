@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tracium/api/extension"
+	"github.com/tracium/api/internal/apikey"
 	"github.com/tracium/api/internal/auth"
 	"github.com/tracium/api/internal/config"
 	"github.com/tracium/api/internal/handler"
@@ -97,6 +98,14 @@ func New(ctx context.Context, cfg Config, opts Options) (*Application, error) {
 		repo.Close()
 		return nil, err
 	}
+	apiKeys, err := apikey.NewStore(ctx, cfg.Storage.PostgresDSN)
+	if err != nil {
+		workspaces.Close()
+		users.Close()
+		repo.Close()
+		return nil, err
+	}
+	apiKeyService := apikey.NewService(apiKeys)
 	service := auth.NewService(users, auth.NewTokenIssuer(cfg.Auth.JWTSecret))
 	var authenticator middleware.Authenticator = service.Authenticator()
 	if cfg.Auth.Mode == config.AuthModeNone {
@@ -104,7 +113,7 @@ func New(ctx context.Context, cfg Config, opts Options) (*Application, error) {
 		authenticator = &middleware.NoopAuthenticator{}
 	}
 	health := []handler.DependencyCheck{{Name: "clickhouse", Check: repo.Ping}, {Name: "postgres", Check: users.Ping}}
-	return &Application{cfg: cfg, Handler: newRouter(cfg, repo, workspaces, users, authenticator, service, health, opts), close: func() { workspaces.Close(); users.Close(); repo.Close() }}, nil
+	return &Application{cfg: cfg, Handler: newRouter(cfg, repo, workspaces, users, authenticator, service, apiKeyService, health, opts), close: func() { apiKeys.Close(); workspaces.Close(); users.Close(); repo.Close() }}, nil
 }
 
 func validateOptions(opts Options) error {

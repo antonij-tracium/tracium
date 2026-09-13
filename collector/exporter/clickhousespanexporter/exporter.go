@@ -94,10 +94,11 @@ func fromOTLP(s ptrace.Span, serviceName string, resourceAttrs pcommon.Map, trus
 	// it is used only where the operator has declared that source trustworthy,
 	// exactly as enrich.PricingEnricher.TrustReportedCost does.
 	//
-	// The OTLP ports are unauthenticated, so trusting it unconditionally lets
-	// anyone who can reach the collector declare a span worth $1,000,000 and
-	// have it stored verbatim — and every cost figure in the product is a
-	// sum(cost_usd). A zero from the processor means "the price table could not
+	// A valid ingest key authenticates the sender, not the truth of its numbers,
+	// so trusting a client-reported cost unconditionally still lets any
+	// authenticated sender declare a span worth $1,000,000 and have it stored
+	// verbatim — and every cost figure in the product is a sum(cost_usd). A zero
+	// from the processor means "the price table could not
 	// price this model", not "ask the client"; such a span is stored at 0, and
 	// stays visible as a row with tokens but no cost.
 	cost := floatAttr(attrs, attrCostUSD)

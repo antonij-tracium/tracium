@@ -37,9 +37,11 @@ Or `docker compose up collector` from the repo root — the Dockerfile runs OCB
 during the image build. Building always needs network access (OCB pulls the
 collector framework); the `enrich/` core does not.
 
-Point an OTLP exporter at `:4317` (gRPC) or `:4318` (HTTP). `CLICKHOUSE_DSN` is
-required; see [`config/collector.yaml`](config/collector.yaml) for every knob and
-its `${env:VAR}` override.
+Point an OTLP exporter at `:4317` (gRPC) or `:4318` (HTTP). Every request must
+carry a per-workspace API key (`Authorization: Bearer <trc_…>`); ingest is
+key-only. `CLICKHOUSE_DSN` and `INGEST_VERIFY_URL` (the API's key-verify
+endpoint) are required; see [`config/collector.yaml`](config/collector.yaml) for
+every knob and its `${env:VAR}` override.
 
 | Port | Purpose |
 |---|---|
@@ -57,15 +59,17 @@ its `${env:VAR}` override.
 - **Dropped spans are never silent.** Invalid or filtered spans are dead-lettered
   with an error code and counted; see `internal/deadletter` and the `dropped`
   counter on `:8888`.
-- **Ingest is bounded on purpose.** The OTLP ports are unauthenticated, so token
+- **Ingest is bounded on purpose.** Even for an authenticated sender, token
   counts, model names, and user labels are capped before they can reach storage
   — one span claiming 2^62 tokens would otherwise poison every `sum(cost_usd)`.
   The ceilings live in [`enrich/enrichers.go`](enrich/enrichers.go).
-- **The OTLP ports are unauthenticated by default** — keep them on a trusted
-  network. A shared bearer token can be turned on from config alone (the
-  `bearertokenauth` extension is compiled in; see the `[ingest-auth]` block in
-  [`config/collector.yaml`](config/collector.yaml)). The bounds above stop data
-  *poisoning*, not *volume* — rate-limit at the gateway if the port is exposed.
+- **Ingest requires a per-workspace API key.** The `traciumauth` authenticator is
+  wired into both OTLP receivers and verifies every request's key against the API,
+  rejecting unknown or revoked ones with 401. The key decides the workspace, so it
+  overrides any sender-supplied `tracium.workspace.id`. As a fail-closed backstop,
+  the `tracium` processor drops any span that reaches it without a verified key.
+  This stops data *poisoning* and anonymous senders, not *volume* — rate-limit at
+  the gateway if the port is exposed.
 
 ## Test
 

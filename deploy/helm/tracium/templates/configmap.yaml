@@ -15,8 +15,12 @@ data:
         protocols:
           grpc:
             endpoint: 0.0.0.0:{{ .Values.collector.service.grpcPort }}
+            # Ingest requires a per-workspace API key (traciumauth, below). Not
+            # optional — unknown or revoked keys are rejected with 401.
+            auth: { authenticator: traciumauth }
           http:
             endpoint: 0.0.0.0:{{ .Values.collector.service.httpPort }}
+            auth: { authenticator: traciumauth }
 
     processors:
       tracium:
@@ -64,9 +68,24 @@ data:
         compaction:
           on_start: true
           directory: /var/lib/tracium/queue
+      # REQUIRED ingest authentication. Every OTLP request must carry a Tracium
+      # API key; the authenticator verifies it against the API (which owns the
+      # key store) and the key decides the workspace. INGEST_VERIFY_URL is set on
+      # the collector StatefulSet to the in-cluster API service.
+      traciumauth:
+        endpoint: ${env:INGEST_VERIFY_URL}
+        cache_ttl: 60s
+        cache_max_entries: 10000
+        # Per-sender cap on verify calls forced against the API per window (only
+        # cache misses count), so one abusive sender streaming invalid keys can't
+        # spend the collector's shared verify budget. <= 0 disables.
+        sender_verify_limit: 20
+        sender_verify_window: 1m
 
     service:
-      extensions: [health_check, file_storage]
+      # traciumauth is required: without it the receivers have no authenticator
+      # and the tracium processor rejects every keyless span.
+      extensions: [health_check, file_storage, traciumauth]
       telemetry:
         metrics:
           # All interfaces, so the span-drop counters are scrapable in-cluster.
@@ -98,12 +117,23 @@ data:
       # Register/login attempts per client IP per minute (default 10; negative
       # disables). Override per-pod with AUTH_RATE_LIMIT_PER_MINUTE.
       rate_limit_per_minute: 10
-      # Reverse proxies (IPs/CIDRs) trusted to set X-Forwarded-For for the
-      # limiter. Empty ignores the header and keys on the socket peer, so a
-      # direct client cannot spoof its source. Set to your ingress network when
-      # it overwrites the header from untrusted input. Override with
-      # AUTH_TRUSTED_PROXIES (comma-separated).
-      trusted_proxies: []
+      # Ingest-key verification attempts per client IP per minute, on their own
+      # bucket (not shared with login). The caller is a collector — one IP,
+      # machine traffic — so it gets a larger, dedicated allowance; sharing
+      # login's bucket let a few invalid keys block verification of good keys.
+      # Default 120; negative disables. Override with AUTH_VERIFY_RATE_LIMIT_PER_MINUTE.
+      verify_rate_limit_per_minute: 120
+      # Trust the dashboard pod addresses, plus explicitly configured ingress
+      # peers. Each proxy must sanitize X-Forwarded-For. dns: names must resolve
+      # to actual peers (headless Services), not virtual ClusterIP addresses.
+      {{- if and .Values.ingress.enabled (empty .Values.ingress.trustedProxies) }}
+      {{- fail "ingress.trustedProxies must identify the ingress controller IPs, CIDRs, or dns:headless-service that sets X-Forwarded-For" }}
+      {{- end }}
+      trusted_proxies:
+        - {{ printf "dns:%s-dashboard-peers.%s.svc" (include "tracium.fullname" .) .Release.Namespace | quote }}
+        {{- range .Values.ingress.trustedProxies }}
+        - {{ . | quote }}
+        {{- end }}
 
     telemetry:
       log_level: "info"

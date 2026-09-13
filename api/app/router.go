@@ -3,6 +3,7 @@ package app
 import (
 	"github.com/go-chi/chi/v5"
 	"github.com/tracium/api/extension"
+	"github.com/tracium/api/internal/apikey"
 	"github.com/tracium/api/internal/auth"
 	"github.com/tracium/api/internal/handler"
 	"github.com/tracium/api/internal/middleware"
@@ -14,9 +15,10 @@ import (
 	"time"
 )
 
-func newRouter(cfg Config, repo query.Repository, wsStore workspace.Store, userStore *auth.UserStore, authenticator middleware.Authenticator, authService *auth.Service, healthChecks []handler.DependencyCheck, opts Options) http.Handler {
+func newRouter(cfg Config, repo query.Repository, wsStore workspace.Store, userStore *auth.UserStore, authenticator middleware.Authenticator, authService *auth.Service, apiKeyService *apikey.Service, healthChecks []handler.DependencyCheck, opts Options) http.Handler {
 	authHandler := handler.NewAuthHandler(authService)
 	workspaceHandler := handler.NewWorkspaceHandler(wsStore, userStore)
+	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService, wsStore)
 	services := extension.Services{Mail: opts.Mail, Entitlements: opts.Entitlements, Workspaces: wsStore}
 	// ── Handlers ─────────────────────────────────────────────────────────────
 
@@ -52,6 +54,24 @@ func newRouter(cfg Config, repo query.Repository, wsStore workspace.Store, userS
 		r.Post(version.Route(version.V1, "/auth/login"), authHandler.Login)
 	})
 
+	// Ingest key verification is called by the collector's authenticator, not a
+	// logged-in user, so it carries no bearer token. It is still an online-guessing
+	// surface, so it is throttled per client IP — but with its OWN limiter, not the
+	// login bucket. The caller is a collector: one IP fronting many senders and
+	// machine traffic, so it needs a larger, dedicated allowance. Sharing login's
+	// tiny bucket let a handful of invalid keys exhaust the collector's budget and
+	// block verification of legitimate keys.
+	r.Group(func(r chi.Router) {
+		if cfg.Auth.VerifyRateLimitPerMinute >= 0 {
+			limiter := middleware.NewRateLimiter(cfg.Auth.VerifyRateLimitPerMinute, time.Minute, cfg.Auth.TrustedProxies)
+			r.Use(limiter.Middleware())
+			log.Printf("ingest verify endpoint throttled to %d requests/min per client IP", cfg.Auth.VerifyRateLimitPerMinute)
+		} else {
+			log.Println("WARNING: ingest verify endpoint rate limiting is disabled")
+		}
+		r.Post(version.Route(version.V1, "/ingest/keys/verify"), apiKeyHandler.Verify)
+	})
+
 	// Workspace routes — auth only (no tenant required; workspaces are per-user).
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.Auth(authenticator))
@@ -60,6 +80,13 @@ func newRouter(cfg Config, repo query.Repository, wsStore workspace.Store, userS
 		r.Delete(version.Route(version.V1, "/workspaces/{id}"), workspaceHandler.Delete)
 		r.Post(version.Route(version.V1, "/workspaces/{id}/members"), workspaceHandler.AddMember)
 		r.Delete(version.Route(version.V1, "/workspaces/{id}/members/{userId}"), workspaceHandler.RemoveMember)
+
+		// Ingest key management — a key is bound to one workspace, so the routes
+		// nest under it and are gated on membership. The secret is returned only
+		// from Create.
+		r.Get(version.Route(version.V1, "/workspaces/{id}/api-keys"), apiKeyHandler.List)
+		r.Post(version.Route(version.V1, "/workspaces/{id}/api-keys"), apiKeyHandler.Create)
+		r.Delete(version.Route(version.V1, "/workspaces/{id}/api-keys/{keyId}"), apiKeyHandler.Revoke)
 	})
 
 	for _, ext := range opts.Extensions {
