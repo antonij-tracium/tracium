@@ -41,10 +41,10 @@ func serveAuthed(hf http.HandlerFunc, rr http.ResponseWriter, req *http.Request)
 	hf.ServeHTTP(rr, authed(req))
 }
 
-// agentDetailRequest builds a request carrying the {name} path param the way chi
-// would, so AgentDetail's chi.URLParam("name") resolves in a unit test.
-func agentDetailRequest(name, rawQuery string) *http.Request {
-	req := httptest.NewRequest(http.MethodGet, "/v1/metrics/agents/"+name+"?"+rawQuery, nil)
+// workflowDetailRequest builds a request carrying the {name} path param the way chi
+// would, so WorkflowDetail's chi.URLParam("name") resolves in a unit test.
+func workflowDetailRequest(name, rawQuery string) *http.Request {
+	req := httptest.NewRequest(http.MethodGet, "/v1/metrics/workflows/"+name+"?"+rawQuery, nil)
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("name", name)
 	return req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -103,22 +103,22 @@ func TestMetricsErrorSeries(t *testing.T) {
 	}
 }
 
-func TestMetricsAgentsEnvelope(t *testing.T) {
+func TestMetricsWorkflowsEnvelope(t *testing.T) {
 	repo := &mocks.MockMetricsRepository{
-		AgentRows: []model.Agent{
+		WorkflowRows: []model.Workflow{
 			{Name: "classify-intent", Calls: 1203, Cost: 0.1204, AvgLatencyMs: 820, ErrorRate: 0.014, Trend: []int64{42, 48, 52}, LastTraceID: "tr_classify_999"},
 		},
 	}
 	h := newMetricsHandler(repo)
 
 	rr := httptest.NewRecorder()
-	serveAuthed(h.Agents, rr, httptest.NewRequest(http.MethodGet, "/v1/metrics/agents?range=7d", nil))
+	serveAuthed(h.Workflows, rr, httptest.NewRequest(http.MethodGet, "/v1/metrics/workflows?range=7d", nil))
 
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rr.Code)
 	}
 	var got struct {
-		Items []model.Agent `json:"items"`
+		Items []model.Workflow `json:"items"`
 	}
 	if err := json.Unmarshal(rr.Body.Bytes(), &got); err != nil {
 		t.Fatalf("decode: %v", err)
@@ -128,7 +128,7 @@ func TestMetricsAgentsEnvelope(t *testing.T) {
 	}
 	a := got.Items[0]
 	if a.Calls != 1203 || a.AvgLatencyMs != 820 || a.ErrorRate != 0.014 || len(a.Trend) != 3 || a.LastTraceID != "tr_classify_999" {
-		t.Errorf("agent row = %+v, want calls 1203 / latency 820 / err 0.014 / 3 trend points / last trace tr_classify_999", a)
+		t.Errorf("workflow row = %+v, want calls 1203 / latency 820 / err 0.014 / 3 trend points / last trace tr_classify_999", a)
 	}
 }
 
@@ -160,10 +160,10 @@ func TestMetricsUserUsageEnvelope(t *testing.T) {
 	}
 }
 
-func TestMetricsAgentDetail(t *testing.T) {
+func TestMetricsWorkflowDetail(t *testing.T) {
 	p95 := 6.4
 	repo := &mocks.MockMetricsRepository{
-		AgentDetailV: model.AgentDetail{
+		WorkflowDetailV: model.WorkflowDetail{
 			Name: "rewrite-message", Calls: 156, Cost: 0.3104,
 			AvgLatencyMs: 4800, P95LatencyMs: &p95, ErrorRate: 0.083,
 			InputTokens: 41000, OutputTokens: 9000,
@@ -175,12 +175,12 @@ func TestMetricsAgentDetail(t *testing.T) {
 	h := newMetricsHandler(repo)
 
 	rr := httptest.NewRecorder()
-	serveAuthed(h.AgentDetail, rr, agentDetailRequest("rewrite-message", "range=7d"))
+	serveAuthed(h.WorkflowDetail, rr, workflowDetailRequest("rewrite-message", "range=7d"))
 
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rr.Code)
 	}
-	var got model.AgentDetail
+	var got model.WorkflowDetail
 	if err := json.Unmarshal(rr.Body.Bytes(), &got); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
@@ -195,12 +195,12 @@ func TestMetricsAgentDetail(t *testing.T) {
 	}
 }
 
-func TestMetricsAgentDetailNotFound(t *testing.T) {
+func TestMetricsWorkflowDetailNotFound(t *testing.T) {
 	repo := &mocks.MockMetricsRepository{Err: query.ErrNotFound}
 	h := newMetricsHandler(repo)
 
 	rr := httptest.NewRecorder()
-	serveAuthed(h.AgentDetail, rr, agentDetailRequest("ghost-agent", "range=7d"))
+	serveAuthed(h.WorkflowDetail, rr, workflowDetailRequest("ghost-workflow", "range=7d"))
 
 	if rr.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, want 404", rr.Code)
@@ -209,30 +209,30 @@ func TestMetricsAgentDetailNotFound(t *testing.T) {
 	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if body.Code != "AGENT_NOT_FOUND" {
-		t.Errorf("code = %q, want AGENT_NOT_FOUND", body.Code)
+	if body.Code != "WORKFLOW_NOT_FOUND" {
+		t.Errorf("code = %q, want WORKFLOW_NOT_FOUND", body.Code)
 	}
 }
 
-// Per-agent latency can't come from the daily rollup, so agent-scoped requests
+// Per-workflow latency can't come from the daily rollup, so workflow-scoped requests
 // over rollup ranges (>30d) are rejected rather than silently degraded.
-func TestMetricsAgentDetailRejectsRollupRange(t *testing.T) {
+func TestMetricsWorkflowDetailRejectsRollupRange(t *testing.T) {
 	h := newMetricsHandler(&mocks.MockMetricsRepository{})
 
 	rr := httptest.NewRecorder()
-	serveAuthed(h.AgentDetail, rr, agentDetailRequest("rewrite-message", "range=1y"))
+	serveAuthed(h.WorkflowDetail, rr, workflowDetailRequest("rewrite-message", "range=1y"))
 
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400", rr.Code)
 	}
 }
 
-// The agent query param on the series endpoints is likewise a raw-window feature.
-func TestMetricsSeriesAgentRejectsRollupRange(t *testing.T) {
+// The workflow query param on the series endpoints is likewise a raw-window feature.
+func TestMetricsSeriesWorkflowRejectsRollupRange(t *testing.T) {
 	h := newMetricsHandler(&mocks.MockMetricsRepository{})
 
 	rr := httptest.NewRecorder()
-	serveAuthed(h.CostSeries, rr, httptest.NewRequest(http.MethodGet, "/v1/metrics/cost-series?range=90d&agent=rewrite-message", nil))
+	serveAuthed(h.CostSeries, rr, httptest.NewRequest(http.MethodGet, "/v1/metrics/cost-series?range=90d&workflow=rewrite-message", nil))
 
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400", rr.Code)
@@ -252,7 +252,7 @@ func TestMetricsBadRange(t *testing.T) {
 
 func TestMetricsFailuresEnvelope(t *testing.T) {
 	repo := &mocks.MockMetricsRepository{
-		FailureItems:  []model.Failure{{Agent: "rewrite-message", Count: 8, Pct: 0.083, TopError: "rate_limit_exceeded"}},
+		FailureItems:  []model.Failure{{Workflow: "rewrite-message", Count: 8, Pct: 0.083, TopError: "rate_limit_exceeded"}},
 		FailuresTotal: 12,
 	}
 	h := newMetricsHandler(repo)
@@ -263,7 +263,7 @@ func TestMetricsFailuresEnvelope(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rr.Code)
 	}
-	// Total reflects every failed run, not just the listed agents.
+	// Total reflects every failed run, not just the listed workflows.
 	var got struct {
 		Items []model.Failure `json:"items"`
 		Total int             `json:"total"`
@@ -274,7 +274,7 @@ func TestMetricsFailuresEnvelope(t *testing.T) {
 	if got.Total != 12 {
 		t.Errorf("total = %d, want 12", got.Total)
 	}
-	if len(got.Items) != 1 || got.Items[0].Agent != "rewrite-message" {
+	if len(got.Items) != 1 || got.Items[0].Workflow != "rewrite-message" {
 		t.Errorf("items = %+v, want one rewrite-message row", got.Items)
 	}
 }
@@ -282,9 +282,9 @@ func TestMetricsFailuresEnvelope(t *testing.T) {
 func TestMetricsAnomalies(t *testing.T) {
 	repo := &mocks.MockMetricsRepository{
 		AnomalyItems: []model.Anomaly{
-			{Metric: "cost", Scope: "agent", Agent: "planner", BucketMs: 1_700_000_000_000,
+			{Metric: "cost", Scope: "workflow", Workflow: "planner", BucketMs: 1_700_000_000_000,
 				Observed: 120, Expected: 10, Deviation: 110, Score: 8.1,
-				Direction: "spike", Severity: "critical", Summary: "Agent \"planner\" cost rose to $120.00."},
+				Direction: "spike", Severity: "critical", Summary: "Workflow \"planner\" cost rose to $120.00."},
 		},
 	}
 	h := newMetricsHandler(repo)
@@ -301,7 +301,7 @@ func TestMetricsAnomalies(t *testing.T) {
 	if err := json.Unmarshal(rr.Body.Bytes(), &got); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if len(got.Items) != 1 || got.Items[0].Severity != "critical" || got.Items[0].Agent != "planner" {
+	if len(got.Items) != 1 || got.Items[0].Severity != "critical" || got.Items[0].Workflow != "planner" {
 		t.Errorf("items = %+v, want one critical anomaly for planner", got.Items)
 	}
 }

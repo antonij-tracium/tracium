@@ -42,7 +42,7 @@ function spanAttributes(span: LiveSpan): SpanDetail['attributes'] {
 
 /**
  * Adapts a live, flat trace document into the rich shape the shared `TraceView`
- * renders. Fields the API doesn't carry (agent input/output text, per-span
+ * renders. Fields the API doesn't carry (workflow input/output text, per-span
  * tool lists, session/region/sdk metadata) are left undefined and `TraceView`
  * omits their UI.
  */
@@ -114,7 +114,7 @@ export function toTraceView(trace: LiveTrace): TraceDetail {
   }));
 
   const failing = trace.spans.find(s => s.error_type || s.error_message);
-  // The agent-level Input/Output tabs mirror the root span's content. But many
+  // The workflow-level Input/Output tabs mirror the root span's content. But many
   // instrumentations (e.g. OpenLLMetry workflow/task decorators) make the root a
   // structural span with no LLM content, while the actual prompt/completion live
   // on child gen_ai spans. Fall back to the earliest input and latest output that
@@ -126,7 +126,7 @@ export function toTraceView(trace: LiveTrace): TraceDetail {
 
   return {
     id: trace.trace_id as unknown as TraceDetail['id'],
-    agent: trace.name || 'Untitled trace',
+    workflow: trace.name || 'Untitled trace',
     status: trace.has_error ? 'failed' : 'completed',
     startedAt: formatTime(trace.start_time_ms),
     endedAt: formatTime(trace.end_time_ms),

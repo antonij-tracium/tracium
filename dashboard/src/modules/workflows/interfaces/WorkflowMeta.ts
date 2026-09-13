@@ -1,16 +1,16 @@
-// Supplemental, configuration-level metadata for an agent, shown on the agent
-// detail page. This is the agent's *configuration* — model, runtime params,
+// Supplemental, configuration-level metadata for an workflow, shown on the workflow
+// detail page. This is the workflow's *configuration* — model, runtime params,
 // and the tools it can call — not health or anomaly state, both of which are
 // intentionally absent from the OSS dashboard.
 
-export interface AgentTool {
+export interface WorkflowTool {
   name: string;
-  /** Whether this tool is wired into the agent's current deployment. */
+  /** Whether this tool is wired into the workflow's current deployment. */
   used: boolean;
   description: string;
 }
 
-export interface AgentMeta {
+export interface WorkflowMeta {
   description: string;
   model: string;
   provider: string;
@@ -24,5 +24,5 @@ export interface AgentMeta {
   timeout: string;
   retries: number;
   endpoint: string;
-  tools: AgentTool[];
+  tools: WorkflowTool[];
 }

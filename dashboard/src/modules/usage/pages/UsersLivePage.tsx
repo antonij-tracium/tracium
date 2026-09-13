@@ -64,7 +64,7 @@ export function UsersLivePage({ range, setView, setSelected }: UsersLivePageProp
     return (
       <EmptyState
         message="No users yet"
-        description="Users appear as your agents report user-scoped activity."
+        description="Users appear as your workflows report user-scoped activity."
       />
     );
   }

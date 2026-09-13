@@ -9,7 +9,7 @@ import type { TraceError } from './TraceError';
  */
 export interface TraceDetail {
   id: TraceDetailId;
-  agent: string;
+  workflow: string;
   status: 'completed' | 'failed';
   duration: number;
   totalCost: number;

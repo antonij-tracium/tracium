@@ -43,7 +43,7 @@ export function zLabel(score: number): string {
 // anomalyKey is a stable identity for one anomaly (the model carries no id),
 // used for selection and session-local dismissal.
 export function anomalyKey(a: Anomaly): string {
-  return `${a.metric}:${a.scope}:${a.agent}:${a.bucket_ms}`;
+  return `${a.metric}:${a.scope}:${a.workflow}:${a.bucket_ms}`;
 }
 
 export interface AnomalyChip {
@@ -96,26 +96,26 @@ export function ratioLabel(observed: number, expected: number): string {
 }
 
 // An incident groups every anomaly that fired for the same target on the same
-// day — one agent's bad day usually trips cost, errors and volume at once, and a
+// day — one workflow's bad day usually trips cost, errors and volume at once, and a
 // reviewer wants to judge that as a single event rather than three scattered
 // flags. `severity` is the worst in the group; `anomalies` is pre-sorted
 // most-actionable first.
 export interface Incident {
   key: string;
   scope: AnomalyScope;
-  agent: string; // '' for workspace-wide
+  workflow: string; // '' for workspace-wide
   bucket_ms: number;
   severity: AnomalySeverity;
   anomalies: Anomaly[];
 }
 
-// groupIncidents clusters anomalies by (scope, agent, day) and orders the
+// groupIncidents clusters anomalies by (scope, workflow, day) and orders the
 // incidents the same way rows are ordered: worst severity, then largest |score|,
 // then most recent. Within an incident the anomalies are sorted bySeverity.
 export function groupIncidents(anomalies: Anomaly[]): Incident[] {
   const byKey = new Map<string, Incident>();
   for (const a of anomalies) {
-    const key = `${a.scope}:${a.agent}:${a.bucket_ms}`;
+    const key = `${a.scope}:${a.workflow}:${a.bucket_ms}`;
     const existing = byKey.get(key);
     if (existing) {
       existing.anomalies.push(a);
@@ -126,7 +126,7 @@ export function groupIncidents(anomalies: Anomaly[]): Incident[] {
       byKey.set(key, {
         key,
         scope: a.scope,
-        agent: a.agent,
+        workflow: a.workflow,
         bucket_ms: a.bucket_ms,
         severity: a.severity,
         anomalies: [a],

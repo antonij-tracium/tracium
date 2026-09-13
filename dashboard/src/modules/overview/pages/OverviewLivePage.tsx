@@ -14,25 +14,25 @@ import {
   KpiStrip,
   ChartsRow,
   FailuresBlock,
-  TopAgents,
+  TopWorkflows,
   ActivityFeed,
   OverviewLayout,
   Section,
   OutlierChips,
   OutliersPanel,
 } from '../components';
-import type { KpiItem, TopAgentRow, SyncStatus, SyncTone } from '../components';
+import type { KpiItem, TopWorkflowRow, SyncStatus, SyncTone } from '../components';
 import {
   useKpis,
   useCostSeries,
   useLatencySeries,
   useErrorSeries,
-  useTopAgents,
+  useTopWorkflows,
   useFailures,
   useAnomalies,
   useRecentActivity,
 } from '../hooks/useMetrics';
-import type { Kpi, KpiSet, AgentCost, FailureRow, ActivityItem, Anomaly } from '../interfaces';
+import type { Kpi, KpiSet, WorkflowCost, FailureRow, ActivityItem, Anomaly } from '../interfaces';
 import { anomalyKey, anomalyValue, toChartMarkers } from '../utils/anomalies';
 import type { ActivityId } from '../ids';
 import type { Tweaks } from './OverviewPage';
@@ -47,7 +47,7 @@ interface OverviewLivePageProps {
 
 // ── Formatting helpers ──────────────────────────────────────────────────────
 // bucketLabel / toCostPoints / toLatencyPoints / toErrorPoints are shared with
-// the agent detail charts (common/utils/buckets).
+// the workflow detail charts (common/utils/buckets).
 
 // Split a fractional delta into a signed display value (drives the arrow) and a
 // "vs prev" hint, the way the KPI strip expects.
@@ -81,18 +81,18 @@ function toKpiItems(kpis: KpiSet, cost: CostPoint[], latency: LatencyPoint[], er
   ];
 }
 
-const toAgentRows = (agents: AgentCost[]): TopAgentRow[] =>
-  agents.map((a) => ({ name: a.name, calls: a.calls, cost: a.cost, trend: a.trend }));
+const toWorkflowRows = (workflows: WorkflowCost[]): TopWorkflowRow[] =>
+  workflows.map((a) => ({ name: a.name, calls: a.calls, cost: a.cost, trend: a.trend }));
 
-// The failures endpoint reports per-agent rows plus the true total of errored
-// runs across all agents; we derive the strip's summary line (total failed,
-// worst agent) from them. totalFailed comes from the envelope's total —
-// the rows are only the top agents, so re-summing them would undercount once
-// more than that many agents have failures. The horizon strip itself is fed by
+// The failures endpoint reports per-workflow rows plus the true total of errored
+// runs across all workflows; we derive the strip's summary line (total failed,
+// worst workflow) from them. totalFailed comes from the envelope's total —
+// the rows are only the top workflows, so re-summing them would undercount once
+// more than that many workflows have failures. The horizon strip itself is fed by
 // the separate error-series endpoint.
-function failuresSummary(rows: FailureRow[], total: number): { totalFailed: number; worstAgent: string } {
+function failuresSummary(rows: FailureRow[], total: number): { totalFailed: number; worstWorkflow: string } {
   const worst = rows.reduce<FailureRow | null>((m, r) => (!m || r.count > m.count ? r : m), null);
-  return { totalFailed: total, worstAgent: worst?.agent ?? '—' };
+  return { totalFailed: total, worstWorkflow: worst?.workflow ?? '—' };
 }
 
 // ── Sync status ─────────────────────────────────────────────────────────────
@@ -135,7 +135,7 @@ function relTime(startMs: number): string {
 const toActivityItems = (traces: Trace[]): ActivityItem[] =>
   traces.map((t) => ({
     id: t.trace_id as unknown as ActivityId,
-    agent: t.name,
+    workflow: t.name,
     status: t.has_error ? 'failed' : 'completed',
     time: relTime(t.start_time_ms),
     cost: t.total_cost_usd,
@@ -150,7 +150,7 @@ export function OverviewLivePage({ range, setView, setSelected, tweaks }: Overvi
   const kpis = useKpis(range);
   const cost = useCostSeries(range);
   const latency = useLatencySeries(range);
-  const agents = useTopAgents(range);
+  const workflows = useTopWorkflows(range);
   const failures = useFailures(range);
   const errorSeries = useErrorSeries(range);
   const anomalies = useAnomalies(range);
@@ -180,7 +180,7 @@ export function OverviewLivePage({ range, setView, setSelected, tweaks }: Overvi
     return hasAnyTraces ? (
       <EmptyState
         message={`No traces in the ${RANGE_LABEL[range] ?? RANGE_LABEL['7d']}`}
-        description="Your agents haven't reported any activity in this window. Try a wider time range to see earlier traces."
+        description="Your workflows haven't reported any activity in this window. Try a wider time range to see earlier traces."
       />
     ) : (
       <div>
@@ -195,7 +195,7 @@ export function OverviewLivePage({ range, setView, setSelected, tweaks }: Overvi
     );
   }
 
-  const status = syncStatus([kpis, cost, latency, agents, failures, errorSeries, activity]);
+  const status = syncStatus([kpis, cost, latency, workflows, failures, errorSeries, activity]);
 
   const costPoints = cost.data ? toCostPoints(cost.data.items, range) : [];
   const latencyPoints = latency.data ? toLatencyPoints(latency.data.items, range) : [];
@@ -225,8 +225,8 @@ export function OverviewLivePage({ range, setView, setSelected, tweaks }: Overvi
   );
   const dismissOutlier = (a: Anomaly) => setDismissed((s) => new Set(s).add(anomalyKey(a)));
   const inspectOutlier = (a: Anomaly) => {
-    if (a.agent) setSelected((s) => ({ ...s, agent: a.agent }));
-    setView('agents');
+    if (a.workflow) setSelected((s) => ({ ...s, workflow: a.workflow }));
+    setView('workflows');
   };
 
   return (
@@ -284,8 +284,8 @@ export function OverviewLivePage({ range, setView, setSelected, tweaks }: Overvi
             <FailuresBlock
               series={errorPoints}
               totalFailed={summary.totalFailed}
-              worstAgent={summary.worstAgent}
-              onViewAgents={() => setView('agents')}
+              worstWorkflow={summary.worstWorkflow}
+              onViewWorkflows={() => setView('workflows')}
               range={range}
               errorMarkers={errorMarkers}
             />
@@ -305,15 +305,15 @@ export function OverviewLivePage({ range, setView, setSelected, tweaks }: Overvi
           )}
         </Section>
       }
-      agents={
-        <Section isLoading={agents.isLoading} isError={agents.isError}>
-          {agents.data && (
-            <TopAgents
+      workflows={
+        <Section isLoading={workflows.isLoading} isError={workflows.isError}>
+          {workflows.data && (
+            <TopWorkflows
               range={range}
-              agents={toAgentRows(agents.data.items)}
-              onSelectAgent={(name) => {
-                setSelected((s) => ({ ...s, agent: name }));
-                setView('agents');
+              workflows={toWorkflowRows(workflows.data.items)}
+              onSelectWorkflow={(name) => {
+                setSelected((s) => ({ ...s, workflow: name }));
+                setView('workflows');
               }}
             />
           )}

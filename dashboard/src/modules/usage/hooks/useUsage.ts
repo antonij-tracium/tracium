@@ -22,11 +22,11 @@ export function useUserUsage(range: string) {
   });
 }
 
-export function useAgentUsage(range: string) {
+export function useWorkflowUsage(range: string) {
   const { metricsAPI, workspaceId } = useAPIClient();
   return useQuery({
-    queryKey: ['usage', 'agents', workspaceId, range],
-    queryFn: () => metricsAPI.getAgentUsage(range),
+    queryKey: ['usage', 'workflows', workspaceId, range],
+    queryFn: () => metricsAPI.getWorkflowUsage(range),
   });
 }
 

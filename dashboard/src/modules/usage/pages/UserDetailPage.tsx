@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// UserDetailPage — per-user detail: cost chart, health, agents, traces
+// UserDetailPage — per-user detail: cost chart, health, workflows, traces
 // Inline styles only (no CSS modules).
 // ---------------------------------------------------------------------------
 
@@ -20,8 +20,8 @@ export interface UserDetailPageProps {
 // Local mock data
 // ---------------------------------------------------------------------------
 
-interface AgentRow {
-  agent: string;
+interface WorkflowRow {
+  workflow: string;
   calls: number;
   completed: number;
   failed: number;
@@ -32,20 +32,20 @@ interface AgentRow {
   growth: number;
 }
 
-const TD_AGENT_ROWS: AgentRow[] = [
-  { agent: "summarize-comments",             calls: 18204, completed: 18187, failed:  17, success: 99.91, cost: 4.0214, avg: 0.000221, p95: 2.4, growth: 0.18 },
-  { agent: "classify-intent",                calls: 21882, completed: 21873, failed:   9, success: 99.96, cost: 2.4124, avg: 0.000110, p95: 0.9, growth: 0.22 },
-  { agent: "moderate-content",               calls: 10882, completed: 10869, failed:  13, success: 99.88, cost: 1.4982, avg: 0.000138, p95: 0.5, growth: 0.04 },
-  { agent: "rewrite-message",                calls:  3104, completed:  2998, failed: 106, success: 96.58, cost: 2.4204, avg: 0.000780, p95: 4.8, growth: 0.42 },
-  { agent: "generate-clock-out-description", calls:  2840, completed:  2839, failed:   1, success: 99.96, cost: 1.4082, avg: 0.000496, p95: 3.4, growth: 0.11 },
-  { agent: "detect-sentiment",               calls:  1110, completed:  1107, failed:   3, success: 99.73, cost: 0.6841, avg: 0.000616, p95: 1.1, growth:-0.04 },
+const TD_WORKFLOW_ROWS: WorkflowRow[] = [
+  { workflow: "summarize-comments",             calls: 18204, completed: 18187, failed:  17, success: 99.91, cost: 4.0214, avg: 0.000221, p95: 2.4, growth: 0.18 },
+  { workflow: "classify-intent",                calls: 21882, completed: 21873, failed:   9, success: 99.96, cost: 2.4124, avg: 0.000110, p95: 0.9, growth: 0.22 },
+  { workflow: "moderate-content",               calls: 10882, completed: 10869, failed:  13, success: 99.88, cost: 1.4982, avg: 0.000138, p95: 0.5, growth: 0.04 },
+  { workflow: "rewrite-message",                calls:  3104, completed:  2998, failed: 106, success: 96.58, cost: 2.4204, avg: 0.000780, p95: 4.8, growth: 0.42 },
+  { workflow: "generate-clock-out-description", calls:  2840, completed:  2839, failed:   1, success: 99.96, cost: 1.4082, avg: 0.000496, p95: 3.4, growth: 0.11 },
+  { workflow: "detect-sentiment",               calls:  1110, completed:  1107, failed:   3, success: 99.73, cost: 0.6841, avg: 0.000616, p95: 1.1, growth:-0.04 },
 ];
 
 type TraceStatus = 'completed' | 'failed' | 'running';
 
 interface RecentTrace {
   id: string;
-  agent: string;
+  workflow: string;
   status: TraceStatus;
   started: string;
   cost: number;
@@ -54,18 +54,18 @@ interface RecentTrace {
 }
 
 const TD_RECENT_TRACES: RecentTrace[] = [
-  { id: "t_eb7c92a1", agent: "rewrite-message",     status: "failed",    started: "Apr 18 · 09:41:17", cost: 0.0012, latency: 4823, msg: "rate_limit_exceeded" },
-  { id: "t_d8f4b2c9", agent: "summarize-comments",  status: "completed", started: "Apr 18 · 09:41:14", cost: 0.0003, latency: 2114 },
-  { id: "t_d8f4b2c8", agent: "classify-intent",     status: "completed", started: "Apr 18 · 09:41:12", cost: 0.0001, latency:  812 },
-  { id: "t_d8f4b2c7", agent: "rewrite-message",     status: "failed",    started: "Apr 18 · 09:41:09", cost: 0.0009, latency: 6210, msg: "context_length" },
-  { id: "t_d8f4b2c6", agent: "moderate-content",    status: "completed", started: "Apr 18 · 09:41:07", cost: 0.0000, latency:  342 },
-  { id: "t_d8f4b2c5", agent: "summarize-comments",  status: "completed", started: "Apr 18 · 09:41:04", cost: 0.0005, latency: 1922 },
-  { id: "t_d8f4b2c4", agent: "detect-sentiment",    status: "completed", started: "Apr 18 · 09:41:02", cost: 0.0001, latency:  604 },
-  { id: "t_d8f4b2c3", agent: "classify-intent",     status: "running",   started: "Apr 18 · 09:41:00", cost: 0.0000, latency:    0 },
-  { id: "t_d8f4b2c2", agent: "rewrite-message",     status: "completed", started: "Apr 18 · 09:40:57", cost: 0.0008, latency: 3941 },
-  { id: "t_d8f4b2c1", agent: "summarize-comments",  status: "completed", started: "Apr 18 · 09:40:55", cost: 0.0004, latency: 2204 },
-  { id: "t_d8f4b2c0", agent: "moderate-content",    status: "completed", started: "Apr 18 · 09:40:52", cost: 0.0000, latency:  412 },
-  { id: "t_d8f4b2bf", agent: "classify-intent",     status: "completed", started: "Apr 18 · 09:40:50", cost: 0.0001, latency:  741 },
+  { id: "t_eb7c92a1", workflow: "rewrite-message",     status: "failed",    started: "Apr 18 · 09:41:17", cost: 0.0012, latency: 4823, msg: "rate_limit_exceeded" },
+  { id: "t_d8f4b2c9", workflow: "summarize-comments",  status: "completed", started: "Apr 18 · 09:41:14", cost: 0.0003, latency: 2114 },
+  { id: "t_d8f4b2c8", workflow: "classify-intent",     status: "completed", started: "Apr 18 · 09:41:12", cost: 0.0001, latency:  812 },
+  { id: "t_d8f4b2c7", workflow: "rewrite-message",     status: "failed",    started: "Apr 18 · 09:41:09", cost: 0.0009, latency: 6210, msg: "context_length" },
+  { id: "t_d8f4b2c6", workflow: "moderate-content",    status: "completed", started: "Apr 18 · 09:41:07", cost: 0.0000, latency:  342 },
+  { id: "t_d8f4b2c5", workflow: "summarize-comments",  status: "completed", started: "Apr 18 · 09:41:04", cost: 0.0005, latency: 1922 },
+  { id: "t_d8f4b2c4", workflow: "detect-sentiment",    status: "completed", started: "Apr 18 · 09:41:02", cost: 0.0001, latency:  604 },
+  { id: "t_d8f4b2c3", workflow: "classify-intent",     status: "running",   started: "Apr 18 · 09:41:00", cost: 0.0000, latency:    0 },
+  { id: "t_d8f4b2c2", workflow: "rewrite-message",     status: "completed", started: "Apr 18 · 09:40:57", cost: 0.0008, latency: 3941 },
+  { id: "t_d8f4b2c1", workflow: "summarize-comments",  status: "completed", started: "Apr 18 · 09:40:55", cost: 0.0004, latency: 2204 },
+  { id: "t_d8f4b2c0", workflow: "moderate-content",    status: "completed", started: "Apr 18 · 09:40:52", cost: 0.0000, latency:  412 },
+  { id: "t_d8f4b2bf", workflow: "classify-intent",     status: "completed", started: "Apr 18 · 09:40:50", cost: 0.0001, latency:  741 },
 ];
 
 // ---------------------------------------------------------------------------
@@ -293,24 +293,24 @@ function TdCostChart({ series, height = 200 }: TdCostChartProps) {
 }
 
 // ---------------------------------------------------------------------------
-// Agent breakdown table
+// Workflow breakdown table
 // ---------------------------------------------------------------------------
 
-type AgentSortKey = keyof Pick<AgentRow, 'agent' | 'calls' | 'success' | 'failed' | 'p95' | 'cost' | 'avg' | 'growth'>;
+type WorkflowSortKey = keyof Pick<WorkflowRow, 'workflow' | 'calls' | 'success' | 'failed' | 'p95' | 'cost' | 'avg' | 'growth'>;
 
-interface AgentColDef {
-  key: AgentSortKey;
+interface WorkflowColDef {
+  key: WorkflowSortKey;
   label: string;
   w: string;
   align: 'left' | 'right';
   mono?: boolean;
   muted?: boolean;
-  format: (a: AgentRow) => string;
-  color?: (a: AgentRow) => string;
+  format: (a: WorkflowRow) => string;
+  color?: (a: WorkflowRow) => string;
 }
 
-const AGENT_COLS: AgentColDef[] = [
-  { key: "agent",   label: "Agent",      w: "minmax(220px, 1.6fr)", align: "left",  format: a => a.agent },
+const WORKFLOW_COLS: WorkflowColDef[] = [
+  { key: "workflow",   label: "Workflow",      w: "minmax(220px, 1.6fr)", align: "left",  format: a => a.workflow },
   { key: "calls",   label: "Calls",      w: "100px", align: "right", mono: true,  format: a => a.calls.toLocaleString() },
   { key: "success", label: "Success",    w: "90px",  align: "right", mono: true,  format: a => a.success.toFixed(2) + "%",
     color: a => a.success >= 99 ? "var(--accent)" : a.success >= 95 ? "var(--warning)" : "var(--error)" },
@@ -323,13 +323,13 @@ const AGENT_COLS: AgentColDef[] = [
     color: a => a.growth >= 0 ? "var(--accent)" : "var(--warning)" },
 ];
 
-function TdAgentTable() {
-  const [sortKey, setSortKey] = useState<AgentSortKey>("cost");
+function TdWorkflowTable() {
+  const [sortKey, setSortKey] = useState<WorkflowSortKey>("cost");
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>("desc");
 
   const sorted = useMemo(() => {
     const sign = sortDir === "asc" ? 1 : -1;
-    return [...TD_AGENT_ROWS].sort((a, b) => {
+    return [...TD_WORKFLOW_ROWS].sort((a, b) => {
       const av = a[sortKey];
       const bv = b[sortKey];
       if (typeof av === "string" && typeof bv === "string") return av.localeCompare(bv) * sign;
@@ -338,12 +338,12 @@ function TdAgentTable() {
     });
   }, [sortKey, sortDir]);
 
-  const onSort = (k: AgentSortKey) => {
+  const onSort = (k: WorkflowSortKey) => {
     if (sortKey === k) setSortDir(sortDir === "asc" ? "desc" : "asc");
     else { setSortKey(k); setSortDir("desc"); }
   };
 
-  const grid = AGENT_COLS.map(c => c.w).join(" ");
+  const grid = WORKFLOW_COLS.map(c => c.w).join(" ");
 
   return (
     <div style={{ overflowX: "auto" }}>
@@ -353,7 +353,7 @@ function TdAgentTable() {
         padding: "12px 0",
         borderBottom: "1px solid color-mix(in srgb, var(--border) 70%, transparent)",
       }}>
-        {AGENT_COLS.map(c => (
+        {WORKFLOW_COLS.map(c => (
           <button key={c.key} onClick={() => onSort(c.key)} style={{
             padding: 0, background: "transparent", border: "none",
             color: sortKey === c.key ? "var(--foreground)" : "var(--muted)",
@@ -370,7 +370,7 @@ function TdAgentTable() {
 
       {/* Rows */}
       {sorted.map((row, i) => (
-        <div key={row.agent}
+        <div key={row.workflow}
           style={{
             display: "grid", gridTemplateColumns: grid, minWidth: 640, gap: 14,
             padding: "14px 0",
@@ -381,7 +381,7 @@ function TdAgentTable() {
           onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = "color-mix(in srgb, var(--foreground) 2%, transparent)"; }}
           onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
         >
-          {AGENT_COLS.map(c => {
+          {WORKFLOW_COLS.map(c => {
             const val = c.format(row);
             const color = c.color ? c.color(row) : c.muted ? "var(--muted)" : "var(--foreground)";
             return (
@@ -391,7 +391,7 @@ function TdAgentTable() {
                 fontFamily: c.mono ? "var(--font-mono)" : "inherit",
                 fontVariantNumeric: "tabular-nums",
                 whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                fontWeight: c.key === "agent" ? 500 : 400,
+                fontWeight: c.key === "workflow" ? 500 : 400,
               }}>{val}</div>
             );
           })}
@@ -456,7 +456,7 @@ function TdTracesTable({ setView, setSelected }: TdTracesTableProps) {
             );
           })}
         </div>
-        <button onClick={() => setView("agents")} style={{
+        <button onClick={() => setView("workflows")} style={{
           padding: "5px 11px", background: "transparent",
           border: "1px solid var(--border-strong)",
           borderRadius: 7, color: "var(--muted)",
@@ -498,7 +498,7 @@ function TdTracesTable({ setView, setSelected }: TdTracesTableProps) {
           onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}>
-            <span style={{ fontSize: 13, fontWeight: 500, color: "var(--foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.agent}</span>
+            <span style={{ fontSize: 13, fontWeight: 500, color: "var(--foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.workflow}</span>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--muted)" }}>{t.id}{t.msg ? " · " + t.msg : ""}</span>
           </div>
           <div>
@@ -617,10 +617,10 @@ export function UserDetailPage({ selected, setView }: UserDetailPageProps) {
       </div>
 
       <TdSectionHead
-        title="Usage by agent"
-        hint="Per-agent activity within this user. Click a row for the agent's full timeline."
+        title="Usage by workflow"
+        hint="Per-workflow activity within this user. Click a row for the workflow's full timeline."
       />
-      <TdAgentTable/>
+      <TdWorkflowTable/>
 
       <TdSectionHead
         title="Recent traces"

@@ -1,8 +1,8 @@
-// A single recent run of an agent, shown in the detail page's "Recent runs"
-// table. Run-level completed/failed is the trace outcome, not an agent-health
+// A single recent run of an workflow, shown in the detail page's "Recent runs"
+// table. Run-level completed/failed is the trace outcome, not an workflow-health
 // signal — it stays in the OSS dashboard.
 
-export interface AgentRun {
+export interface WorkflowRun {
   id: string;
   status: 'completed' | 'failed';
   /** Human-relative start time, e.g. "2m ago". */

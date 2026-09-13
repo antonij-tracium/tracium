@@ -33,6 +33,11 @@ else
 
   ch_query "DROP VIEW IF EXISTS tracium.metrics_daily_mv"
   ch_query "ALTER TABLE tracium.spans RENAME COLUMN IF EXISTS tenant_id TO user_id"
+  # The owning-identity column was renamed agent_name -> workflow_name (migration
+  # 011). This block recreates metrics_daily and its MV from the current canonical
+  # DDL, which selects workflow_name, so the spans column must already carry that
+  # name here — 011 runs later. Rename it inline, exactly as tenant_id above.
+  ch_query "ALTER TABLE tracium.spans RENAME COLUMN IF EXISTS agent_name TO workflow_name"
   ch_query "ALTER TABLE tracium.spans ADD COLUMN IF NOT EXISTS workspace_id String DEFAULT ''"
   # Store ownership explicitly. A permanent legacy default would silently grant
   # the old workspace access to future untagged spans. UPDATE is retry-safe

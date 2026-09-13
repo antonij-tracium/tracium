@@ -1,4 +1,4 @@
-export interface AgentSummary {
+export interface WorkflowSummary {
   name: string;
   cost: number;
   costPrev: number;

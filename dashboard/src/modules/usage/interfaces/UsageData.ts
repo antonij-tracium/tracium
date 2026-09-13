@@ -1,6 +1,6 @@
 import type { DailySeriesPoint } from './DailySeriesPoint';
 import type { UserSummary } from './UserSummary';
-import type { AgentSummary } from './AgentSummary';
+import type { WorkflowSummary } from './WorkflowSummary';
 import type { ModelSummary } from './ModelSummary';
 
 export interface UsageData {
@@ -16,6 +16,6 @@ export interface UsageData {
   totalRunsPrev: number;
   dailySeries: DailySeriesPoint[];
   users: UserSummary[];
-  agents: AgentSummary[];
+  workflows: WorkflowSummary[];
   models: ModelSummary[];
 }

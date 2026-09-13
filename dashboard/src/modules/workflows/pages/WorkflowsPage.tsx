@@ -1,9 +1,9 @@
 // ---------------------------------------------------------------------------
-// AgentsPage — sortable, filterable agent list (from the agents.html design).
+// WorkflowsPage — sortable, filterable workflow list (from the workflows.html design).
 //
-// Pure presentational component: it renders whatever `agents` it is handed. The
-// demo/embedded app passes the mock AGENTS; the signed-in app passes the live
-// list via AgentsLivePage. Health/status and "needs attention" features are
+// Pure presentational component: it renders whatever `workflows` it is handed. The
+// demo/embedded app passes the mock WORKFLOWS; the signed-in app passes the live
+// list via WorkflowsLivePage. Health/status and "needs attention" features are
 // intentionally omitted: no status column, no status filter pills, no "needs
 // attention" stat tile.
 // ---------------------------------------------------------------------------
@@ -19,14 +19,14 @@ import {
   fmtNum,
   fmtMs,
 } from '../../../common';
-import type { Agent } from '../interfaces';
+import type { Workflow } from '../interfaces';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export interface AgentsPageProps {
-  agents: Agent[];
+export interface WorkflowsPageProps {
+  workflows: Workflow[];
   setView: (v: string) => void;
   setSelected: (updater: (prev: Record<string, string>) => Record<string, string>) => void;
   /** Active workspace name, shown in the page eyebrow. */
@@ -35,10 +35,10 @@ export interface AgentsPageProps {
   updatedAt?: number;
 }
 
-type SortKey = keyof Pick<Agent, 'name' | 'calls' | 'cost' | 'avg_latency_ms' | 'error_rate'>;
+type SortKey = keyof Pick<Workflow, 'name' | 'calls' | 'cost' | 'avg_latency_ms' | 'error_rate'>;
 type SortDir = 'asc' | 'desc';
 
-// [Agent, Trend, Calls, Cost, Avg latency, Error] — the status column is dropped.
+// [Workflow, Trend, Calls, Cost, Avg latency, Error] — the status column is dropped.
 const GRID_COLS = '2fr 1fr 100px 100px 100px 80px';
 
 // Error-rate thresholds (fractions): above 2% reads as an error, above 0.5% as a warning.
@@ -135,16 +135,16 @@ function SortHeader({
 }
 
 // ---------------------------------------------------------------------------
-// AgentsPage
+// WorkflowsPage
 // ---------------------------------------------------------------------------
 
-export function AgentsPage({ agents, setView, setSelected, workspaceName, updatedAt }: AgentsPageProps) {
+export function WorkflowsPage({ workflows, setView, setSelected, workspaceName, updatedAt }: WorkflowsPageProps) {
   const [sortKey, setSortKey] = useState<SortKey>('calls');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [q, setQ] = useState('');
 
   const filtered = useMemo(() => {
-    let data = agents;
+    let data = workflows;
     if (q) data = data.filter(a => a.name.toLowerCase().includes(q.toLowerCase()));
     return [...data].sort((a, b) => {
       const av = a[sortKey];
@@ -154,7 +154,7 @@ export function AgentsPage({ agents, setView, setSelected, workspaceName, update
       }
       return sortDir === 'asc' ? (av as number) - (bv as number) : (bv as number) - (av as number);
     });
-  }, [agents, sortKey, sortDir, q]);
+  }, [workflows, sortKey, sortDir, q]);
 
   const toggleSort = (k: SortKey) => {
     if (sortKey === k) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
@@ -164,15 +164,15 @@ export function AgentsPage({ agents, setView, setSelected, workspaceName, update
     }
   };
 
-  const totalCalls = agents.reduce((s, a) => s + a.calls, 0);
-  const totalCost = agents.reduce((s, a) => s + a.cost, 0);
-  const topVolume = agents.reduce<Agent | null>((m, a) => (!m || a.calls > m.calls ? a : m), null);
-  const topCost = agents.reduce<Agent | null>((m, a) => (!m || a.cost > m.cost ? a : m), null);
+  const totalCalls = workflows.reduce((s, a) => s + a.calls, 0);
+  const totalCost = workflows.reduce((s, a) => s + a.cost, 0);
+  const topVolume = workflows.reduce<Workflow | null>((m, a) => (!m || a.calls > m.calls ? a : m), null);
+  const topCost = workflows.reduce<Workflow | null>((m, a) => (!m || a.cost > m.cost ? a : m), null);
 
-  // Drill into the agent's detail page (charts, recent runs, config, tools).
-  const openAgent = (a: Agent) => {
-    setSelected(prev => ({ ...prev, agent: a.name }));
-    setView('agents');
+  // Drill into the workflow's detail page (charts, recent runs, config, tools).
+  const openWorkflow = (a: Workflow) => {
+    setSelected(prev => ({ ...prev, workflow: a.name }));
+    setView('workflows');
   };
 
   return (
@@ -198,9 +198,9 @@ export function AgentsPage({ agents, setView, setSelected, workspaceName, update
           >
             {workspaceName ? `${workspaceName} · Workspace` : 'Workspace'}
           </span>
-          <h1 style={{ fontSize: 26, fontWeight: 600, letterSpacing: '-0.02em', margin: 0 }}>Agents</h1>
+          <h1 style={{ fontSize: 26, fontWeight: 600, letterSpacing: '-0.02em', margin: 0 }}>Workflows</h1>
           <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0 }}>
-            {agents.length} active agents · {fmtNum(totalCalls)} runs · {fmtCost(totalCost)} spend
+            {workflows.length} active workflows · {fmtNum(totalCalls)} runs · {fmtCost(totalCost)} spend
           </p>
         </div>
         {updatedAt != null && <LastUpdated at={updatedAt} />}
@@ -216,7 +216,7 @@ export function AgentsPage({ agents, setView, setSelected, workspaceName, update
           margin: '4px 0 28px',
         }}
       >
-        <SmallStat isFirst label="Active agents" value={agents.length} sub="deployed" />
+        <SmallStat isFirst label="Active workflows" value={workflows.length} sub="deployed" />
         <SmallStat label="Highest volume" value={topVolume?.name ?? '—'} sub={topVolume ? `${fmtNum(topVolume.calls)} runs` : undefined} />
         <SmallStat label="Most expensive" value={topCost?.name ?? '—'} sub={topCost ? fmtCost(topCost.cost) : undefined} />
       </div>
@@ -240,7 +240,7 @@ export function AgentsPage({ agents, setView, setSelected, workspaceName, update
           <input
             value={q}
             onChange={e => setQ(e.target.value)}
-            placeholder="Filter agents..."
+            placeholder="Filter workflows..."
             style={{
               flex: 1,
               background: 'transparent',
@@ -264,7 +264,7 @@ export function AgentsPage({ agents, setView, setSelected, workspaceName, update
             borderBottom: '1px solid var(--border)',
           }}
         >
-          <SortHeader label="Agent" k="name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+          <SortHeader label="Workflow" k="name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
           <span style={{ fontSize: 12, color: 'var(--muted)' }}>Trend (7d)</span>
           <SortHeader label="Calls" k="calls" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" />
           <SortHeader label="Cost" k="cost" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" />
@@ -274,15 +274,15 @@ export function AgentsPage({ agents, setView, setSelected, workspaceName, update
 
         {filtered.length === 0 ? (
           <div style={{ padding: '60px 4px', textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>
-            No agents match.
+            No workflows match.
           </div>
         ) : (
           filtered.map((a, i) => (
-            <AgentRow
+            <WorkflowRow
               key={a.name}
-              agent={a}
+              workflow={a}
               isLast={i === filtered.length - 1}
-              onOpen={() => openAgent(a)}
+              onOpen={() => openWorkflow(a)}
             />
           ))
         )}
@@ -292,10 +292,10 @@ export function AgentsPage({ agents, setView, setSelected, workspaceName, update
 }
 
 // ---------------------------------------------------------------------------
-// AgentRow — isolated so hover state is per-row
+// WorkflowRow — isolated so hover state is per-row
 // ---------------------------------------------------------------------------
 
-function AgentRow({ agent: a, isLast, onOpen }: { agent: Agent; isLast: boolean; onOpen: () => void }) {
+function WorkflowRow({ workflow: a, isLast, onOpen }: { workflow: Workflow; isLast: boolean; onOpen: () => void }) {
   const [hovered, setHovered] = useState(false);
   const errColor =
     a.error_rate > ERR_BAD ? 'var(--error)' : a.error_rate > ERR_WARN ? 'var(--warning)' : 'var(--muted)';

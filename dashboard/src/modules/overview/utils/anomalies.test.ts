@@ -7,8 +7,8 @@ const DAY = 86_400_000;
 function anom(over: Partial<Anomaly>): Anomaly {
   return {
     metric: 'cost',
-    scope: 'agent',
-    agent: 'a',
+    scope: 'workflow',
+    workflow: 'a',
     bucket_ms: 0,
     observed: 2,
     expected: 1,
@@ -76,15 +76,15 @@ describe('ratioLabel', () => {
 
 describe('groupIncidents', () => {
   it('clusters flags by target and day, worst severity wins the group', () => {
-    const cost = anom({ metric: 'cost', agent: 'checkout', bucket_ms: DAY, severity: 'critical', score: 6.4 });
-    const err = anom({ metric: 'error_rate', agent: 'checkout', bucket_ms: DAY, severity: 'warning', score: 5.2 });
-    const other = anom({ metric: 'runs', scope: 'workspace', agent: '', bucket_ms: 2 * DAY, severity: 'info', score: 3.2 });
+    const cost = anom({ metric: 'cost', workflow: 'checkout', bucket_ms: DAY, severity: 'critical', score: 6.4 });
+    const err = anom({ metric: 'error_rate', workflow: 'checkout', bucket_ms: DAY, severity: 'warning', score: 5.2 });
+    const other = anom({ metric: 'runs', scope: 'workspace', workflow: '', bucket_ms: 2 * DAY, severity: 'info', score: 3.2 });
 
     const incidents = groupIncidents([err, other, cost]);
     expect(incidents).toHaveLength(2);
 
     // Most severe incident first; its two flags collapse into one group.
-    expect(incidents[0].agent).toBe('checkout');
+    expect(incidents[0].workflow).toBe('checkout');
     expect(incidents[0].severity).toBe('critical');
     expect(incidents[0].anomalies).toHaveLength(2);
     // Within the group, most-actionable flag is first.
@@ -94,9 +94,9 @@ describe('groupIncidents', () => {
     expect(incidents[1].anomalies).toHaveLength(1);
   });
 
-  it('keeps same-agent different-day flags in separate incidents', () => {
-    const day1 = anom({ agent: 'a', bucket_ms: DAY });
-    const day2 = anom({ agent: 'a', bucket_ms: 2 * DAY });
+  it('keeps same-workflow different-day flags in separate incidents', () => {
+    const day1 = anom({ workflow: 'a', bucket_ms: DAY });
+    const day2 = anom({ workflow: 'a', bucket_ms: 2 * DAY });
     expect(groupIncidents([day1, day2])).toHaveLength(2);
   });
 });

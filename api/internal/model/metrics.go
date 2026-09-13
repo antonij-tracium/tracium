@@ -7,7 +7,7 @@ package model
 // recent history — the output of statistical anomaly detection. It is daily,
 // rollup-backed, and workspace-scoped like every other metric. Metric is
 // "cost" | "error_rate" | "runs"; Scope is "workspace" (the whole window) or
-// "agent" (Agent names which one). Direction is "spike" | "drop"; Severity is
+// "workflow" (Workflow names which one). Direction is "spike" | "drop"; Severity is
 // "info" | "warning" | "critical". Observed is the bucket's value, Expected the
 // baseline median, Deviation their difference, and Score the signed robust
 // z-score behind the ranking. Summary is a ready-to-read sentence; the dashboard
@@ -15,7 +15,7 @@ package model
 type Anomaly struct {
 	Metric    string  `json:"metric"`
 	Scope     string  `json:"scope"`
-	Agent     string  `json:"agent"` // set when Scope == "agent", else ""
+	Workflow     string  `json:"workflow"` // set when Scope == "workflow", else ""
 	BucketMs  int64   `json:"bucket_ms"`
 	Observed  float64 `json:"observed"`
 	Expected  float64 `json:"expected"`
@@ -37,7 +37,7 @@ type KPI struct {
 // KPISet is the four headline metrics shown across the top of the overview.
 type KPISet struct {
 	Cost       KPI `json:"cost"`        // total cost, USD
-	Runs       KPI `json:"runs"`        // agent runs (distinct traces)
+	Runs       KPI `json:"runs"`        // workflow runs (distinct traces)
 	LatencyP95 KPI `json:"latency_p95"` // p95 trace duration, ms
 	ErrorRate  KPI `json:"error_rate"`  // fraction of traces with an error
 }
@@ -60,31 +60,31 @@ type LatencyPoint struct {
 	P99      *float64 `json:"p99"`
 }
 
-// AgentCost is one agent's spend over the window. Trend is the agent's call
+// WorkflowCost is one workflow's spend over the window. Trend is the workflow's call
 // count per time bucket across the window (oldest first, zero-filled), powering
 // the per-row usage sparkline.
-type AgentCost struct {
+type WorkflowCost struct {
 	Name  string  `json:"name"`
 	Cost  float64 `json:"cost"`
 	Calls int64   `json:"calls"`
 	Trend []int64 `json:"trend"`
 }
 
-// Agent is one agent's activity over the window, powering the Agents page table.
-// It is the operational companion to AgentCost — same agent derivation
-// (agentExpr) and call-count Trend sparkline — extended with the latency and
+// Workflow is one workflow's activity over the window, powering the Workflows page table.
+// It is the operational companion to WorkflowCost — same workflow derivation
+// (workflowExpr) and call-count Trend sparkline — extended with the latency and
 // reliability columns the table shows. AvgLatencyMs is mean end-to-end run
 // duration; over a long window served from the daily rollup it is 0 (per-trace
 // durations aren't retained — same limitation as LatencyP95). ErrorRate is the
-// fraction of the agent's runs that errored.
-type Agent struct {
+// fraction of the workflow's runs that errored.
+type Workflow struct {
 	Name         string  `json:"name"`
 	Calls        int64   `json:"calls"`
 	Cost         float64 `json:"cost"`
 	AvgLatencyMs float64 `json:"avg_latency_ms"`
 	ErrorRate    float64 `json:"error_rate"`
 	Trend        []int64 `json:"trend"`
-	// LastTraceID is the agent's most recent trace in the window, so the UI can
+	// LastTraceID is the workflow's most recent trace in the window, so the UI can
 	// deep-link a row straight to that trace's detail. Empty for long windows
 	// served from the daily rollup, which doesn't retain trace identity.
 	LastTraceID string `json:"last_trace_id"`
@@ -99,14 +99,14 @@ type ErrorPoint struct {
 	Total    int64 `json:"total"`
 }
 
-// AgentDetail is one agent's detail-page payload: its headline metrics over the
+// WorkflowDetail is one workflow's detail-page payload: its headline metrics over the
 // window plus the tool surface from its most recent run. Span-backed only —
-// there is no agent-config store, so runtime params (temperature, retries,
+// there is no workflow-config store, so runtime params (temperature, retries,
 // version, owner, …) are not served. P95LatencyMs is a pointer so it serialises
 // as null when undefined (no runs in the window). It is a raw-window payload
-// (≤30d): the handler rejects rollup ranges, since per-agent latency can't be
+// (≤30d): the handler rejects rollup ranges, since per-workflow latency can't be
 // derived from the daily rollup (same limitation as LatencySeries).
-type AgentDetail struct {
+type WorkflowDetail struct {
 	Name         string          `json:"name"`
 	Calls        int64           `json:"calls"`
 	Cost         float64         `json:"cost"`
@@ -121,10 +121,10 @@ type AgentDetail struct {
 	LastTraceID  string          `json:"last_trace_id"`
 }
 
-// Failure aggregates errored runs for one agent. Pct is the fraction of that
-// agent's runs that failed.
+// Failure aggregates errored runs for one workflow. Pct is the fraction of that
+// workflow's runs that failed.
 type Failure struct {
-	Agent    string  `json:"agent"`
+	Workflow    string  `json:"workflow"`
 	Count    int64   `json:"count"`
 	Pct      float64 `json:"pct"`
 	TopError string  `json:"top_error"`
@@ -167,9 +167,9 @@ type UserUsage struct {
 	Trend    []float64 `json:"trend"`
 }
 
-// AgentUsage is one agent's spend over the current window paired with the
-// preceding window (see UserUsage). Model is the agent's most-used model.
-type AgentUsage struct {
+// WorkflowUsage is one workflow's spend over the current window paired with the
+// preceding window (see UserUsage). Model is the workflow's most-used model.
+type WorkflowUsage struct {
 	Name     string  `json:"name"`
 	Model    string  `json:"model"`
 	Cost     float64 `json:"cost"`

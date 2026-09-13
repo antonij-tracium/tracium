@@ -241,10 +241,10 @@ func (r *ClickHouseRepository) CostSeries(ctx context.Context, f MetricsFilter) 
 	}
 	bucketMs := f.Bucket.Milliseconds()
 
-	// Agent-scoped cost must use per-call spans (the metric relation carries no
-	// agent identity) and roll up to traces so the agent filter can apply. The
+	// Workflow-scoped cost must use per-call spans (the metric relation carries no
+	// workflow identity) and roll up to traces so the workflow filter can apply. The
 	// unfiltered path reconciles both relations instead.
-	if f.Agent != "" {
+	if f.Workflow != "" {
 		clause, args := window(f.UserID, f.WorkspaceIDs, f.Start.UnixMilli(), f.End.UnixMilli())
 		q := fmt.Sprintf(`
 SELECT intDiv(ts, ?) * ? AS bucket_ms, sum(cost) AS value
@@ -258,12 +258,12 @@ FROM (
     GROUP BY trace_id
 )
 WHERE name = ?
-GROUP BY bucket_ms`, agentExpr, tableCalls, clause)
+GROUP BY bucket_ms`, workflowExpr, tableCalls, clause)
 		qArgs := append([]any{bucketMs, bucketMs}, args...)
-		qArgs = append(qArgs, f.Agent)
+		qArgs = append(qArgs, f.Workflow)
 		points, err := bucketSeries(ctx, r.db, f, q, qArgs, scanCostBucket, costPoint)
 		if err != nil {
-			return nil, fmt.Errorf("clickhouse: cost series (agent): %w", err)
+			return nil, fmt.Errorf("clickhouse: cost series (workflow): %w", err)
 		}
 		return points, nil
 	}
@@ -322,11 +322,11 @@ FROM (
     WHERE %s
     GROUP BY trace_id
 )%s
-GROUP BY bucket_ms`, agentNameCol(f.Agent), clause, agentNameFilter(f.Agent))
+GROUP BY bucket_ms`, workflowNameCol(f.Workflow), clause, workflowNameFilter(f.Workflow))
 
 	qArgs := append([]any{bucketMs, bucketMs}, args...)
-	if f.Agent != "" {
-		qArgs = append(qArgs, f.Agent)
+	if f.Workflow != "" {
+		qArgs = append(qArgs, f.Workflow)
 	}
 	rows, err := r.db.QueryContext(ctx, q, qArgs...)
 	if err != nil {
@@ -386,11 +386,11 @@ FROM (
     WHERE %s
     GROUP BY trace_id
 )%s
-GROUP BY bucket_ms`, agentNameCol(f.Agent), clause, agentNameFilter(f.Agent))
+GROUP BY bucket_ms`, workflowNameCol(f.Workflow), clause, workflowNameFilter(f.Workflow))
 
 	qArgs := append([]any{bucketMs, bucketMs}, args...)
-	if f.Agent != "" {
-		qArgs = append(qArgs, f.Agent)
+	if f.Workflow != "" {
+		qArgs = append(qArgs, f.Workflow)
 	}
 	points, err := bucketSeries(ctx, r.db, f, q, qArgs, scanErrorBucket, errorPoint)
 	if err != nil {
@@ -399,53 +399,53 @@ GROUP BY bucket_ms`, agentNameCol(f.Agent), clause, agentNameFilter(f.Agent))
 	return points, nil
 }
 
-// agentExpr derives a trace's representative agent inside a `GROUP BY trace_id`
-// subquery. A trace's agent is the agent of its entry point, so we prefer the
-// root span (parent_span_id = ”): in a multi-agent trace the root is the
-// orchestrator/top-level agent, and preferring it also fixes the same-millisecond
+// workflowExpr derives a trace's representative workflow inside a `GROUP BY trace_id`
+// subquery. A trace's workflow is the workflow of its entry point, so we prefer the
+// root span (parent_span_id = ”): in a multi-workflow trace the root is the
+// orchestrator/top-level workflow, and preferring it also fixes the same-millisecond
 // tie-break where a wrapping span and its auto-instrumented child start together
 // and a plain argMin would land arbitrarily on the child. Fallbacks, in order:
-// the earliest span carrying any agent_name (traces whose root span exports late
+// the earliest span carrying any workflow_name (traces whose root span exports late
 // or lacks one); the earliest span's service_name (a stable, always-present
 // resource name for in-flight traces, before any invoke_agent span arrives); and
-// finally the earliest span's raw name (rows written before agent_name/
+// finally the earliest span's raw name (rows written before workflow_name/
 // service_name existed, which read back as ”). Grouping on this — rather than
 // the raw span name — keeps every auto-instrumented trace from collapsing under
 // a generic operation name like "openai.chat".
-const agentExpr = `coalesce(` +
-	`nullIf(argMinIf(agent_name, start_time_ms, agent_name != '' AND parent_span_id = ''), ''), ` +
-	`nullIf(argMinIf(agent_name, start_time_ms, agent_name != ''), ''), ` +
+const workflowExpr = `coalesce(` +
+	`nullIf(argMinIf(workflow_name, start_time_ms, workflow_name != '' AND parent_span_id = ''), ''), ` +
+	`nullIf(argMinIf(workflow_name, start_time_ms, workflow_name != ''), ''), ` +
 	`nullIf(argMinIf(service_name, start_time_ms, service_name != ''), ''), ` +
 	`argMin(name, start_time_ms))`
 
-// agentNameCol / agentNameFilter add an optional single-agent filter to a series
+// workflowNameCol / workflowNameFilter add an optional single-workflow filter to a series
 // query whose inner subquery rolls spans up to traces (GROUP BY trace_id). The
-// column derives the trace's agent (agentExpr) on the inner rows; the filter
-// keeps only the requested agent on the wrapper. Both are empty when no agent is
-// set, so the non-agent series query is byte-identical to before. The filter
-// binds one extra arg (the agent name), positioned after the window args.
-func agentNameCol(agent string) string {
-	if agent == "" {
+// column derives the trace's workflow (workflowExpr) on the inner rows; the filter
+// keeps only the requested workflow on the wrapper. Both are empty when no workflow is
+// set, so the non-workflow series query is byte-identical to before. The filter
+// binds one extra arg (the workflow name), positioned after the window args.
+func workflowNameCol(workflow string) string {
+	if workflow == "" {
 		return ""
 	}
-	return ",\n        " + agentExpr + " AS name"
+	return ",\n        " + workflowExpr + " AS name"
 }
 
-func agentNameFilter(agent string) string {
-	if agent == "" {
+func workflowNameFilter(workflow string) string {
+	if workflow == "" {
 		return ""
 	}
 	return "\nWHERE name = ?"
 }
 
-// TopAgents returns the highest-spending agents in the window. An agent is the
-// trace's derived agent (see agentExpr).
-func (r *ClickHouseRepository) TopAgents(ctx context.Context, f MetricsFilter, limit int) ([]model.AgentCost, error) {
+// TopWorkflows returns the highest-spending workflows in the window. An workflow is the
+// trace's derived workflow (see workflowExpr).
+func (r *ClickHouseRepository) TopWorkflows(ctx context.Context, f MetricsFilter, limit int) ([]model.WorkflowCost, error) {
 	ctx, cancel := r.withTimeout(ctx)
 	defer cancel()
 
 	if f.UseRollup() {
-		return r.topAgentsRollup(ctx, f, limit)
+		return r.topWorkflowsRollup(ctx, f, limit)
 	}
 	clause, args := window(f.UserID, f.WorkspaceIDs, f.Start.UnixMilli(), f.End.UnixMilli())
 	q := fmt.Sprintf(`
@@ -460,27 +460,27 @@ FROM (
 )
 GROUP BY name
 ORDER BY cost DESC
-LIMIT ?`, agentExpr, clause)
+LIMIT ?`, workflowExpr, clause)
 
 	rows, err := r.db.QueryContext(ctx, q, append(args, limit)...)
 	if err != nil {
-		return nil, fmt.Errorf("clickhouse: top agents: %w", err)
+		return nil, fmt.Errorf("clickhouse: top workflows: %w", err)
 	}
 	defer rows.Close()
 
-	agents := []model.AgentCost{}
+	workflows := []model.WorkflowCost{}
 	for rows.Next() {
-		var a model.AgentCost
+		var a model.WorkflowCost
 		if err := rows.Scan(&a.Name, &a.Cost, &a.Calls); err != nil {
-			return nil, fmt.Errorf("clickhouse: scan agent: %w", err)
+			return nil, fmt.Errorf("clickhouse: scan workflow: %w", err)
 		}
-		agents = append(agents, a)
+		workflows = append(workflows, a)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 
-	// Each agent's per-bucket call count, on the shared zero-filled axis.
+	// Each workflow's per-bucket call count, on the shared zero-filled axis.
 	bucketMs := f.Bucket.Milliseconds()
 	trendQ := fmt.Sprintf(`
 SELECT name, bucket_ms, toInt64(count()) AS calls
@@ -492,39 +492,39 @@ FROM (
     WHERE %s
     GROUP BY trace_id
 )
-GROUP BY name, bucket_ms`, agentExpr, clause)
-	if err := r.fillAgentTrends(ctx, f, agents, trendQ, append([]any{bucketMs, bucketMs}, args...)); err != nil {
-		return nil, fmt.Errorf("clickhouse: agent trends: %w", err)
+GROUP BY name, bucket_ms`, workflowExpr, clause)
+	if err := r.fillWorkflowTrends(ctx, f, workflows, trendQ, append([]any{bucketMs, bucketMs}, args...)); err != nil {
+		return nil, fmt.Errorf("clickhouse: workflow trends: %w", err)
 	}
-	return agents, nil
+	return workflows, nil
 }
 
-// agentsCacheGrid snaps the window's end to a coarse grid so repeated requests
+// workflowsCacheGrid snaps the window's end to a coarse grid so repeated requests
 // for the same range (across users, or one user polling) produce a byte-identical
 // query that ClickHouse's query cache can serve, instead of re-scanning the
 // window every time. The grid width also bounds how stale the result can be.
-const agentsCacheGrid = time.Minute
+const workflowsCacheGrid = time.Minute
 
-// ListAgents returns the most active agents in the window for the Agents page:
-// per agent its run count, total spend, mean run latency, error rate, last trace,
-// and a per-bucket call-count sparkline. An agent is the trace's derived agent
-// (see agentExpr).
+// ListWorkflows returns the most active workflows in the window for the Workflows page:
+// per workflow its run count, total spend, mean run latency, error rate, last trace,
+// and a per-bucket call-count sparkline. An workflow is the trace's derived workflow
+// (see workflowExpr).
 //
 // Two efficiency measures (the page is read often, by many dashboards at once):
-//   - Single scan: the per-agent aggregates and the sparkline are computed in one
+//   - Single scan: the per-workflow aggregates and the sparkline are computed in one
 //     pass. The inner query rolls spans up to traces; the outer reduces traces to
-//     agents and folds the per-bucket counts into a map via sumMap, which Go then
-//     expands onto the shared zero-filled axis. (TopAgents still uses two scans.)
-//   - Cached: the window is snapped to agentsCacheGrid and the read opts into the
+//     workflows and folds the per-bucket counts into a map via sumMap, which Go then
+//     expands onto the shared zero-filled axis. (TopWorkflows still uses two scans.)
+//   - Cached: the window is snapped to workflowsCacheGrid and the read opts into the
 //     query cache, so concurrent identical requests collapse to one scan.
-func (r *ClickHouseRepository) ListAgents(ctx context.Context, f MetricsFilter, limit int) ([]model.Agent, error) {
+func (r *ClickHouseRepository) ListWorkflows(ctx context.Context, f MetricsFilter, limit int) ([]model.Workflow, error) {
 	ctx, cancel := r.withTimeout(ctx)
 	defer cancel()
 
 	if f.UseRollup() {
-		return r.listAgentsRollup(ctx, f, limit)
+		return r.listWorkflowsRollup(ctx, f, limit)
 	}
-	cf := snapWindow(f, agentsCacheGrid)
+	cf := snapWindow(f, workflowsCacheGrid)
 	clause, args := window(cf.UserID, cf.WorkspaceIDs, cf.Start.UnixMilli(), cf.End.UnixMilli())
 	bucketMs := cf.Bucket.Milliseconds()
 	q := fmt.Sprintf(`
@@ -552,44 +552,44 @@ FROM (
 GROUP BY name
 ORDER BY calls DESC
 LIMIT ?
-SETTINGS use_query_cache = 1, query_cache_ttl = 60`, agentExpr, clause)
+SETTINGS use_query_cache = 1, query_cache_ttl = 60`, workflowExpr, clause)
 
 	qArgs := append([]any{bucketMs, bucketMs}, args...)
 	qArgs = append(qArgs, limit)
 	rows, err := r.db.QueryContext(ctx, q, qArgs...)
 	if err != nil {
-		return nil, fmt.Errorf("clickhouse: list agents: %w", err)
+		return nil, fmt.Errorf("clickhouse: list workflows: %w", err)
 	}
 	defer rows.Close()
 
-	agents := []model.Agent{}
+	workflows := []model.Workflow{}
 	for rows.Next() {
-		var a model.Agent
+		var a model.Workflow
 		var trend map[int64]int64
 		if err := rows.Scan(&a.Name, &a.Calls, &a.Cost, &a.AvgLatencyMs, &a.ErrorRate, &a.LastTraceID, &trend); err != nil {
-			return nil, fmt.Errorf("clickhouse: scan agent: %w", err)
+			return nil, fmt.Errorf("clickhouse: scan workflow: %w", err)
 		}
 		a.Cost, a.AvgLatencyMs, a.ErrorRate = sanitize(a.Cost), sanitize(a.AvgLatencyMs), sanitize(a.ErrorRate)
 		a.Trend = zeroFillTrend(cf, trend)
-		agents = append(agents, a)
+		workflows = append(workflows, a)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	return agents, nil
+	return workflows, nil
 }
 
-// AgentDetail returns one agent's headline metrics for the detail page (f.Agent
+// WorkflowDetail returns one workflow's headline metrics for the detail page (f.Workflow
 // names it), plus its current tool surface. Span-backed only: there is no
-// agent-config store, so runtime params are not served. The window is bounded
+// workflow-config store, so runtime params are not served. The window is bounded
 // like every other metric; callers keep it off the rollup (the handler rejects
-// rollup ranges) because per-agent latency can't come from the daily rollup.
-// Returns ErrNotFound when the agent has no runs in the window.
+// rollup ranges) because per-workflow latency can't come from the daily rollup.
+// Returns ErrNotFound when the workflow has no runs in the window.
 //
 // The inner query rolls spans up to traces (cost, duration, errored, tokens,
-// model, start) and the outer reduces the agent's traces to the headline
-// numbers — the same two-level shape as ListAgents, filtered to one agent.
-func (r *ClickHouseRepository) AgentDetail(ctx context.Context, f MetricsFilter) (model.AgentDetail, error) {
+// model, start) and the outer reduces the workflow's traces to the headline
+// numbers — the same two-level shape as ListWorkflows, filtered to one workflow.
+func (r *ClickHouseRepository) WorkflowDetail(ctx context.Context, f MetricsFilter) (model.WorkflowDetail, error) {
 	ctx, cancel := r.withTimeout(ctx)
 	defer cancel()
 
@@ -620,27 +620,27 @@ FROM (
     WHERE %s
     GROUP BY trace_id
 )
-WHERE name = ?`, agentExpr, modelExpr, clause)
+WHERE name = ?`, workflowExpr, modelExpr, clause)
 
 	var (
-		d         model.AgentDetail
+		d         model.WorkflowDetail
 		p95       float64
 		modelName string
 		lastTrace string
 	)
-	err := r.db.QueryRowContext(ctx, q, append(args, f.Agent)...).Scan(
+	err := r.db.QueryRowContext(ctx, q, append(args, f.Workflow)...).Scan(
 		&d.Calls, &d.Cost, &d.AvgLatencyMs, &p95, &d.ErrorRate,
 		&d.InputTokens, &d.OutputTokens, &modelName, &lastTrace)
 	if err != nil {
-		return model.AgentDetail{}, fmt.Errorf("clickhouse: agent detail: %w", err)
+		return model.WorkflowDetail{}, fmt.Errorf("clickhouse: workflow detail: %w", err)
 	}
-	// The outer aggregate always returns one row; an agent with no runs in the
+	// The outer aggregate always returns one row; an workflow with no runs in the
 	// window comes back as zero calls, which is a 404, not an empty detail.
 	if d.Calls == 0 {
-		return model.AgentDetail{}, ErrNotFound
+		return model.WorkflowDetail{}, ErrNotFound
 	}
 
-	d.Name = f.Agent
+	d.Name = f.Workflow
 	d.Cost, d.AvgLatencyMs, d.ErrorRate = sanitize(d.Cost), sanitize(d.AvgLatencyMs), sanitize(d.ErrorRate)
 	if s := sanitize(p95); s > 0 {
 		d.P95LatencyMs = &s
@@ -649,13 +649,13 @@ WHERE name = ?`, agentExpr, modelExpr, clause)
 	d.Provider = providerFromModel(modelName)
 	d.LastTraceID = lastTrace
 
-	// The tool surface is the union of available_tools across the agent's most
+	// The tool surface is the union of available_tools across the workflow's most
 	// recent run — cheap (one trace, bloom-indexed by trace_id) and representative
 	// of the current deployment. Empty when content/tool capture is off.
 	if lastTrace != "" {
 		spans, err := r.GetSpans(ctx, lastTrace, f.WorkspaceIDs)
 		if err != nil {
-			return model.AgentDetail{}, fmt.Errorf("clickhouse: agent detail tools: %w", err)
+			return model.WorkflowDetail{}, fmt.Errorf("clickhouse: workflow detail tools: %w", err)
 		}
 		d.Tools = unionTools(spans)
 	}
@@ -701,8 +701,8 @@ func unionTools(spans []model.Span) []model.AvailableTool {
 	return out
 }
 
-// Failures returns the agents with the most errored runs in the window, plus
-// the total number of failed runs across all agents.
+// Failures returns the workflows with the most errored runs in the window, plus
+// the total number of failed runs across all workflows.
 func (r *ClickHouseRepository) Failures(ctx context.Context, f MetricsFilter, limit int) ([]model.Failure, int64, error) {
 	ctx, cancel := r.withTimeout(ctx)
 	defer cancel()
@@ -711,11 +711,11 @@ func (r *ClickHouseRepository) Failures(ctx context.Context, f MetricsFilter, li
 		return r.failuresRollup(ctx, f, limit)
 	}
 	clause, args := window(f.UserID, f.WorkspaceIDs, f.Start.UnixMilli(), f.End.UnixMilli())
-	// Per trace: its agent (see agentExpr), whether it errored, and one error
-	// type. Grouped by agent we get failed vs total runs and the most common error.
+	// Per trace: its workflow (see workflowExpr), whether it errored, and one error
+	// type. Grouped by workflow we get failed vs total runs and the most common error.
 	q := fmt.Sprintf(`
 SELECT
-    name                                AS agent,
+    name                                AS workflow,
     toInt64(countIf(errored))           AS failed,
     toInt64(count())                    AS runs,
     topKIf(1)(err, errored != 0)[1]     AS top_error
@@ -728,10 +728,10 @@ FROM (
     WHERE %s
     GROUP BY trace_id
 )
-GROUP BY agent
+GROUP BY workflow
 HAVING failed > 0
 ORDER BY failed DESC
-LIMIT ?`, agentExpr, clause)
+LIMIT ?`, workflowExpr, clause)
 
 	rows, err := r.db.QueryContext(ctx, q, append(args, limit)...)
 	if err != nil {
@@ -744,7 +744,7 @@ LIMIT ?`, agentExpr, clause)
 	for rows.Next() {
 		var fl model.Failure
 		var runs int64
-		if err := rows.Scan(&fl.Agent, &fl.Count, &runs, &fl.TopError); err != nil {
+		if err := rows.Scan(&fl.Workflow, &fl.Count, &runs, &fl.TopError); err != nil {
 			return nil, 0, fmt.Errorf("clickhouse: scan failure: %w", err)
 		}
 		if runs > 0 {
@@ -756,7 +756,7 @@ LIMIT ?`, agentExpr, clause)
 		return nil, 0, err
 	}
 
-	// LIMIT only caps the listed agents, so total errored runs is a separate count.
+	// LIMIT only caps the listed workflows, so total errored runs is a separate count.
 	totalQ := fmt.Sprintf(`
 SELECT toInt64(count())
 FROM (
@@ -897,17 +897,17 @@ GROUP BY user_id, bucket_ms`, trendClause)
 	return users, nil
 }
 
-// AgentUsage returns the highest-spending agents in the current window paired
-// with the preceding window (see UserUsage), plus each agent's most-used
+// WorkflowUsage returns the highest-spending workflows in the current window paired
+// with the preceding window (see UserUsage), plus each workflow's most-used
 // model. Single pass over [PrevStart, End): the inner query derives a trace's
-// agent (see agentExpr) and model and rolls up its cost; the outer query splits
+// workflow (see workflowExpr) and model and rolls up its cost; the outer query splits
 // the windows with sumIf/countIf and takes the modal model with topK.
-func (r *ClickHouseRepository) AgentUsage(ctx context.Context, f MetricsFilter, limit int) ([]model.AgentUsage, error) {
+func (r *ClickHouseRepository) WorkflowUsage(ctx context.Context, f MetricsFilter, limit int) ([]model.WorkflowUsage, error) {
 	ctx, cancel := r.withTimeout(ctx)
 	defer cancel()
 
 	if f.UseRollup() {
-		return r.agentUsageRollup(ctx, f, limit)
+		return r.workflowUsageRollup(ctx, f, limit)
 	}
 	cur := f.Start.UnixMilli()
 	clause, args := window(f.UserID, f.WorkspaceIDs, f.PrevStart.UnixMilli(), f.End.UnixMilli())
@@ -931,26 +931,26 @@ FROM (
 )
 GROUP BY name
 ORDER BY cost_cur DESC
-LIMIT ?`, agentExpr, modelExpr, clause)
+LIMIT ?`, workflowExpr, modelExpr, clause)
 
 	qArgs := append([]any{cur, cur, cur, cur}, args...)
 	qArgs = append(qArgs, limit)
 	rows, err := r.db.QueryContext(ctx, q, qArgs...)
 	if err != nil {
-		return nil, fmt.Errorf("clickhouse: agent usage: %w", err)
+		return nil, fmt.Errorf("clickhouse: workflow usage: %w", err)
 	}
 	defer rows.Close()
 
-	agents := []model.AgentUsage{}
+	workflows := []model.WorkflowUsage{}
 	for rows.Next() {
-		var a model.AgentUsage
+		var a model.WorkflowUsage
 		if err := rows.Scan(&a.Name, &a.Model, &a.Cost, &a.CostPrev, &a.Runs, &a.RunsPrev); err != nil {
-			return nil, fmt.Errorf("clickhouse: scan agent usage: %w", err)
+			return nil, fmt.Errorf("clickhouse: scan workflow usage: %w", err)
 		}
 		a.Cost, a.CostPrev = sanitize(a.Cost), sanitize(a.CostPrev)
-		agents = append(agents, a)
+		workflows = append(workflows, a)
 	}
-	return agents, rows.Err()
+	return workflows, rows.Err()
 }
 
 // kpi pairs a current and previous value into a KPI. higherIsBad flips the

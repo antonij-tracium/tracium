@@ -18,7 +18,7 @@ const RANGE_OPTIONS: RangeOption[] = [
   { id: '1y', label: '1y' },
 ];
 
-const VIEWS_WITH_RANGE = ['overview', 'agents', 'usage'];
+const VIEWS_WITH_RANGE = ['overview', 'workflows', 'usage'];
 
 interface TopBarProps {
   breadcrumb: BreadcrumbItem[];

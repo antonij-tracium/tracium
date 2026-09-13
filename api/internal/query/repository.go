@@ -22,15 +22,15 @@ type MetricsRepository interface {
 	CostSeries(ctx context.Context, f MetricsFilter) ([]model.CostPoint, error)
 	LatencySeries(ctx context.Context, f MetricsFilter) ([]model.LatencyPoint, error)
 	ErrorSeries(ctx context.Context, f MetricsFilter) ([]model.ErrorPoint, error)
-	TopAgents(ctx context.Context, f MetricsFilter, limit int) ([]model.AgentCost, error)
-	ListAgents(ctx context.Context, f MetricsFilter, limit int) ([]model.Agent, error)
-	// AgentDetail serves one agent's detail page (f.Agent names it). Returns
-	// ErrNotFound when that agent has no runs in the window.
-	AgentDetail(ctx context.Context, f MetricsFilter) (model.AgentDetail, error)
+	TopWorkflows(ctx context.Context, f MetricsFilter, limit int) ([]model.WorkflowCost, error)
+	ListWorkflows(ctx context.Context, f MetricsFilter, limit int) ([]model.Workflow, error)
+	// WorkflowDetail serves one workflow's detail page (f.Workflow names it). Returns
+	// ErrNotFound when that workflow has no runs in the window.
+	WorkflowDetail(ctx context.Context, f MetricsFilter) (model.WorkflowDetail, error)
 	Failures(ctx context.Context, f MetricsFilter, limit int) ([]model.Failure, int64, error)
 	ModelCosts(ctx context.Context, f MetricsFilter, limit int) ([]model.ModelCost, error)
 	UserUsage(ctx context.Context, f MetricsFilter, limit int) ([]model.UserUsage, error)
-	AgentUsage(ctx context.Context, f MetricsFilter, limit int) ([]model.AgentUsage, error)
+	WorkflowUsage(ctx context.Context, f MetricsFilter, limit int) ([]model.WorkflowUsage, error)
 	// AttributeKeys lists the distinct custom-attribute keys present in the
 	// window, so a caller can discover which dimensions it can allocate by.
 	AttributeKeys(ctx context.Context, f MetricsFilter, limit int) ([]string, error)
@@ -38,7 +38,7 @@ type MetricsRepository interface {
 	// key — the allocation primitive: cost by team, by user, by environment, …
 	UsageByAttribute(ctx context.Context, f MetricsFilter, key string, limit int) ([]model.AttributeUsage, error)
 	// Anomalies detects statistically significant deviations (cost, error rate,
-	// run volume) over the window, workspace-wide and per busy agent. Daily and
+	// run volume) over the window, workspace-wide and per busy workflow. Daily and
 	// rollup-backed; f.AnomalyMetric / f.AnomalyMinSeverity narrow the output.
 	Anomalies(ctx context.Context, f MetricsFilter) ([]model.Anomaly, error)
 }

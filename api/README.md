@@ -76,8 +76,8 @@ GET|POST /workspaces        DELETE /workspaces/{id}         (auth only)
 POST /workspaces/{id}/members   DELETE /workspaces/{id}/members/{userId}   (owner only)
 GET  /traces  /traces/{id}  /traces/{traceId}/spans        (auth + tenant)
 GET  /metrics/kpis  /cost-series  /latency-series  /error-series
-GET  /metrics/top-agents  /agents  /agents/{name}  /failures
-GET  /metrics/model-costs  /usage-users  /usage-agents
+GET  /metrics/top-workflows  /workflows  /workflows/{name}  /failures
+GET  /metrics/model-costs  /usage-users  /usage-workflows
 GET  /metrics/attribute-keys  /usage-by-attribute        (allocate cost by any attribute)
 ```
 

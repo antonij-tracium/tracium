@@ -185,9 +185,9 @@ def auth_checks():
 def query_scale():
     for total in (100_000, 1_000_000):
         # Isolated synthetic dataset; this tests reads separately from OTLP throughput.
-        existing = int(ch("SELECT count() FROM tracium.spans WHERE agent_name='scale-check'"))
+        existing = int(ch("SELECT count() FROM tracium.spans WHERE workflow_name='scale-check'"))
         remaining = total-existing
-        ch(f"""INSERT INTO tracium.spans (trace_id,span_id,name,start_time_ms,end_time_ms,model,model_normalized,user_id,workspace_id,agent_name,source,cost_usd,input_tokens,output_tokens,schema_version)
+        ch(f"""INSERT INTO tracium.spans (trace_id,span_id,name,start_time_ms,end_time_ms,model,model_normalized,user_id,workspace_id,workflow_name,source,cost_usd,input_tokens,output_tokens,schema_version)
           SELECT concat('scale',toString(number+{existing})),toString(number),'chat gpt-4o-mini',
           toUnixTimestamp64Milli(now64())-toInt64((number+{existing})%7776000)*1000,
           toUnixTimestamp64Milli(now64())-toInt64((number+{existing})%7776000)*1000+100,

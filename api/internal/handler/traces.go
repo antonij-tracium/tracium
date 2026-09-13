@@ -63,10 +63,10 @@ func (h *TraceHandler) ListTraces(w http.ResponseWriter, r *http.Request) {
 		filter.Model = model
 	}
 
-	// agent restricts the listing to one derived agent — powers an agent's
+	// workflow restricts the listing to one derived workflow — powers an workflow's
 	// "recent runs". Bounded like any listing by the range window above.
-	if agent := q.Get("agent"); agent != "" {
-		filter.Agent = agent
+	if workflow := q.Get("workflow"); workflow != "" {
+		filter.Workflow = workflow
 	}
 
 	if hasErrorStr := q.Get("has_error"); hasErrorStr != "" {

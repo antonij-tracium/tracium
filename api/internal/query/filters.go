@@ -10,7 +10,7 @@ type TraceFilter struct {
 	UserID       string    // optional: the operator's end-client (a business dimension, not an access boundary)
 	WorkspaceIDs []string  // access scope: the workspaces the caller may read. Empty means "no accessible workspace" and matches nothing (see workspaceScope). Set by the handler from the caller's memberships.
 	Model        string    // optional model filter
-	Agent        string    // optional: restrict to one derived agent (see agentExpr), e.g. an agent's recent runs
+	Workflow        string    // optional: restrict to one derived workflow (see workflowExpr), e.g. an workflow's recent runs
 	HasError     *bool     // pointer to distinguish false from unset
 	StartAfter   time.Time // optional lower bound on trace start time
 	StartBefore  time.Time // optional upper bound on trace start time
@@ -50,7 +50,7 @@ func (f *TraceFilter) Validate() error {
 type MetricsFilter struct {
 	UserID       string        // optional business filter (the operator's end-client)
 	WorkspaceIDs []string      // access scope: the workspaces the caller may read (empty matches nothing). Set by the handler from memberships.
-	Agent        string        // optional: restrict the metric to one derived agent (see agentExpr)
+	Workflow        string        // optional: restrict the metric to one derived workflow (see workflowExpr)
 	Start        time.Time     // window lower bound (inclusive)
 	End          time.Time     // window upper bound (exclusive)
 	PrevStart    time.Time     // preceding window lower bound

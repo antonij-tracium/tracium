@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   IconHome,
-  IconAgents,
+  IconWorkflows,
   IconUsers,
   IconUsage,
   IconKey,
@@ -47,7 +47,7 @@ interface SidebarProps {
 
 const NAV_ITEMS: NavItemData[] = [
   { id: 'overview', icon: <IconHome size={16} />, label: 'Overview' },
-  { id: 'agents', icon: <IconAgents size={16} />, label: 'Agents' },
+  { id: 'workflows', icon: <IconWorkflows size={16} />, label: 'Workflows' },
   { id: 'usage', icon: <IconUsage size={16} />, label: 'Usage' },
   { id: 'users', icon: <IconUsers size={16} />, label: 'Users' },
   { id: 'keys', icon: <IconKey size={16} />, label: 'API Keys' },
@@ -221,7 +221,7 @@ export function Sidebar({
             item={item}
             active={
               currentView === item.id ||
-              (currentView === 'trace' && item.id === 'agents')
+              (currentView === 'trace' && item.id === 'workflows')
             }
             onClick={() => navigate(item.id)}
           />

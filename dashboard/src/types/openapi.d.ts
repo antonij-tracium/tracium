@@ -73,7 +73,7 @@ export interface paths {
         };
         /**
          * Overview KPIs
-         * @description Returns the four headline metrics (total cost, agent runs, p95 latency, error rate) for the selected range, each with its change versus the equal-length preceding period.
+         * @description Returns the four headline metrics (total cost, workflow runs, p95 latency, error rate) for the selected range, each with its change versus the equal-length preceding period.
          */
         get: operations["getOverviewKpis"];
         put?: never;
@@ -144,7 +144,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/metrics/top-agents": {
+    "/v1/metrics/top-workflows": {
         parameters: {
             query?: never;
             header?: never;
@@ -152,10 +152,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Top agents by cost
-         * @description The highest-spending agents (trace root names) in the range, ordered by cost descending.
+         * Top workflows by cost
+         * @description The highest-spending workflows (trace root names) in the range, ordered by cost descending.
          */
-        get: operations["getTopAgents"];
+        get: operations["getTopWorkflows"];
         put?: never;
         post?: never;
         delete?: never;
@@ -164,7 +164,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/metrics/agents": {
+    "/v1/metrics/workflows": {
         parameters: {
             query?: never;
             header?: never;
@@ -172,10 +172,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Agent activity list
-         * @description Every active agent in the range with its run count, total spend, mean run latency, error rate, and call-count sparkline — the data behind the Agents page. Ordered by call count descending; sorting and filtering are done client-side. avg_latency_ms is 0 for long windows served from the daily rollup, where per-trace durations are not retained.
+         * Workflow activity list
+         * @description Every active workflow in the range with its run count, total spend, mean run latency, error rate, and call-count sparkline — the data behind the Workflows page. Ordered by call count descending; sorting and filtering are done client-side. avg_latency_ms is 0 for long windows served from the daily rollup, where per-trace durations are not retained.
          */
-        get: operations["listAgents"];
+        get: operations["listWorkflows"];
         put?: never;
         post?: never;
         delete?: never;
@@ -184,7 +184,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/metrics/agents/{name}": {
+    "/v1/metrics/workflows/{name}": {
         parameters: {
             query?: never;
             header?: never;
@@ -192,10 +192,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Agent detail
-         * @description One agent's detail-page payload: its headline metrics over the range plus the tool surface from its most recent run. Span-backed only — there is no agent-config store, so runtime params (temperature, retries, version, owner, …) are not served. A raw-window feature: ranges longer than 30d (90d, 1y) are rejected with a 400, since per-agent latency cannot be derived from the daily rollup.
+         * Workflow detail
+         * @description One workflow's detail-page payload: its headline metrics over the range plus the tool surface from its most recent run. Span-backed only — there is no workflow-config store, so runtime params (temperature, retries, version, owner, …) are not served. A raw-window feature: ranges longer than 30d (90d, 1y) are rejected with a 400, since per-workflow latency cannot be derived from the daily rollup.
          */
-        get: operations["getAgentDetail"];
+        get: operations["getWorkflowDetail"];
         put?: never;
         post?: never;
         delete?: never;
@@ -213,7 +213,7 @@ export interface paths {
         };
         /**
          * Recent failures
-         * @description The agents with the most errored runs in the range. The response total counts every failed run in the window, not just the listed agents.
+         * @description The workflows with the most errored runs in the range. The response total counts every failed run in the window, not just the listed workflows.
          */
         get: operations["getFailures"];
         put?: never;
@@ -233,7 +233,7 @@ export interface paths {
         };
         /**
          * Statistical anomalies
-         * @description Buckets that deviated significantly from their own recent history, for cost, error rate, and run volume — workspace-wide and per busy agent. Detection is daily and robust (median + MAD over a trailing 28-day baseline), served entirely from the daily rollup, so a range of 7d or longer is required (24h is rejected with a 400). Results are ordered most severe first.
+         * @description Buckets that deviated significantly from their own recent history, for cost, error rate, and run volume — workspace-wide and per busy workflow. Detection is daily and robust (median + MAD over a trailing 28-day baseline), served entirely from the daily rollup, so a range of 7d or longer is required (24h is rejected with a 400). Results are ordered most severe first.
          */
         get: operations["getAnomalies"];
         put?: never;
@@ -284,7 +284,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/metrics/usage-agents": {
+    "/v1/metrics/usage-workflows": {
         parameters: {
             query?: never;
             header?: never;
@@ -292,10 +292,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Usage by agent
-         * @description Spend and run counts grouped by agent over the range, each paired with the preceding window for change, plus the agent's most-used model. Ordered by cost descending.
+         * Usage by workflow
+         * @description Spend and run counts grouped by workflow over the range, each paired with the preceding window for change, plus the workflow's most-used model. Ordered by cost descending.
          */
-        get: operations["getAgentUsage"];
+        get: operations["getWorkflowUsage"];
         put?: never;
         post?: never;
         delete?: never;
@@ -768,7 +768,7 @@ export interface components {
         KpiSet: {
             /** @description Total cost in USD. */
             cost: components["schemas"]["Kpi"];
-            /** @description Agent runs (distinct traces). */
+            /** @description Workflow runs (distinct traces). */
             runs: components["schemas"]["Kpi"];
             /** @description p95 trace duration in ms. */
             latency_p95: components["schemas"]["Kpi"];
@@ -801,44 +801,44 @@ export interface components {
             /** @description 99th-percentile span duration in the bucket, ms. Null when no runs fell in the bucket. */
             p99: number | null;
         };
-        AgentCost: {
-            /** @description Agent name (the trace root span name). */
+        WorkflowCost: {
+            /** @description Workflow name (the trace root span name). */
             name: string;
             /** @description Total cost in USD over the window. */
             cost: number;
-            /** @description Number of runs (traces) for this agent. */
+            /** @description Number of runs (traces) for this workflow. */
             calls: number;
             /** @description Call count per time bucket across the window, oldest first and zero-filled, aligned to a shared axis for the usage sparkline. */
             trend: number[];
         };
-        Agent: {
-            /** @description Agent name (the trace root span name). */
+        Workflow: {
+            /** @description Workflow name (the trace root span name). */
             name: string;
-            /** @description Number of runs (traces) for this agent over the window. */
+            /** @description Number of runs (traces) for this workflow over the window. */
             calls: number;
             /** @description Total cost in USD over the window. */
             cost: number;
             /** @description Mean end-to-end run duration in milliseconds. 0 for long windows served from the daily rollup, where per-trace durations are not retained. */
             avg_latency_ms: number;
-            /** @description Fraction of the agent's runs that errored (0–1). */
+            /** @description Fraction of the workflow's runs that errored (0–1). */
             error_rate: number;
             /** @description Call count per time bucket across the window, oldest first and zero-filled, aligned to a shared axis for the row sparkline. */
             trend: number[];
-            /** @description The agent's most recent trace in the window, for deep-linking a row to its trace detail. Empty for long windows served from the daily rollup, which does not retain trace identity. */
+            /** @description The workflow's most recent trace in the window, for deep-linking a row to its trace detail. Empty for long windows served from the daily rollup, which does not retain trace identity. */
             last_trace_id: string;
         };
         AvailableTool: {
             /** @description Tool name as offered to the model. */
             name: string;
-            /** @description Whether the agent invoked this tool in the sampled run. */
+            /** @description Whether the workflow invoked this tool in the sampled run. */
             used: boolean;
             /** @description Human-readable description of what the tool does. */
             description?: string;
         };
-        AgentDetail: {
-            /** @description Agent name (the trace root span name). */
+        WorkflowDetail: {
+            /** @description Workflow name (the trace root span name). */
             name: string;
-            /** @description Number of runs (traces) for this agent over the window. */
+            /** @description Number of runs (traces) for this workflow over the window. */
             calls: number;
             /** @description Total cost in USD over the window. */
             cost: number;
@@ -846,29 +846,29 @@ export interface components {
             avg_latency_ms: number;
             /** @description p95 end-to-end run duration in milliseconds, or null when undefined (no runs in the window). */
             p95_latency_ms: number | null;
-            /** @description Fraction of the agent's runs that errored (0–1). */
+            /** @description Fraction of the workflow's runs that errored (0–1). */
             error_rate: number;
-            /** @description Total input tokens across the agent's runs over the window. */
+            /** @description Total input tokens across the workflow's runs over the window. */
             input_tokens: number;
-            /** @description Total output tokens across the agent's runs over the window. */
+            /** @description Total output tokens across the workflow's runs over the window. */
             output_tokens: number;
-            /** @description The agent's most-used normalized model id over the window. */
+            /** @description The workflow's most-used normalized model id over the window. */
             model: string;
             /** @description Provider inferred from the model id; empty when unrecognised. */
             provider: string;
-            /** @description The agent's tool surface — the union of available_tools from its most recent run. Empty when content/tool capture is disabled. */
+            /** @description The workflow's tool surface — the union of available_tools from its most recent run. Empty when content/tool capture is disabled. */
             tools: components["schemas"]["AvailableTool"][];
-            /** @description The agent's most recent trace in the window, for deep-linking. */
+            /** @description The workflow's most recent trace in the window, for deep-linking. */
             last_trace_id: string;
         };
         Failure: {
-            /** @description Agent name (the trace root span name). */
-            agent: string;
+            /** @description Workflow name (the trace root span name). */
+            workflow: string;
             /** @description Number of failed runs. */
             count: number;
-            /** @description Fraction of this agent's runs that failed. */
+            /** @description Fraction of this workflow's runs that failed. */
             pct: number;
-            /** @description Most common error_type among this agent's failed runs. */
+            /** @description Most common error_type among this workflow's failed runs. */
             top_error: string;
         };
         PaginatedCostBucketResponse: {
@@ -889,21 +889,21 @@ export interface components {
             page: number;
             page_size: number;
         };
-        PaginatedAgentCostResponse: {
-            items: components["schemas"]["AgentCost"][];
+        PaginatedWorkflowCostResponse: {
+            items: components["schemas"]["WorkflowCost"][];
             total: number;
             page: number;
             page_size: number;
         };
-        PaginatedAgentResponse: {
-            items: components["schemas"]["Agent"][];
+        PaginatedWorkflowResponse: {
+            items: components["schemas"]["Workflow"][];
             total: number;
             page: number;
             page_size: number;
         };
         PaginatedFailureResponse: {
             items: components["schemas"]["Failure"][];
-            /** @description Total failed runs in the window (not just the listed agents). */
+            /** @description Total failed runs in the window (not just the listed workflows). */
             total: number;
             page: number;
             page_size: number;
@@ -915,12 +915,12 @@ export interface components {
              */
             metric: "cost" | "error_rate" | "runs";
             /**
-             * @description Whether this anomaly is workspace-wide or for one agent.
+             * @description Whether this anomaly is workspace-wide or for one workflow.
              * @enum {string}
              */
-            scope: "workspace" | "agent";
-            /** @description The agent name when scope is "agent"; empty otherwise. */
-            agent: string;
+            scope: "workspace" | "workflow";
+            /** @description The workflow name when scope is "workflow"; empty otherwise. */
+            workflow: string;
             /** @description Anomalous day bucket, Unix epoch milliseconds (UTC midnight). */
             bucket_ms: number;
             /** @description The bucket's value (USD, error rate 0–1, or run count). */
@@ -976,10 +976,10 @@ export interface components {
             /** @description Cost per time bucket across the current window, oldest first and zero-filled, for the row sparkline. */
             trend: number[];
         };
-        AgentUsage: {
-            /** @description Agent name (the trace root span name). */
+        WorkflowUsage: {
+            /** @description Workflow name (the trace root span name). */
             name: string;
-            /** @description The agent's most-used model over the window. */
+            /** @description The workflow's most-used model over the window. */
             model: string;
             /** @description Cost in USD over the current window. */
             cost: number;
@@ -1016,8 +1016,8 @@ export interface components {
             page: number;
             page_size: number;
         };
-        PaginatedAgentUsageResponse: {
-            items: components["schemas"]["AgentUsage"][];
+        PaginatedWorkflowUsageResponse: {
+            items: components["schemas"]["WorkflowUsage"][];
             total: number;
             page: number;
             page_size: number;
@@ -1044,8 +1044,8 @@ export interface components {
         UserFilter: string;
         /** @description Scope the read to one workspace. This is an access boundary, not just a filter: the caller must be a member of the workspace or the request is refused with 403. Omitted, the read covers every workspace the caller is a member of (an account that is a member of none sees nothing). The dashboard passes the active workspace from its switcher. */
         WorkspaceFilter: string;
-        /** @description Optional: restrict the metric to a single agent (the trace root name), powering the agent detail page's charts. Agent-scoped metrics are a raw-window feature — ranges longer than 30d (90d, 1y) are rejected with a 400, since per-agent latency cannot be derived from the daily rollup. */
-        AgentFilter: string;
+        /** @description Optional: restrict the metric to a single workflow (the trace root name), powering the workflow detail page's charts. Workflow-scoped metrics are a raw-window feature — ranges longer than 30d (90d, 1y) are rejected with a 400, since per-workflow latency cannot be derived from the daily rollup. */
+        WorkflowFilter: string;
     };
     requestBodies: never;
     headers: never;
@@ -1062,8 +1062,8 @@ export interface operations {
                 workspace_id?: components["parameters"]["WorkspaceFilter"];
                 /** @description Filter traces that contain at least one span using this model (normalized model id). */
                 model?: string;
-                /** @description Filter to traces belonging to a single agent (the trace root name) — powers an agent's recent runs. */
-                agent?: string;
+                /** @description Filter to traces belonging to a single workflow (the trace root name) — powers an workflow's recent runs. */
+                workflow?: string;
                 /** @description Filter to traces that have at least one error span. */
                 has_error?: boolean;
                 /** @description Return traces whose start_time_ms is after this ISO 8601 date-time. */
@@ -1279,8 +1279,8 @@ export interface operations {
                 user_id?: components["parameters"]["UserFilter"];
                 /** @description Scope the read to one workspace. This is an access boundary, not just a filter: the caller must be a member of the workspace or the request is refused with 403. Omitted, the read covers every workspace the caller is a member of (an account that is a member of none sees nothing). The dashboard passes the active workspace from its switcher. */
                 workspace_id?: components["parameters"]["WorkspaceFilter"];
-                /** @description Optional: restrict the metric to a single agent (the trace root name), powering the agent detail page's charts. Agent-scoped metrics are a raw-window feature — ranges longer than 30d (90d, 1y) are rejected with a 400, since per-agent latency cannot be derived from the daily rollup. */
-                agent?: components["parameters"]["AgentFilter"];
+                /** @description Optional: restrict the metric to a single workflow (the trace root name), powering the workflow detail page's charts. Workflow-scoped metrics are a raw-window feature — ranges longer than 30d (90d, 1y) are rejected with a 400, since per-workflow latency cannot be derived from the daily rollup. */
+                workflow?: components["parameters"]["WorkflowFilter"];
             };
             header?: never;
             path?: never;
@@ -1317,8 +1317,8 @@ export interface operations {
                 user_id?: components["parameters"]["UserFilter"];
                 /** @description Scope the read to one workspace. This is an access boundary, not just a filter: the caller must be a member of the workspace or the request is refused with 403. Omitted, the read covers every workspace the caller is a member of (an account that is a member of none sees nothing). The dashboard passes the active workspace from its switcher. */
                 workspace_id?: components["parameters"]["WorkspaceFilter"];
-                /** @description Optional: restrict the metric to a single agent (the trace root name), powering the agent detail page's charts. Agent-scoped metrics are a raw-window feature — ranges longer than 30d (90d, 1y) are rejected with a 400, since per-agent latency cannot be derived from the daily rollup. */
-                agent?: components["parameters"]["AgentFilter"];
+                /** @description Optional: restrict the metric to a single workflow (the trace root name), powering the workflow detail page's charts. Workflow-scoped metrics are a raw-window feature — ranges longer than 30d (90d, 1y) are rejected with a 400, since per-workflow latency cannot be derived from the daily rollup. */
+                workflow?: components["parameters"]["WorkflowFilter"];
             };
             header?: never;
             path?: never;
@@ -1355,8 +1355,8 @@ export interface operations {
                 user_id?: components["parameters"]["UserFilter"];
                 /** @description Scope the read to one workspace. This is an access boundary, not just a filter: the caller must be a member of the workspace or the request is refused with 403. Omitted, the read covers every workspace the caller is a member of (an account that is a member of none sees nothing). The dashboard passes the active workspace from its switcher. */
                 workspace_id?: components["parameters"]["WorkspaceFilter"];
-                /** @description Optional: restrict the metric to a single agent (the trace root name), powering the agent detail page's charts. Agent-scoped metrics are a raw-window feature — ranges longer than 30d (90d, 1y) are rejected with a 400, since per-agent latency cannot be derived from the daily rollup. */
-                agent?: components["parameters"]["AgentFilter"];
+                /** @description Optional: restrict the metric to a single workflow (the trace root name), powering the workflow detail page's charts. Workflow-scoped metrics are a raw-window feature — ranges longer than 30d (90d, 1y) are rejected with a 400, since per-workflow latency cannot be derived from the daily rollup. */
+                workflow?: components["parameters"]["WorkflowFilter"];
             };
             header?: never;
             path?: never;
@@ -1384,7 +1384,7 @@ export interface operations {
             };
         };
     };
-    getTopAgents: {
+    getTopWorkflows: {
         parameters: {
             query?: {
                 /** @description Time window for the metric. Defaults to 7d. 24h is bucketed hourly; 7d/30d/90d/1y daily. Ranges longer than 30d (90d, 1y) are served from the daily rollup, so latency percentiles are not available for them. */
@@ -1400,13 +1400,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Agents ordered by cost descending. */
+            /** @description Workflows ordered by cost descending. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PaginatedAgentCostResponse"];
+                    "application/json": components["schemas"]["PaginatedWorkflowCostResponse"];
                 };
             };
             /** @description Invalid range. */
@@ -1420,7 +1420,7 @@ export interface operations {
             };
         };
     };
-    listAgents: {
+    listWorkflows: {
         parameters: {
             query?: {
                 /** @description Time window for the metric. Defaults to 7d. 24h is bucketed hourly; 7d/30d/90d/1y daily. Ranges longer than 30d (90d, 1y) are served from the daily rollup, so latency percentiles are not available for them. */
@@ -1436,13 +1436,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Agents ordered by call count descending. */
+            /** @description Workflows ordered by call count descending. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PaginatedAgentResponse"];
+                    "application/json": components["schemas"]["PaginatedWorkflowResponse"];
                 };
             };
             /** @description Invalid range. */
@@ -1456,7 +1456,7 @@ export interface operations {
             };
         };
     };
-    getAgentDetail: {
+    getWorkflowDetail: {
         parameters: {
             query?: {
                 /** @description Time window for the metric. Defaults to 7d. 24h is bucketed hourly; 7d/30d/90d/1y daily. Ranges longer than 30d (90d, 1y) are served from the daily rollup, so latency percentiles are not available for them. */
@@ -1468,20 +1468,20 @@ export interface operations {
             };
             header?: never;
             path: {
-                /** @description The agent name (the trace root span name). */
+                /** @description The workflow name (the trace root span name). */
                 name: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description The agent's detail payload. */
+            /** @description The workflow's detail payload. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AgentDetail"];
+                    "application/json": components["schemas"]["WorkflowDetail"];
                 };
             };
             /** @description Invalid range, or a range longer than 30d. */
@@ -1493,7 +1493,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description No agent with that name has runs in the window. */
+            /** @description No workflow with that name has runs in the window. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -1520,7 +1520,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Failed agents ordered by failure count descending. */
+            /** @description Failed workflows ordered by failure count descending. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1652,7 +1652,7 @@ export interface operations {
             };
         };
     };
-    getAgentUsage: {
+    getWorkflowUsage: {
         parameters: {
             query?: {
                 /** @description Time window for the metric. Defaults to 7d. 24h is bucketed hourly; 7d/30d/90d/1y daily. Ranges longer than 30d (90d, 1y) are served from the daily rollup, so latency percentiles are not available for them. */
@@ -1668,13 +1668,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Agents ordered by cost descending. */
+            /** @description Workflows ordered by cost descending. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PaginatedAgentUsageResponse"];
+                    "application/json": components["schemas"]["PaginatedWorkflowUsageResponse"];
                 };
             };
             /** @description Invalid range. */

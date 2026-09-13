@@ -1,14 +1,14 @@
 // ---------------------------------------------------------------------------
-// AgentDetailPage — single-agent detail (from the agent.html design).
+// WorkflowDetailPage — single-workflow detail (from the workflow.html design).
 //
 // Pure presentational component: it renders exactly the props it is handed. The
-// demo (embedded) app assembles them from the mock AGENTS + AGENT_META via
-// AgentDetailDemoPage; the signed-in app assembles them from the live metrics
-// API via AgentDetailLivePage.
+// demo (embedded) app assembles them from the mock WORKFLOWS + WORKFLOW_META via
+// WorkflowDetailDemoPage; the signed-in app assembles them from the live metrics
+// API via WorkflowDetailLivePage.
 //
-// Health/status and anomaly detection are intentionally omitted: no agent
+// Health/status and anomaly detection are intentionally omitted: no workflow
 // status pill, no "needs attention" banner, no anomaly markers on the charts.
-// Run-level completed/failed (a trace outcome, not agent health) is kept.
+// Run-level completed/failed (a trace outcome, not workflow health) is kept.
 // ---------------------------------------------------------------------------
 
 import React from 'react';
@@ -24,21 +24,21 @@ import {
   fmtMs,
 } from '../../../common';
 import type { CostPoint, LatencyPoint, ErrorPoint } from '../../../common/interfaces';
-import type { AgentRun } from '../interfaces';
+import type { WorkflowRun } from '../interfaces';
 
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
 
 /** One row in the Configuration panel. Callers supply whatever they can source. */
-export interface AgentConfigRow {
+export interface WorkflowConfigRow {
   label: string;
   value: React.ReactNode;
   mono?: boolean;
   accent?: boolean;
 }
 
-export interface AgentDetailPageProps {
+export interface WorkflowDetailPageProps {
   name: string;
   /** Version pill next to the title. Omitted on the live page (no config store). */
   version?: string;
@@ -46,7 +46,7 @@ export interface AgentDetailPageProps {
   provider?: string;
   /** "Deployed …" suffix on the meta line. Omitted live. */
   deploy?: string;
-  /** Agent description paragraph. Omitted live. */
+  /** Workflow description paragraph. Omitted live. */
   description?: string;
 
   /** Active time range id (24h/7d/30d) — drives every windowed label on the page. */
@@ -61,19 +61,19 @@ export interface AgentDetailPageProps {
   /** Error rate as a fraction (0–1). */
   errorRate: number;
 
-  configRows: AgentConfigRow[];
+  configRows: WorkflowConfigRow[];
 
   costSeries: CostPoint[];
   latencySeries: LatencyPoint[];
   errorSeries: ErrorPoint[];
-  runs: AgentRun[];
+  runs: WorkflowRun[];
 
   setView: (v: string) => void;
   setSelected: (updater: (prev: Record<string, string>) => Record<string, string>) => void;
 }
 
 // Error-rate thresholds (fractions): above 2% reads as an error, above 0.5% as
-// a warning — matches the agents list.
+// a warning — matches the workflows list.
 const ERR_BAD = 0.02;
 const ERR_WARN = 0.005;
 
@@ -128,7 +128,7 @@ function ADStat({
 // Config key/value row
 // ---------------------------------------------------------------------------
 
-function ADMetaRow({ label, value, mono, accent }: AgentConfigRow) {
+function ADMetaRow({ label, value, mono, accent }: WorkflowConfigRow) {
   return (
     <div
       style={{
@@ -162,10 +162,10 @@ function ADMetaRow({ label, value, mono, accent }: AgentConfigRow) {
 }
 
 // ---------------------------------------------------------------------------
-// AgentDetailPage
+// WorkflowDetailPage
 // ---------------------------------------------------------------------------
 
-export function AgentDetailPage(props: AgentDetailPageProps) {
+export function WorkflowDetailPage(props: WorkflowDetailPageProps) {
   const {
     name, version, description, range,
     calls, completed, failed, cost, p95Ms, errorRate,

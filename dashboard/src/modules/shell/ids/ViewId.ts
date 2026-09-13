@@ -1,4 +1,4 @@
 export type ViewId =
-  | 'overview' | 'agents' | 'trace' | 'usage'
+  | 'overview' | 'workflows' | 'trace' | 'usage'
   | 'keys' | 'settings'
   | 'users' | 'user' | `extension:${string}`;

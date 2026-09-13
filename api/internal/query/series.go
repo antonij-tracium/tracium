@@ -94,13 +94,13 @@ func fillTrends[T any, V any](
 	return rs.Err()
 }
 
-// fillAgentTrends fills each agent's per-bucket call-count sparkline from query.
-// Both the raw and rollup top-agents paths supply their own SQL and call this.
-func (r *ClickHouseRepository) fillAgentTrends(ctx context.Context, f MetricsFilter, agents []model.AgentCost, query string, args []any) error {
-	return fillTrends(ctx, r.db, f, query, args, agents,
-		func(a *model.AgentCost) string { return a.Name },
-		func(a *model.AgentCost, n int) { a.Trend = make([]int64, n) },
-		func(a *model.AgentCost, slot int, v int64) { a.Trend[slot] = v },
+// fillWorkflowTrends fills each workflow's per-bucket call-count sparkline from query.
+// Both the raw and rollup top-workflows paths supply their own SQL and call this.
+func (r *ClickHouseRepository) fillWorkflowTrends(ctx context.Context, f MetricsFilter, workflows []model.WorkflowCost, query string, args []any) error {
+	return fillTrends(ctx, r.db, f, query, args, workflows,
+		func(a *model.WorkflowCost) string { return a.Name },
+		func(a *model.WorkflowCost, n int) { a.Trend = make([]int64, n) },
+		func(a *model.WorkflowCost, slot int, v int64) { a.Trend[slot] = v },
 		scanNamedInt,
 	)
 }
@@ -108,7 +108,7 @@ func (r *ClickHouseRepository) fillAgentTrends(ctx context.Context, f MetricsFil
 // zeroFillTrend expands a bucket_ms→count map (e.g. from a sumMap aggregate)
 // onto the window's gap-free axis (bucketAxis): every slot is present and quiet
 // buckets read 0, the shape the dashboard sparkline expects. Buckets outside the
-// axis are ignored. Used by the single-scan ListAgents path.
+// axis are ignored. Used by the single-scan ListWorkflows path.
 func zeroFillTrend(f MetricsFilter, counts map[int64]int64) []int64 {
 	base, bucketMs, n := bucketAxis(f)
 	trend := make([]int64, n)
@@ -120,14 +120,14 @@ func zeroFillTrend(f MetricsFilter, counts map[int64]int64) []int64 {
 	return trend
 }
 
-// fillAgentRowTrends fills each Agent row's per-bucket call-count sparkline from
-// query. It mirrors fillAgentTrends for the richer model.Agent (Agents page);
-// the rollup ListAgents path supplies its own SQL and calls this.
-func (r *ClickHouseRepository) fillAgentRowTrends(ctx context.Context, f MetricsFilter, agents []model.Agent, query string, args []any) error {
-	return fillTrends(ctx, r.db, f, query, args, agents,
-		func(a *model.Agent) string { return a.Name },
-		func(a *model.Agent, n int) { a.Trend = make([]int64, n) },
-		func(a *model.Agent, slot int, v int64) { a.Trend[slot] = v },
+// fillWorkflowRowTrends fills each Workflow row's per-bucket call-count sparkline from
+// query. It mirrors fillWorkflowTrends for the richer model.Workflow (Workflows page);
+// the rollup ListWorkflows path supplies its own SQL and calls this.
+func (r *ClickHouseRepository) fillWorkflowRowTrends(ctx context.Context, f MetricsFilter, workflows []model.Workflow, query string, args []any) error {
+	return fillTrends(ctx, r.db, f, query, args, workflows,
+		func(a *model.Workflow) string { return a.Name },
+		func(a *model.Workflow, n int) { a.Trend = make([]int64, n) },
+		func(a *model.Workflow, slot int, v int64) { a.Trend[slot] = v },
 		scanNamedInt,
 	)
 }

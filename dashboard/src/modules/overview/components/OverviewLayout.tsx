@@ -1,6 +1,6 @@
 // Editorial overview shell — a centered column that stacks the masthead and the
 // inline sections (each owns its own spacing), then ends in a two-column flow of
-// the activity feed and the agents list. The feed side is configurable via
+// the activity feed and the workflows list. The feed side is configurable via
 // tweaks; the busier column gets slightly more width.
 
 import React from 'react';
@@ -18,7 +18,7 @@ interface OverviewLayoutProps {
   failures: React.ReactNode;
   feedPosition: 'left' | 'right';
   feed: React.ReactNode;
-  agents: React.ReactNode;
+  workflows: React.ReactNode;
 }
 
 export function OverviewLayout({
@@ -30,9 +30,9 @@ export function OverviewLayout({
   failures,
   feedPosition,
   feed,
-  agents,
+  workflows,
 }: OverviewLayoutProps) {
-  const [first, second] = feedPosition === 'left' ? [feed, agents] : [agents, feed];
+  const [first, second] = feedPosition === 'left' ? [feed, workflows] : [workflows, feed];
   const stacked = useMaxWidth(BREAKPOINTS.tablet);
 
   return (

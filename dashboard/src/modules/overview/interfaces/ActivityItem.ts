@@ -2,7 +2,7 @@ import type { ActivityId } from '../ids';
 
 export interface ActivityItem {
   id: ActivityId;
-  agent: string;
+  workflow: string;
   status: 'completed' | 'failed';
   time: string;
   cost: number;

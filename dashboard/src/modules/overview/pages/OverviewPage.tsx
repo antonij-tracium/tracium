@@ -10,17 +10,17 @@ import {
   KpiStrip,
   ChartsRow,
   FailuresBlock,
-  TopAgents,
+  TopWorkflows,
   ActivityFeed,
   OverviewLayout,
   OutlierChips,
   OutliersPanel,
 } from '../components';
-import type { KpiItem, TopAgentRow } from '../components';
+import type { KpiItem, TopWorkflowRow } from '../components';
 import type { Anomaly } from '../interfaces';
 import { anomalyKey, anomalyValue, toChartMarkers } from '../utils/anomalies';
 import { fmtNum } from '../../../common';
-import { AGENTS } from '../../agents';
+import { WORKFLOWS } from '../../workflows';
 import {
   ACTIVITY_FEED,
   COST_SERIES_7D,
@@ -51,9 +51,9 @@ const RANGE_LABEL: Record<string, string> = {
   '7d': 'last 7 days',
 };
 
-// Most-used agents for the volume list: busiest first, carrying the trend the
+// Most-used workflows for the volume list: busiest first, carrying the trend the
 // editorial row renders.
-const TOP_AGENTS: TopAgentRow[] = AGENTS.slice()
+const TOP_WORKFLOWS: TopWorkflowRow[] = WORKFLOWS.slice()
   .sort((a, b) => b.calls - a.calls)
   .slice(0, 6)
   .map((a) => ({ name: a.name, calls: a.calls, cost: a.cost, trend: a.trend }));
@@ -78,13 +78,13 @@ function buildDemoOutliers(cost: { value: number }[]): { axisMs: number[]; anoma
   const midVal = cost[midIdx]?.value ?? 0.34;
   const anomalies: Anomaly[] = [
     // Scores match the backend's severity bands (info ≥3, warning ≥4.5, critical
-    // ≥6). checkout-agent trips both cost and errors on the same day so the
+    // ≥6). checkout-workflow trips both cost and errors on the same day so the
     // grouped view has a multi-flag incident to show; the rest are single flags.
-    { metric: 'cost', scope: 'agent', agent: 'checkout-agent', bucket_ms: axisMs[bigIdx], observed: bigVal, expected: bigVal / 4.6, deviation: bigVal - bigVal / 4.6, score: 6.4, direction: 'spike', severity: 'critical', summary: 'Agent "checkout-agent" cost spiked, 4.6× the typical day.' },
-    { metric: 'error_rate', scope: 'agent', agent: 'checkout-agent', bucket_ms: axisMs[bigIdx], observed: 0.22, expected: 0.05, deviation: 0.17, score: 5.2, direction: 'spike', severity: 'warning', summary: 'Agent "checkout-agent" error rate rose to 22% the same day.' },
-    { metric: 'error_rate', scope: 'agent', agent: 'support-ticket-resolver', bucket_ms: axisMs[Math.min(n - 1, 5)], observed: 0.19, expected: 0.04, deviation: 0.15, score: 7.1, direction: 'spike', severity: 'critical', summary: 'Agent "support-ticket-resolver" error rate rose to 19%.' },
-    { metric: 'runs', scope: 'workspace', agent: '', bucket_ms: axisMs[Math.min(n - 1, 3)], observed: 512, expected: 190, deviation: 322, score: 4.8, direction: 'spike', severity: 'warning', summary: 'Workspace run volume rose to 512, 2.7× the typical day.' },
-    { metric: 'cost', scope: 'agent', agent: 'invoice-parser', bucket_ms: axisMs[midIdx], observed: midVal, expected: midVal / 2.4, deviation: midVal - midVal / 2.4, score: 3.4, direction: 'spike', severity: 'info', summary: 'Agent "invoice-parser" is drifting 2.4× costlier per run.' },
+    { metric: 'cost', scope: 'workflow', workflow: 'checkout-workflow', bucket_ms: axisMs[bigIdx], observed: bigVal, expected: bigVal / 4.6, deviation: bigVal - bigVal / 4.6, score: 6.4, direction: 'spike', severity: 'critical', summary: 'Workflow "checkout-workflow" cost spiked, 4.6× the typical day.' },
+    { metric: 'error_rate', scope: 'workflow', workflow: 'checkout-workflow', bucket_ms: axisMs[bigIdx], observed: 0.22, expected: 0.05, deviation: 0.17, score: 5.2, direction: 'spike', severity: 'warning', summary: 'Workflow "checkout-workflow" error rate rose to 22% the same day.' },
+    { metric: 'error_rate', scope: 'workflow', workflow: 'support-ticket-resolver', bucket_ms: axisMs[Math.min(n - 1, 5)], observed: 0.19, expected: 0.04, deviation: 0.15, score: 7.1, direction: 'spike', severity: 'critical', summary: 'Workflow "support-ticket-resolver" error rate rose to 19%.' },
+    { metric: 'runs', scope: 'workspace', workflow: '', bucket_ms: axisMs[Math.min(n - 1, 3)], observed: 512, expected: 190, deviation: 322, score: 4.8, direction: 'spike', severity: 'warning', summary: 'Workspace run volume rose to 512, 2.7× the typical day.' },
+    { metric: 'cost', scope: 'workflow', workflow: 'invoice-parser', bucket_ms: axisMs[midIdx], observed: midVal, expected: midVal / 2.4, deviation: midVal - midVal / 2.4, score: 3.4, direction: 'spike', severity: 'info', summary: 'Workflow "invoice-parser" is drifting 2.4× costlier per run.' },
   ];
   return { axisMs, anomalies };
 }
@@ -94,7 +94,7 @@ function buildDemoOutliers(cost: { value: number }[]): { axisMs: number[]; anoma
 // activity list ticks like a real stream.
 // ---------------------------------------------------------------------------
 
-const FEED_AGENTS = ['summarize-comments', 'classify-intent', 'detect-sentiment', 'moderate-content', 'extract-entities', 'rewrite-message'];
+const FEED_WORKFLOWS = ['summarize-comments', 'classify-intent', 'detect-sentiment', 'moderate-content', 'extract-entities', 'rewrite-message'];
 const FEED_ERRORS = ['rate_limit_exceeded', 'timeout', 'context_length'];
 const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 
@@ -107,7 +107,7 @@ function useSimulatedFeed(): ActivityItem[] {
         const failed = Math.random() < 1 / 6;
         const next: ActivityItem = {
           id: ('t_' + Math.random().toString(16).slice(2, 8)) as ActivityId,
-          agent: pick(FEED_AGENTS),
+          workflow: pick(FEED_WORKFLOWS),
           status: failed ? 'failed' : 'completed',
           time: 'just now',
           cost: parseFloat((Math.random() * 0.002).toFixed(4)),
@@ -155,14 +155,14 @@ export function OverviewPage({ range, setView, setSelected, tweaks }: OverviewPa
     : [];
   const dismissOutlier = (a: Anomaly) => setDismissed((s) => new Set(s).add(anomalyKey(a)));
   const inspectOutlier = (a: Anomaly) => {
-    if (a.agent) setSelected((s) => ({ ...s, agent: a.agent }));
-    setView('agents');
+    if (a.workflow) setSelected((s) => ({ ...s, workflow: a.workflow }));
+    setView('workflows');
   };
 
   const totalCost = costSeries.reduce((s, d) => s + d.value, 0);
-  const allTraces = AGENTS.reduce((s, a) => s + a.calls, 0);
+  const allTraces = WORKFLOWS.reduce((s, a) => s + a.calls, 0);
   // error_rate is a fraction (0–1); failedCount sums failed runs, errorRate is the percent shown.
-  const failedRuns = AGENTS.reduce((s, a) => s + a.error_rate * a.calls, 0);
+  const failedRuns = WORKFLOWS.reduce((s, a) => s + a.error_rate * a.calls, 0);
   const errorRate = (failedRuns / allTraces) * 100;
   const failedCount = Math.round(failedRuns);
   const p95Vals = latSeries.map((d) => d.p95).filter((v): v is number => v != null);
@@ -236,8 +236,8 @@ export function OverviewPage({ range, setView, setSelected, tweaks }: OverviewPa
         <FailuresBlock
           series={ERROR_SERIES_7D}
           totalFailed={totalFailed}
-          worstAgent="rewrite-message"
-          onViewAgents={() => setView('agents')}
+          worstWorkflow="rewrite-message"
+          onViewWorkflows={() => setView('workflows')}
           range={range}
           errorMarkers={errorMarkers}
         />
@@ -251,13 +251,13 @@ export function OverviewPage({ range, setView, setSelected, tweaks }: OverviewPa
           }}
         />
       }
-      agents={
-        <TopAgents
+      workflows={
+        <TopWorkflows
           range={range}
-          agents={TOP_AGENTS}
-          onSelectAgent={(name) => {
-            setSelected((s) => ({ ...s, agent: name }));
-            setView('agents');
+          workflows={TOP_WORKFLOWS}
+          onSelectWorkflow={(name) => {
+            setSelected((s) => ({ ...s, workflow: name }));
+            setView('workflows');
           }}
         />
       }

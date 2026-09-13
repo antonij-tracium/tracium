@@ -11,7 +11,7 @@ export interface Kpi {
 
 export interface KpiSet {
   cost: Kpi; // total cost, USD
-  runs: Kpi; // agent runs (distinct traces)
+  runs: Kpi; // workflow runs (distinct traces)
   latency_p95: Kpi; // p95 trace duration, ms
   error_rate: Kpi; // fraction of traces with an error
 }
@@ -35,7 +35,7 @@ export interface ErrorBucket {
   total: number; // total runs that started within the bucket
 }
 
-export interface AgentCost {
+export interface WorkflowCost {
   name: string;
   cost: number;
   calls: number;
@@ -43,24 +43,24 @@ export interface AgentCost {
 }
 
 export interface FailureRow {
-  agent: string;
+  workflow: string;
   count: number;
-  pct: number; // fraction of that agent's runs that failed
+  pct: number; // fraction of that workflow's runs that failed
 }
 
 // Anomaly is one bucket of one series that deviated significantly from its own
 // recent history — the /metrics/anomalies payload. Detection is daily and
-// rollup-backed; metric is the series that moved, scope/agent locate it, and
+// rollup-backed; metric is the series that moved, scope/workflow locate it, and
 // observed/expected/deviation/score carry the math the UI explains.
 export type AnomalyMetric = 'cost' | 'error_rate' | 'runs';
-export type AnomalyScope = 'workspace' | 'agent';
+export type AnomalyScope = 'workspace' | 'workflow';
 export type AnomalyDirection = 'spike' | 'drop';
 export type AnomalySeverity = 'info' | 'warning' | 'critical';
 
 export interface Anomaly {
   metric: AnomalyMetric;
   scope: AnomalyScope;
-  agent: string; // set when scope === 'agent', else ''
+  workflow: string; // set when scope === 'workflow', else ''
   bucket_ms: number; // anomalous day bucket, UTC midnight
   observed: number; // the bucket's value (USD, error rate 0–1, or run count)
   expected: number; // baseline median

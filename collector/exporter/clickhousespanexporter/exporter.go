@@ -30,8 +30,8 @@ func (e *chExporter) pushTraces(ctx context.Context, td ptrace.Traces) error {
 	rss := td.ResourceSpans()
 	for i := 0; i < rss.Len(); i++ {
 		// service.name is a resource-level attribute shared by every span in the
-		// batch; it is the most stable agent identity, so we lift it out once and
-		// pass it down to each span's agent-name derivation.
+		// batch; it is the most stable workflow identity, so we lift it out once and
+		// pass it down to each span's workflow-name derivation.
 		resourceAttrs := rss.At(i).Resource().Attributes()
 		serviceName := strAttr(resourceAttrs, attrServiceName)
 		sss := rss.At(i).ScopeSpans()
@@ -61,11 +61,11 @@ const (
 	attrSchemaVersion   = "tracium.schema_version"
 	attrAvailableTools  = "tracium.available_tools"
 
-	// Agent-identity signals. The span-scoped semconv/decorator names come first
-	// (they name the actual agent that owns this span); the resource-level
+	// Workflow-identity signals. The span-scoped semconv/decorator names come first
+	// (they name the actual workflow that owns this span); the resource-level
 	// service.name is only a fallback. service.name is also persisted on its own
 	// column so the query layer keeps a stable, always-present name for in-flight
-	// traces without conflating it with agent identity.
+	// traces without conflating it with workflow identity.
 	attrServiceName       = "service.name"
 	attrGenAIAgentName    = "gen_ai.agent.name"
 	attrTraceloopWorkflow = "traceloop.workflow.name"
@@ -133,7 +133,7 @@ func fromOTLP(s ptrace.Span, serviceName string, resourceAttrs pcommon.Map, trus
 		SchemaVersion:       int(intAttr(attrs, attrSchemaVersion)),
 		ErrorType:           errType,
 		ErrorMessage:        errMessage,
-		AgentName: agentName(
+		WorkflowName: workflowName(
 			serviceName,
 			strAttr(attrs, attrGenAIAgentName),
 			strAttr(attrs, attrTraceloopWorkflow),
@@ -142,7 +142,7 @@ func fromOTLP(s ptrace.Span, serviceName string, resourceAttrs pcommon.Map, trus
 		),
 		// ServiceName is the resource-level service.name, persisted verbatim (the
 		// OTel "unknown_service" default treated as absent). The query layer uses
-		// it as the stable in-flight fallback for a trace's display/agent name.
+		// it as the stable in-flight fallback for a trace's display/workflow name.
 		ServiceName: resourceServiceName(serviceName),
 		// Content is absent unless the processor kept it (capture enabled);
 		// available_tools is collector-computed metadata, passed through verbatim.
@@ -166,7 +166,7 @@ const (
 
 // attrDenyPrefixes are the namespaces Tracium already promotes to typed columns
 // or stores as content. Keeping them in the custom-attribute map would duplicate
-// promoted data (model, tokens, cost, user, agent) or store large
+// promoted data (model, tokens, cost, user, workflow) or store large
 // prompt/completion text; everything outside them is a custom business attribute
 // the operator can allocate by, retained verbatim.
 var attrDenyPrefixes = []string{"gen_ai.", "tracium.", "llm.", "traceloop."}
@@ -218,18 +218,18 @@ func isDeniedAttr(k string) bool {
 	return false
 }
 
-// agentName picks the agent that owns this span, preferring span-scoped signals
-// over the resource-level service.name so a multi-agent trace attributes each
-// span to its real agent instead of collapsing every agent under one service.
-// Priority: gen_ai.agent.name, traceloop.workflow.name, traceloop.entity.name,
-// then service.name, then the span name as a last resort. The OTel SDK default
-// of "unknown_service" (optionally suffixed with the process name) is treated as
-// absent — grouping under it would be as useless as grouping under a raw
-// operation name like "openai.chat". The stability the resource service.name
-// used to provide (present on the very first auto-instrumented span, before any
-// invoke_agent span exports) is preserved by persisting it as its own column and
-// letting the query layer fall back to it for a trace's in-flight name.
-func agentName(serviceName, genaiAgent, traceloopWorkflow, traceloopEntity, spanName string) string {
+// workflowName picks the workflow that owns this span, preferring span-scoped
+// signals over the resource-level service.name so a trace made of many sub-spans
+// attributes each span to its real workflow instead of collapsing every span
+// under one service. Priority: gen_ai.agent.name, traceloop.workflow.name,
+// traceloop.entity.name, then service.name, then the span name as a last resort.
+// The OTel SDK default of "unknown_service" (optionally suffixed with the process
+// name) is treated as absent — grouping under it would be as useless as grouping
+// under a raw operation name like "openai.chat". The stability the resource
+// service.name used to provide (present on the very first auto-instrumented span,
+// before any invoke_agent span exports) is preserved by persisting it as its own
+// column and letting the query layer fall back to it for a trace's in-flight name.
+func workflowName(serviceName, genaiAgent, traceloopWorkflow, traceloopEntity, spanName string) string {
 	for _, c := range []string{genaiAgent, traceloopWorkflow, traceloopEntity, resourceServiceName(serviceName), spanName} {
 		if name := strings.TrimSpace(c); name != "" {
 			return name

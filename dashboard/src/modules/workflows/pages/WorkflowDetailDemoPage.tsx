@@ -1,20 +1,20 @@
 // ---------------------------------------------------------------------------
-// AgentDetailDemoPage — the embedded (logged-out preview) agent detail. It
-// assembles the presentational AgentDetailPage's props from the mock AGENTS +
-// AGENT_META and the deterministic demo series, so the auth-page preview shows a
-// fully-populated agent without hitting the API. The live app uses
-// AgentDetailLivePage instead.
+// WorkflowDetailDemoPage — the embedded (logged-out preview) workflow detail. It
+// assembles the presentational WorkflowDetailPage's props from the mock WORKFLOWS +
+// WORKFLOW_META and the deterministic demo series, so the auth-page preview shows a
+// fully-populated workflow without hitting the API. The live app uses
+// WorkflowDetailLivePage instead.
 // ---------------------------------------------------------------------------
 
 import { fmtNum } from '../../../common';
 import type { LatencyPoint } from '../../../common/interfaces';
-import { AGENT_META, DEFAULT_AGENT_META } from '../data';
+import { WORKFLOW_META, DEFAULT_WORKFLOW_META } from '../data';
 import { buildCostSeries, buildLatencySeries, buildErrorSeries, buildRuns, deriveRunOutcomes } from '../utils';
-import { AgentDetailPage, type AgentConfigRow } from './AgentDetailPage';
-import type { Agent } from '../interfaces';
+import { WorkflowDetailPage, type WorkflowConfigRow } from './WorkflowDetailPage';
+import type { Workflow } from '../interfaces';
 
-interface AgentDetailDemoPageProps {
-  agent: Agent;
+interface WorkflowDetailDemoPageProps {
+  workflow: Workflow;
   range: string;
   setView: (v: string) => void;
   setSelected: (updater: (prev: Record<string, string>) => Record<string, string>) => void;
@@ -26,15 +26,15 @@ function p95Ms(series: LatencyPoint[]): number | null {
   return vals.length ? Math.max(...vals) * 1000 : null;
 }
 
-export function AgentDetailDemoPage({ agent, range, setView, setSelected }: AgentDetailDemoPageProps) {
-  const meta = AGENT_META[agent.name] ?? DEFAULT_AGENT_META;
-  const costSeries = buildCostSeries(agent, range);
-  const latencySeries = buildLatencySeries(agent, range);
-  const errorSeries = buildErrorSeries(agent, range);
-  const runs = buildRuns(agent);
-  const { completed, failed } = deriveRunOutcomes(agent.calls, agent.error_rate);
+export function WorkflowDetailDemoPage({ workflow, range, setView, setSelected }: WorkflowDetailDemoPageProps) {
+  const meta = WORKFLOW_META[workflow.name] ?? DEFAULT_WORKFLOW_META;
+  const costSeries = buildCostSeries(workflow, range);
+  const latencySeries = buildLatencySeries(workflow, range);
+  const errorSeries = buildErrorSeries(workflow, range);
+  const runs = buildRuns(workflow);
+  const { completed, failed } = deriveRunOutcomes(workflow.calls, workflow.error_rate);
 
-  const configRows: AgentConfigRow[] = [
+  const configRows: WorkflowConfigRow[] = [
     { label: 'endpoint', value: meta.endpoint, mono: true },
     { label: 'model', value: meta.model, mono: true },
     { label: 'provider', value: meta.provider },
@@ -46,20 +46,20 @@ export function AgentDetailDemoPage({ agent, range, setView, setSelected }: Agen
   ];
 
   return (
-    <AgentDetailPage
-      name={agent.name}
+    <WorkflowDetailPage
+      name={workflow.name}
       version={meta.version}
       model={meta.model}
       provider={meta.provider}
       deploy={meta.lastDeploy}
       description={meta.description}
       range={range}
-      calls={agent.calls}
+      calls={workflow.calls}
       completed={completed}
       failed={failed}
-      cost={agent.cost}
+      cost={workflow.cost}
       p95Ms={p95Ms(latencySeries)}
-      errorRate={agent.error_rate}
+      errorRate={workflow.error_rate}
       configRows={configRows}
       costSeries={costSeries}
       latencySeries={latencySeries}

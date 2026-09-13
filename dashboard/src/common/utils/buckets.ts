@@ -1,7 +1,7 @@
 // Shared mapping from the metrics API's time-bucketed responses (CostBucket /
 // LatencyBucket / ErrorBucket, keyed by bucket_ms) to the chart point shapes the
 // chart components render (CostPoint / LatencyPoint / ErrorPoint, with a label).
-// Used by both the overview and the per-agent detail charts so the bucket → axis
+// Used by both the overview and the per-workflow detail charts so the bucket → axis
 // labelling stays identical between them.
 
 import type { CostPoint, LatencyPoint, ErrorPoint } from '../interfaces';
