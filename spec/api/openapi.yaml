@@ -451,6 +451,156 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /v1/metrics/model-costs:
+    get:
+      operationId: getModelCosts
+      summary: Cost by model
+      description: >
+        Spend broken down by model over the range — the usage page's
+        "where it goes" list. Each entry carries the model's cost, run
+        (trace) count, and summed input/output tokens, ordered by cost
+        descending.
+      tags:
+        - Metrics
+      parameters:
+        - $ref: "#/components/parameters/Range"
+        - $ref: "#/components/parameters/UserFilter"
+        - $ref: "#/components/parameters/WorkspaceFilter"
+      responses:
+        "200":
+          description: Models ordered by cost descending.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedModelCostResponse"
+        "400":
+          description: Invalid range.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/metrics/usage-users:
+    get:
+      operationId: getUserUsage
+      summary: Usage by user
+      description: >
+        Spend and run counts grouped by the end-client/metering user
+        (`user.id`) over the range, each paired with the equal-length
+        preceding window for period-over-period change, plus a per-row
+        cost sparkline. Ordered by cost descending.
+      tags:
+        - Metrics
+      parameters:
+        - $ref: "#/components/parameters/Range"
+        - $ref: "#/components/parameters/UserFilter"
+        - $ref: "#/components/parameters/WorkspaceFilter"
+      responses:
+        "200":
+          description: Users ordered by cost descending.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedUserUsageResponse"
+        "400":
+          description: Invalid range.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/metrics/usage-agents:
+    get:
+      operationId: getAgentUsage
+      summary: Usage by agent
+      description: >
+        Spend and run counts grouped by agent over the range, each paired
+        with the preceding window for change, plus the agent's most-used
+        model. Ordered by cost descending.
+      tags:
+        - Metrics
+      parameters:
+        - $ref: "#/components/parameters/Range"
+        - $ref: "#/components/parameters/UserFilter"
+        - $ref: "#/components/parameters/WorkspaceFilter"
+      responses:
+        "200":
+          description: Agents ordered by cost descending.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedAgentUsageResponse"
+        "400":
+          description: Invalid range.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/metrics/attribute-keys:
+    get:
+      operationId: getAttributeKeys
+      summary: Custom-attribute dimensions
+      description: >
+        The custom-attribute keys present on spans in the window (e.g.
+        `team`, `environment`, `customer`), offered as the allocation axes
+        for /v1/metrics/usage-by-attribute.
+      tags:
+        - Metrics
+      parameters:
+        - $ref: "#/components/parameters/Range"
+        - $ref: "#/components/parameters/UserFilter"
+        - $ref: "#/components/parameters/WorkspaceFilter"
+      responses:
+        "200":
+          description: Available attribute keys.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedAttributeKeyResponse"
+        "400":
+          description: Invalid range.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/metrics/usage-by-attribute:
+    get:
+      operationId: getUsageByAttribute
+      summary: Cost allocation by attribute
+      description: >
+        Spend and usage allocated across the values of one custom attribute
+        — the cost-allocation primitive that splits AI spend by whatever
+        dimension the instrumentation tags spans with. The `key` query
+        parameter names the dimension (from /v1/metrics/attribute-keys) and
+        is required. Ordered by cost descending.
+      tags:
+        - Metrics
+      parameters:
+        - name: key
+          in: query
+          required: true
+          description: The custom-attribute key to group by (e.g. "team").
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Range"
+        - $ref: "#/components/parameters/UserFilter"
+        - $ref: "#/components/parameters/WorkspaceFilter"
+      responses:
+        "200":
+          description: Attribute values ordered by cost descending.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedAttributeUsageResponse"
+        "400":
+          description: Invalid range, or the required `key` parameter is missing.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /v1/health:
     get:
       operationId: healthCheck
@@ -1632,6 +1782,216 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Anomaly"
+        total:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+
+    ModelCost:
+      type: object
+      required:
+        - name
+        - cost
+        - calls
+        - input_tokens
+        - output_tokens
+      properties:
+        name:
+          type: string
+          description: Model id.
+        cost:
+          type: number
+          minimum: 0
+          description: Total cost in USD over the window.
+        calls:
+          type: integer
+          minimum: 0
+          description: Number of runs (traces) attributed to this model.
+        input_tokens:
+          type: integer
+          minimum: 0
+          description: Input tokens summed across the model's spans.
+        output_tokens:
+          type: integer
+          minimum: 0
+          description: Output tokens summed across the model's spans.
+
+    UserUsage:
+      type: object
+      required:
+        - user_id
+        - cost
+        - cost_prev
+        - runs
+        - runs_prev
+        - trend
+      properties:
+        user_id:
+          type: string
+          description: The end-client/metering user (from the `user.id` attribute).
+        cost:
+          type: number
+          minimum: 0
+          description: Cost in USD over the current window.
+        cost_prev:
+          type: number
+          minimum: 0
+          description: Cost in USD over the equal-length preceding window.
+        runs:
+          type: integer
+          minimum: 0
+          description: Run (trace) count over the current window.
+        runs_prev:
+          type: integer
+          minimum: 0
+          description: Run count over the preceding window.
+        trend:
+          type: array
+          items:
+            type: number
+            minimum: 0
+          description: >-
+            Cost per time bucket across the current window, oldest first
+            and zero-filled, for the row sparkline.
+
+    AgentUsage:
+      type: object
+      required:
+        - name
+        - model
+        - cost
+        - cost_prev
+        - runs
+        - runs_prev
+      properties:
+        name:
+          type: string
+          description: Agent name (the trace root span name).
+        model:
+          type: string
+          description: The agent's most-used model over the window.
+        cost:
+          type: number
+          minimum: 0
+          description: Cost in USD over the current window.
+        cost_prev:
+          type: number
+          minimum: 0
+          description: Cost in USD over the equal-length preceding window.
+        runs:
+          type: integer
+          minimum: 0
+          description: Run (trace) count over the current window.
+        runs_prev:
+          type: integer
+          minimum: 0
+          description: Run count over the preceding window.
+
+    AttributeUsage:
+      type: object
+      required:
+        - value
+        - cost
+        - calls
+        - runs
+        - input_tokens
+        - output_tokens
+      properties:
+        value:
+          type: string
+          description: One value of the grouped custom attribute.
+        cost:
+          type: number
+          minimum: 0
+          description: Total cost in USD over the window for this value.
+        calls:
+          type: integer
+          minimum: 0
+          description: Number of spans attributed to this value.
+        runs:
+          type: integer
+          minimum: 0
+          description: Number of runs (traces) attributed to this value.
+        input_tokens:
+          type: integer
+          minimum: 0
+          description: Input tokens summed across this value's spans.
+        output_tokens:
+          type: integer
+          minimum: 0
+          description: Output tokens summed across this value's spans.
+
+    PaginatedModelCostResponse:
+      type: object
+      required: [items, total, page, page_size]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModelCost"
+        total:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+
+    PaginatedUserUsageResponse:
+      type: object
+      required: [items, total, page, page_size]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserUsage"
+        total:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+
+    PaginatedAgentUsageResponse:
+      type: object
+      required: [items, total, page, page_size]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentUsage"
+        total:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+
+    PaginatedAttributeKeyResponse:
+      type: object
+      required: [items, total, page, page_size]
+      properties:
+        items:
+          type: array
+          items:
+            type: string
+          description: Available custom-attribute keys.
+        total:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+
+    PaginatedAttributeUsageResponse:
+      type: object
+      required: [items, total, page, page_size]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AttributeUsage"
         total:
           type: integer
         page:
