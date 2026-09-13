@@ -7,7 +7,7 @@ ARG VITE_API_URL=
 ENV VITE_API_URL=${VITE_API_URL}
 RUN npm run build
 
-FROM nginx:1.28-alpine
+FROM nginx:1.31-alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/templates/default.conf.template
 ENV API_UPSTREAM=http://api:8090
