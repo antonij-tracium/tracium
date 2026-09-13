@@ -77,8 +77,8 @@ files remain shared and run before the API starts.
 Pin consuming applications to **one exact repository commit** for the API,
 dashboard, collector, and schema. Test dependency updates as a unit. Shared fixes
 belong here first; the dependent application advances its pin after compatibility
-and upgrade tests pass. This initial API is alpha: coordinate breaking extension
-contract changes through that dependency update.
+and upgrade tests pass. The extension API is still evolving: coordinate breaking
+extension contract changes through that dependency update.
 
 Run `go test ./...` in `api` and `npm test && npm run build && npm run build:library`
 in `dashboard`. The migration test additionally uses `TEST_POSTGRES_DSN`; it resets

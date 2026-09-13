@@ -8,9 +8,9 @@ It is a **pure client of [`api`](../api)**. It holds no data of
 its own, talks to no database, and knows only the `/v1` REST surface — no direct
 ClickHouse access, ever. Every request it makes is bounded by a time range and a
 page size; an unbounded fetch is exactly what turns a healthy backend slow, so
-that discipline is a rule, not a preference. The
-trace explorer is wired to the live API; some of the other views still render
-local fixtures (`data.ts`) pending their endpoints.
+that discipline is a rule, not a preference. Every signed-in view — overview,
+trace explorer, agents, usage — reads from the live API; the local fixtures
+(`data.ts`) exist only to bring the logged-out auth-page preview to life.
 
 ## Stack
 
@@ -59,7 +59,7 @@ For a deliberately separate browser-accessible API, set `VITE_API_URL` at build
 time. That optional override must be a public URL, not a Kubernetes Service name.
 
 The signed-in UI uses real user details. Simulated API-key creation and editable
-settings are confined to the embedded demo; unavailable alpha controls are
+settings are confined to the embedded demo; controls without a backend yet are
 explained or omitted in the signed-in app.
 
 ## Seed demo data

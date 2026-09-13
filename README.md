@@ -1,6 +1,6 @@
 # Tracium
 
-**Open-source LLM observability — alpha.** Tracium is an OpenTelemetry-native backend for
+**Open-source LLM observability.** Tracium is an OpenTelemetry-native backend for
 LLM apps: point any OTel-instrumented app at it and get accurate cost, token,
 latency, and error analytics per model, agent, and end-client — built to stay
 fast from the first span to hundreds of millions.
@@ -113,7 +113,7 @@ Each directory has its own `README.md` with the details.
 Helm chart in [`deploy/helm/tracium`](deploy/helm/tracium/); steps in
 [`deploy/README.md`](deploy/README.md).
 
-## Alpha scope and upgrades
+## Scope and upgrades
 
 Live traces, overview metrics, user usage, workspace creation, and workspace
 access checks are available. Ingest requires a per-workspace API key on every

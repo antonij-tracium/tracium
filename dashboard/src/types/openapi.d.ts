@@ -244,6 +244,106 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/metrics/model-costs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cost by model
+         * @description Spend broken down by model over the range — the usage page's "where it goes" list. Each entry carries the model's cost, run (trace) count, and summed input/output tokens, ordered by cost descending.
+         */
+        get: operations["getModelCosts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/metrics/usage-users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Usage by user
+         * @description Spend and run counts grouped by the end-client/metering user (`user.id`) over the range, each paired with the equal-length preceding window for period-over-period change, plus a per-row cost sparkline. Ordered by cost descending.
+         */
+        get: operations["getUserUsage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/metrics/usage-agents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Usage by agent
+         * @description Spend and run counts grouped by agent over the range, each paired with the preceding window for change, plus the agent's most-used model. Ordered by cost descending.
+         */
+        get: operations["getAgentUsage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/metrics/attribute-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Custom-attribute dimensions
+         * @description The custom-attribute keys present on spans in the window (e.g. `team`, `environment`, `customer`), offered as the allocation axes for /v1/metrics/usage-by-attribute.
+         */
+        get: operations["getAttributeKeys"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/metrics/usage-by-attribute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cost allocation by attribute
+         * @description Spend and usage allocated across the values of one custom attribute — the cost-allocation primitive that splits AI spend by whatever dimension the instrumentation tags spans with. The `key` query parameter names the dimension (from /v1/metrics/attribute-keys) and is required. Ordered by cost descending.
+         */
+        get: operations["getUsageByAttribute"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/health": {
         parameters: {
             query?: never;
@@ -850,6 +950,91 @@ export interface components {
             page: number;
             page_size: number;
         };
+        ModelCost: {
+            /** @description Model id. */
+            name: string;
+            /** @description Total cost in USD over the window. */
+            cost: number;
+            /** @description Number of runs (traces) attributed to this model. */
+            calls: number;
+            /** @description Input tokens summed across the model's spans. */
+            input_tokens: number;
+            /** @description Output tokens summed across the model's spans. */
+            output_tokens: number;
+        };
+        UserUsage: {
+            /** @description The end-client/metering user (from the `user.id` attribute). */
+            user_id: string;
+            /** @description Cost in USD over the current window. */
+            cost: number;
+            /** @description Cost in USD over the equal-length preceding window. */
+            cost_prev: number;
+            /** @description Run (trace) count over the current window. */
+            runs: number;
+            /** @description Run count over the preceding window. */
+            runs_prev: number;
+            /** @description Cost per time bucket across the current window, oldest first and zero-filled, for the row sparkline. */
+            trend: number[];
+        };
+        AgentUsage: {
+            /** @description Agent name (the trace root span name). */
+            name: string;
+            /** @description The agent's most-used model over the window. */
+            model: string;
+            /** @description Cost in USD over the current window. */
+            cost: number;
+            /** @description Cost in USD over the equal-length preceding window. */
+            cost_prev: number;
+            /** @description Run (trace) count over the current window. */
+            runs: number;
+            /** @description Run count over the preceding window. */
+            runs_prev: number;
+        };
+        AttributeUsage: {
+            /** @description One value of the grouped custom attribute. */
+            value: string;
+            /** @description Total cost in USD over the window for this value. */
+            cost: number;
+            /** @description Number of spans attributed to this value. */
+            calls: number;
+            /** @description Number of runs (traces) attributed to this value. */
+            runs: number;
+            /** @description Input tokens summed across this value's spans. */
+            input_tokens: number;
+            /** @description Output tokens summed across this value's spans. */
+            output_tokens: number;
+        };
+        PaginatedModelCostResponse: {
+            items: components["schemas"]["ModelCost"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
+        PaginatedUserUsageResponse: {
+            items: components["schemas"]["UserUsage"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
+        PaginatedAgentUsageResponse: {
+            items: components["schemas"]["AgentUsage"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
+        PaginatedAttributeKeyResponse: {
+            /** @description Available custom-attribute keys. */
+            items: string[];
+            total: number;
+            page: number;
+            page_size: number;
+        };
+        PaginatedAttributeUsageResponse: {
+            items: components["schemas"]["AttributeUsage"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
     };
     responses: never;
     parameters: {
@@ -1385,6 +1570,188 @@ export interface operations {
                 };
             };
             /** @description Invalid range, metric, or severity. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getModelCosts: {
+        parameters: {
+            query?: {
+                /** @description Time window for the metric. Defaults to 7d. 24h is bucketed hourly; 7d/30d/90d/1y daily. Ranges longer than 30d (90d, 1y) are served from the daily rollup, so latency percentiles are not available for them. */
+                range?: components["parameters"]["Range"];
+                /** @description Optional business filter (the operator's end-client). Empty means all clients. */
+                user_id?: components["parameters"]["UserFilter"];
+                /** @description Scope the read to one workspace. This is an access boundary, not just a filter: the caller must be a member of the workspace or the request is refused with 403. Omitted, the read covers every workspace the caller is a member of (an account that is a member of none sees nothing). The dashboard passes the active workspace from its switcher. */
+                workspace_id?: components["parameters"]["WorkspaceFilter"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Models ordered by cost descending. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedModelCostResponse"];
+                };
+            };
+            /** @description Invalid range. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getUserUsage: {
+        parameters: {
+            query?: {
+                /** @description Time window for the metric. Defaults to 7d. 24h is bucketed hourly; 7d/30d/90d/1y daily. Ranges longer than 30d (90d, 1y) are served from the daily rollup, so latency percentiles are not available for them. */
+                range?: components["parameters"]["Range"];
+                /** @description Optional business filter (the operator's end-client). Empty means all clients. */
+                user_id?: components["parameters"]["UserFilter"];
+                /** @description Scope the read to one workspace. This is an access boundary, not just a filter: the caller must be a member of the workspace or the request is refused with 403. Omitted, the read covers every workspace the caller is a member of (an account that is a member of none sees nothing). The dashboard passes the active workspace from its switcher. */
+                workspace_id?: components["parameters"]["WorkspaceFilter"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Users ordered by cost descending. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedUserUsageResponse"];
+                };
+            };
+            /** @description Invalid range. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getAgentUsage: {
+        parameters: {
+            query?: {
+                /** @description Time window for the metric. Defaults to 7d. 24h is bucketed hourly; 7d/30d/90d/1y daily. Ranges longer than 30d (90d, 1y) are served from the daily rollup, so latency percentiles are not available for them. */
+                range?: components["parameters"]["Range"];
+                /** @description Optional business filter (the operator's end-client). Empty means all clients. */
+                user_id?: components["parameters"]["UserFilter"];
+                /** @description Scope the read to one workspace. This is an access boundary, not just a filter: the caller must be a member of the workspace or the request is refused with 403. Omitted, the read covers every workspace the caller is a member of (an account that is a member of none sees nothing). The dashboard passes the active workspace from its switcher. */
+                workspace_id?: components["parameters"]["WorkspaceFilter"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Agents ordered by cost descending. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedAgentUsageResponse"];
+                };
+            };
+            /** @description Invalid range. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getAttributeKeys: {
+        parameters: {
+            query?: {
+                /** @description Time window for the metric. Defaults to 7d. 24h is bucketed hourly; 7d/30d/90d/1y daily. Ranges longer than 30d (90d, 1y) are served from the daily rollup, so latency percentiles are not available for them. */
+                range?: components["parameters"]["Range"];
+                /** @description Optional business filter (the operator's end-client). Empty means all clients. */
+                user_id?: components["parameters"]["UserFilter"];
+                /** @description Scope the read to one workspace. This is an access boundary, not just a filter: the caller must be a member of the workspace or the request is refused with 403. Omitted, the read covers every workspace the caller is a member of (an account that is a member of none sees nothing). The dashboard passes the active workspace from its switcher. */
+                workspace_id?: components["parameters"]["WorkspaceFilter"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Available attribute keys. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedAttributeKeyResponse"];
+                };
+            };
+            /** @description Invalid range. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getUsageByAttribute: {
+        parameters: {
+            query: {
+                /** @description The custom-attribute key to group by (e.g. "team"). */
+                key: string;
+                /** @description Time window for the metric. Defaults to 7d. 24h is bucketed hourly; 7d/30d/90d/1y daily. Ranges longer than 30d (90d, 1y) are served from the daily rollup, so latency percentiles are not available for them. */
+                range?: components["parameters"]["Range"];
+                /** @description Optional business filter (the operator's end-client). Empty means all clients. */
+                user_id?: components["parameters"]["UserFilter"];
+                /** @description Scope the read to one workspace. This is an access boundary, not just a filter: the caller must be a member of the workspace or the request is refused with 403. Omitted, the read covers every workspace the caller is a member of (an account that is a member of none sees nothing). The dashboard passes the active workspace from its switcher. */
+                workspace_id?: components["parameters"]["WorkspaceFilter"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Attribute values ordered by cost descending. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedAttributeUsageResponse"];
+                };
+            };
+            /** @description Invalid range, or the required `key` parameter is missing. */
             400: {
                 headers: {
                     [name: string]: unknown;

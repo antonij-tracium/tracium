@@ -378,7 +378,7 @@ interface AccountViewProps {
 function AccountView({ user, demo }: AccountViewProps) {
   const [tabnav, setTabnav] = useState(true);
   if (!demo) return <div>
-    <SectionHead first title="Account" hint="Your sign-in identity. Profile and password editing are unavailable in this alpha." />
+    <SectionHead first title="Account" hint="Your sign-in identity. Profile and password editing are not yet available." />
     <Field label="Email" last><span>{user.email}</span></Field>
   </div>;
 
@@ -611,7 +611,7 @@ function WorkspaceView({ ws, demo = false, justCreated = false, onOpenOverview }
     {ws.id ? <WorkspaceConnection ws={ws} justCreated={justCreated} onOpenOverview={onOpenOverview} /> : <SectionHead first title="Workspace" hint="Create a workspace to get its ID and connection instructions." />}
     {!justCreated && <>
       <SectionHead title="Retention" hint="Retention is configured by the deployment operator. Expired spans are deleted; daily aggregates are retained separately." />
-      <p style={{ fontSize: 13, color: 'var(--muted)' }}>Workspace editing and retention controls are unavailable in this alpha.</p>
+      <p style={{ fontSize: 13, color: 'var(--muted)' }}>Workspace editing and retention controls are not yet available.</p>
     </>}
   </div>;
 

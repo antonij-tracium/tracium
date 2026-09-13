@@ -86,8 +86,8 @@ func NewFactory() exporter.Factory {
 				},
 			}
 		},
-		exporter.WithTraces(createTracesExporter, component.StabilityLevelBeta),
-		exporter.WithMetrics(createMetricsExporter, component.StabilityLevelBeta),
+		exporter.WithTraces(createTracesExporter, component.StabilityLevelStable),
+		exporter.WithMetrics(createMetricsExporter, component.StabilityLevelStable),
 	)
 }
 

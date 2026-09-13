@@ -10,4 +10,4 @@ import "go.opentelemetry.io/collector/component"
 var Type = component.MustNewType("traciumauth")
 
 // ExtensionStability is the stability level advertised to the collector.
-const ExtensionStability = component.StabilityLevelBeta
+const ExtensionStability = component.StabilityLevelStable

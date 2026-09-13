@@ -78,6 +78,7 @@ GET  /traces  /traces/{id}  /traces/{traceId}/spans        (auth + tenant)
 GET  /metrics/kpis  /cost-series  /latency-series  /error-series
 GET  /metrics/top-agents  /agents  /agents/{name}  /failures
 GET  /metrics/model-costs  /usage-users  /usage-agents
+GET  /metrics/attribute-keys  /usage-by-attribute        (allocate cost by any attribute)
 ```
 
 The canonical request/response shapes live in
