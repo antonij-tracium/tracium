@@ -38,11 +38,14 @@ extensions:
   # cannot reference a storage extension and the queue stays in memory only —
   # any collector restart destroys spans already ACKed to the client.
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/extension/storage/filestorage v0.116.0
-  # Optional ingest authentication. Compiled in so operators can require a bearer
-  # token on the OTLP ports purely from config (collector.yaml, the [ingest-auth]
-  # block) without a rebuild. Inert unless referenced under service.extensions, so
-  # it changes nothing by default — ingest stays open until a token is configured.
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/extension/bearertokenauthextension v0.116.0
+  # Mandatory ingest authentication — per-workspace API keys. The Tracium
+  # authenticator validates each request's API key against the API's verify
+  # endpoint (which owns the key store) and resolves it to the workspace the key
+  # is bound to, so every sender has its own rotatable, revocable credential.
+  # It is wired into both OTLP receivers in collector.yaml and is not optional:
+  # ingest is key-only, there is no anonymous or shared-token path.
+  - gomod: github.com/tracium/collector/extension/traciumauthextension v0.0.0
+    path: ./extension/traciumauthextension
 
 # The Tracium components import shared domain logic (enrich, pricing, user,
 # spanmodel) from the parent module. `replace` directives in the component

@@ -6,6 +6,8 @@ export { LastUpdated } from './LastUpdated';
 export type { LastUpdatedProps, SyncTone } from './LastUpdated';
 export { ErrorBoundary } from './ErrorBoundary';
 export { Spinner } from './Spinner';
+export { SlicedButton } from './SlicedButton';
+export type { SlicedButtonProps } from './SlicedButton';
 export * from './Card';
 export * from './Sparkline';
 export * from './StatusPill';

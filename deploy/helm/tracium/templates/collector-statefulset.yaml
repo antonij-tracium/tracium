@@ -61,9 +61,12 @@ spec:
               value: {{ include "tracium.clickhouseDSN" . | quote }}
             - name: POSTGRES_DSN
               value: {{ include "tracium.postgresDSN" . | quote }}
-            # The collector does not authenticate OTLP. To require a bearer token,
-            # use the [ingest-auth] block in collector.yaml (mounted via the config
-            # ConfigMap) and supply INGEST_TOKEN here from a secret.
+            # Ingest auth is mandatory (traciumauth in collector.yaml): every OTLP
+            # request must present a per-workspace API key, which the collector
+            # verifies against the API's verify endpoint. Points at the in-cluster
+            # API Service.
+            - name: INGEST_VERIFY_URL
+              value: "http://{{ include "tracium.fullname" . }}-api:{{ .Values.api.service.port }}/v1/ingest/keys/verify"
             - name: GRPC_ADDR
               value: ":{{ .Values.collector.service.grpcPort }}"
             - name: HTTP_ADDR

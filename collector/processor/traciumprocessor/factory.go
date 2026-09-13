@@ -44,7 +44,7 @@ func NewFactory() processor.Factory {
 func createDefaultConfig() component.Config {
 	return &Config{
 		Pricing: PricingConfig{Source: "static"},
-		User:  UserConfig{Source: "passthrough"},
+		User:    UserConfig{Source: "passthrough"},
 	}
 }
 
@@ -179,7 +179,7 @@ func createMetricsProcessor(
 	mp := &metricsProcessor{
 		logger:  set.TelemetrySettings.Logger,
 		pricing: pricingResolver,
-		user:  userResolver,
+		user:    userResolver,
 	}
 	return processorhelper.NewMetrics(
 		ctx, set, cfg, next,

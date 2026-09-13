@@ -22,6 +22,19 @@ const OTLP = process.env.OTLP_ENDPOINT || "http://localhost:4318/v1/traces";
 const WORKSPACE_ID = process.env.WORKSPACE_ID || "c4ef3026-f040-4221-ad58-d6345dd4570c";
 const N_TRACES = parseInt(process.env.N_TRACES || "1400", 10);
 
+// Ingest now requires a per-workspace API key: the collector authenticates every
+// OTLP request against the API and the key decides the workspace. So the seeder
+// mints one key per workspace up front (via the API, as the seeded account) and
+// sends each workspace's spans under its own key. These must match the account
+// that owns the workspaces — run `npm run seed:account` first (or the combined
+// `npm run seed`), so the workspaces and this account's membership exist.
+const API = process.env.API_ENDPOINT || "http://localhost:8090";
+const EMAIL = process.env.SEED_EMAIL || "demo@tracium.ai";
+const PASSWORD = process.env.SEED_PASSWORD || "tracium-demo-1234";
+// Name the seeder's keys so a re-run can revoke its previous ones instead of
+// piling up a new key on every seed.
+const SEED_KEY_NAME = "seed";
+
 // Workspaces the seed data is distributed across. Each span carries its
 // workspace's id in tracium.workspace.id (a first-class column), so the
 // dashboard's WorkspaceSwitcher re-scopes every view. These ids are fixed so
@@ -547,10 +560,12 @@ function makeTrace(startNs, forceWf) {
   if (root.opts_in !== undefined) root.sp.attributes.push(kv("traceloop.entity.input", sv(root.opts_in)));
   if (root.opts_out !== undefined) root.sp.attributes.push(kv("traceloop.entity.output", sv(root.opts_out)));
 
+  // No tracium.workspace.id here: the ingest key decides the workspace, and the
+  // collector stamps it (overriding any sender-supplied value). The seeder groups
+  // spans by _workspaceId below and sends each group under that workspace's key.
   const resourceAttrs = [
     kv("service.name", sv(wf.agent)),
     kv("tracium.user.id", sv(userId)),
-    kv("tracium.workspace.id", sv(ws.id)),   // -> promoted workspace_id column
     kv("environment", sv(env)),
     kv("region", sv(region)),
     kv("team", sv(wf.team)),
@@ -564,12 +579,71 @@ function makeTrace(startNs, forceWf) {
     resource: { attributes: resourceAttrs },
     scopeSpans: [{ scope: { name: "tracium.seed" }, spans: T.spans }],
     _spanCount: T.spans.length,
+    _workspaceId: ws.id,
   };
 }
 
-async function post(resourceSpans) {
-  const body = JSON.stringify({ resourceSpans: resourceSpans.map(({ _spanCount, ...r }) => r) });
-  const res = await fetch(OTLP, { method: "POST", headers: { "Content-Type": "application/json" }, body });
+// ---- ingest-key provisioning -------------------------------------------------
+// Ingest is key-only. The seeder authenticates as the seeded account and mints
+// one key per workspace; each OTLP request then carries its workspace's key.
+
+async function authenticate() {
+  const body = JSON.stringify({ email: EMAIL, password: PASSWORD });
+  let res = await fetch(`${API}/v1/auth/register`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body,
+  });
+  if (res.status === 409) {
+    res = await fetch(`${API}/v1/auth/login`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body,
+    });
+  }
+  if (!res.ok) throw new Error(`auth failed (${res.status}): ${await res.text()}`);
+  return (await res.json()).token;
+}
+
+// provisionKeys returns a Map of workspaceId -> plaintext ingest token, minting a
+// fresh "seed" key in each workspace (revoking any prior one first, so re-seeding
+// does not accumulate keys). Requires the workspaces + this account's membership
+// to already exist (npm run seed:account).
+async function provisionKeys(token) {
+  const auth = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+  const keys = new Map();
+  for (const ws of WORKSPACES) {
+    const base = `${API}/v1/workspaces/${ws.id}/api-keys`;
+    // Revoke any previous seed keys so runs stay idempotent.
+    const listRes = await fetch(base, { headers: auth });
+    if (listRes.status === 403 || listRes.status === 404) {
+      throw new Error(
+        `workspace ${ws.name} (${ws.id}) not accessible as ${EMAIL} — run \`npm run seed:account\` first`,
+      );
+    }
+    if (!listRes.ok) throw new Error(`list keys failed (${listRes.status}): ${await listRes.text()}`);
+    for (const k of await listRes.json()) {
+      if (k.name === SEED_KEY_NAME && !k.revoked_at) {
+        await fetch(`${base}/${k.id}`, { method: "DELETE", headers: auth });
+      }
+    }
+    // Mint the fresh key and capture its one-time token.
+    const createRes = await fetch(base, {
+      method: "POST", headers: auth, body: JSON.stringify({ name: SEED_KEY_NAME }),
+    });
+    if (!createRes.ok) throw new Error(`create key failed (${createRes.status}): ${await createRes.text()}`);
+    const created = await createRes.json();
+    keys.set(ws.id, created.token);
+    console.log(`  minted ingest key for ${ws.name.padEnd(12)} ${created.key.prefix}…`);
+  }
+  return keys;
+}
+
+async function post(resourceSpans, token) {
+  const body = JSON.stringify({
+    resourceSpans: resourceSpans.map(({ _spanCount, _workspaceId, ...r }) => r),
+  });
+  const res = await fetch(OTLP, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body,
+  });
   const text = await res.text();
   if (!res.ok) throw new Error(`OTLP ${res.status}: ${text}`);
   return res.status;
@@ -651,14 +725,29 @@ async function main() {
     tasks.push({ startNs: dayStartNs(nowNs, 1) + withinDay() });
   }
 
+  // Provision one ingest key per workspace before sending anything.
+  console.log(`authenticating as ${EMAIL} and minting ingest keys -> ${API}`);
+  const token = await authenticate();
+  const keys = await provisionKeys(token);
+
   const total = tasks.length;
-  console.log(`seeding ${total} traces over ${HISTORY_DAYS}d (baseline ${N_TRACES} + injected incidents) -> ${OTLP}  (workspace ${WORKSPACE_ID})`);
+  console.log(`seeding ${total} traces over ${HISTORY_DAYS}d (baseline ${N_TRACES} + injected incidents) -> ${OTLP}`);
   let batch = [], sent = 0, spans = 0;
   const flush = async () => {
     if (!batch.length) return;
-    const st = await post(batch);
+    // The key decides the workspace, so a request carries one workspace's spans.
+    // Group the batch by workspace and send each group under its own key.
+    const byWs = new Map();
+    for (const t of batch) {
+      if (!byWs.has(t._workspaceId)) byWs.set(t._workspaceId, []);
+      byWs.get(t._workspaceId).push(t);
+    }
+    let lastStatus = 0;
+    for (const [wsId, group] of byWs) {
+      lastStatus = await post(group, keys.get(wsId));
+    }
     sent += batch.length;
-    console.log(`  sent ${sent}/${total} traces (http ${st})`);
+    console.log(`  sent ${sent}/${total} traces (http ${lastStatus})`);
     batch = [];
   };
   for (const task of tasks) {

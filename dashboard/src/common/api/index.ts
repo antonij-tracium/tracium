@@ -4,3 +4,5 @@ export { UsersAPI } from './users';
 export { MetricsAPI } from './metrics';
 export { WorkspacesAPI } from './workspaces';
 export type { CreateWorkspaceInput } from './workspaces';
+export { ApiKeysAPI } from './apikeys';
+export type { ApiKeyRecord, CreatedApiKey } from './apikeys';

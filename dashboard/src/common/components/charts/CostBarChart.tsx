@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import type { CostPoint, ChartMarker } from '../../interfaces';
 import { useResize } from '../../hooks/useResize';
 

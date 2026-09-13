@@ -55,8 +55,6 @@ import type {
 
 interface UsageLivePageProps {
   range: string;
-  setView: (v: string) => void;
-  setSelected: (updater: (prev: Record<string, string>) => Record<string, string>) => void;
 }
 
 const RANGE_LABEL: Record<string, string> = {
@@ -174,7 +172,7 @@ const sumCost = (rows: { cost: number }[]): number => rows.reduce((s, r) => s + 
 
 // ── Page ────────────────────────────────────────────────────────────────────
 
-export function UsageLivePage({ range, setView, setSelected }: UsageLivePageProps) {
+export function UsageLivePage({ range }: UsageLivePageProps) {
   const [tab, setTab] = useState<BreakdownTab>('user');
   const [sortBy, setSortBy] = useState<SortKey>('cost');
 

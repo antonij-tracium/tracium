@@ -12,12 +12,15 @@ receivers:
     protocols:
       grpc:
         endpoint: ${env:GRPC_ADDR:-0.0.0.0:4317}
-        # [ingest-auth] require a bearer token on gRPC ingest (see extensions below):
-        # auth: { authenticator: bearertokenauth }
+        # Ingest requires a per-workspace API key on every request. This is not
+        # optional: the traciumauth authenticator (see extensions) verifies the
+        # key and rejects anything unknown or revoked with 401.
+        auth: { authenticator: traciumauth }
       http:
         endpoint: ${env:HTTP_ADDR:-0.0.0.0:4318}
-        # [ingest-auth] require a bearer token on HTTP ingest (see extensions below):
-        # auth: { authenticator: bearertokenauth }
+        # Ingest requires a per-workspace API key on every request. See the gRPC
+        # note above; the same authenticator guards both protocols.
+        auth: { authenticator: traciumauth }
 
 processors:
   # Tracium LLM-span enrichment. OSS sources only; the Enterprise build accepts
@@ -92,23 +95,34 @@ extensions:
     compaction:
       on_start: true
       directory: ${env:QUEUE_STORAGE_DIR:-/var/lib/tracium/queue}
-  # [ingest-auth] OPT-IN ingest authentication. The OTLP ports are UNAUTHENTICATED
-  # by default: anyone who can reach :4317/:4318 can send spans. That is safe only
-  # when the collector sits on a trusted network — the intended posture is to keep
-  # these ports off the public internet (the Helm chart already does: OTLP is not
-  # in the ingress). To instead require a shared bearer token, set INGEST_TOKEN and
-  # uncomment the block below plus the [ingest-auth] lines on both receivers and in
-  # service.extensions. Clients then send:
-  #   OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer <token>"
-  # A shared token is one secret for everyone; for rotatable per-client identity use
-  # oidcauth or an authenticating gateway in front of the collector. Leaving this
-  # commented out changes nothing — ingest stays open, as before.
-  # bearertokenauth:
-  #   token: ${env:INGEST_TOKEN}
+  # REQUIRED ingest authentication — per-workspace API keys. Every OTLP request
+  # must carry a Tracium API key (issued from the dashboard / POST
+  # /v1/workspaces/{id}/api-keys); the authenticator resolves it to that key's
+  # workspace and rejects unknown or revoked keys with 401. There is no keyless
+  # ingest: the key both authenticates the sender and decides which workspace the
+  # telemetry lands in, so senders set only the key and no workspace attribute:
+  #   OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer <api-key>"
+  # The extension holds no keys itself; it verifies each against the API, which
+  # owns the key store. INGEST_VERIFY_URL must point at that API.
+  traciumauth:
+    endpoint: ${env:INGEST_VERIFY_URL:-http://api:8090/v1/ingest/keys/verify}
+    # cache_ttl bounds how long a revoked key keeps working; keep it short.
+    cache_ttl: 60s
+    # Upper bound on cached verifications (LRU). Caps memory regardless of how
+    # many distinct keys arrive. Defaults to 10000.
+    cache_max_entries: 10000
+    # Per-sender cap on verification calls forced against the API within
+    # sender_verify_window. Only cache misses count, so one valid key is charged
+    # once and then served from cache — legitimate high-volume ingest is
+    # unaffected. Stops one abusive sender streaming invalid keys from spending
+    # the collector's shared verify budget. Default 20; <= 0 disables.
+    sender_verify_limit: 20
+    sender_verify_window: 1m
 
 service:
-  # [ingest-auth] add bearertokenauth to this list to turn ingest auth on.
-  extensions: [health_check, file_storage]
+  # traciumauth is required here: without it the receivers have no authenticator
+  # and the tracium processor rejects every (now keyless) span as unauthenticated.
+  extensions: [health_check, file_storage, traciumauth]
   telemetry:
     metrics:
       # Bound to all interfaces so the collector's own metrics — including the

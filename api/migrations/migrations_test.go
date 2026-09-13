@@ -56,4 +56,24 @@ func TestUpgradeAndImmutableNamespaces(t *testing.T) {
 	if err = pool.QueryRow(ctx, `SELECT to_regclass('should_rollback') IS NOT NULL`).Scan(&exists); err != nil || exists {
 		t.Fatalf("failed DDL not rolled back: %v %v", exists, err)
 	}
+
+	// Deleting a workspace must invalidate its API keys. api_keys.workspace_id is
+	// an ON DELETE CASCADE foreign key, so a key cannot outlive its workspace and
+	// keep authenticating telemetry into a workspace that no longer exists.
+	if _, err = pool.Exec(ctx,
+		`INSERT INTO api_keys(id,workspace_id,created_by,name,prefix,key_hash)
+		 VALUES(gen_random_uuid(),'legacy-workspace','legacy-owner','k','tk_ab','hash-cascade')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = pool.Exec(ctx, `DELETE FROM workspaces WHERE id='legacy-workspace'`); err != nil {
+		t.Fatal(err)
+	}
+	var keyCount int
+	if err = pool.QueryRow(ctx,
+		`SELECT count(*) FROM api_keys WHERE workspace_id='legacy-workspace'`).Scan(&keyCount); err != nil {
+		t.Fatal(err)
+	}
+	if keyCount != 0 {
+		t.Fatalf("api keys survived workspace deletion: %d left", keyCount)
+	}
 }

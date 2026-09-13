@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"encoding/json"
 	"net"
 	"net/http"
@@ -27,6 +28,13 @@ type RateLimiter struct {
 	// When empty (the default) the header is ignored entirely and the socket
 	// peer is always used as the key, so a client cannot spoof its source.
 	trustedProxies []*net.IPNet
+	// Explicit dns: entries identify proxy services with changing addresses.
+	// Kubernetes callers must use a headless Service, which resolves to pod IPs.
+	proxyMu      sync.Mutex
+	proxyNames   []string
+	proxyIPs     []net.IPAddr
+	proxyExpires time.Time
+	lookupProxy  func(context.Context, string) ([]net.IPAddr, error)
 }
 
 type visitor struct {
@@ -37,7 +45,7 @@ type visitor struct {
 // NewRateLimiter builds a limiter allowing at most limit requests per window per
 // client IP and starts a background sweeper to evict stale entries.
 //
-// trustedProxies is a list of IPs or CIDRs (e.g. "10.0.0.0/8", "127.0.0.1") of
+// trustedProxies is a list of IPs, CIDRs, or explicit dns:service-name entries of
 // reverse proxies permitted to set X-Forwarded-For. Only when the socket peer is
 // one of these is the header consulted; otherwise, and by default (empty list),
 // the socket peer alone is the rate-limit key. Unparseable entries are skipped
@@ -48,6 +56,12 @@ func NewRateLimiter(limit int, window time.Duration, trustedProxies []string) *R
 		limit:          limit,
 		window:         window,
 		trustedProxies: parseCIDRs(trustedProxies),
+		lookupProxy:    net.DefaultResolver.LookupIPAddr,
+	}
+	for _, entry := range trustedProxies {
+		if name, ok := strings.CutPrefix(strings.TrimSpace(entry), "dns:"); ok && name != "" {
+			rl.proxyNames = append(rl.proxyNames, name)
+		}
 	}
 	go rl.cleanupLoop()
 	return rl
@@ -191,6 +205,35 @@ func (rl *RateLimiter) isTrustedProxy(ip string) bool {
 	}
 	for _, n := range rl.trustedProxies {
 		if n.Contains(parsed) {
+			return true
+		}
+	}
+	return rl.isNamedProxy(parsed)
+}
+
+// Cache service discovery briefly, including failures, to bound DNS work on the
+// request path. A failed refresh removes old addresses instead of extending trust
+// to a pod/container IP that may have been reassigned. All lookups together have
+// a one-second deadline; this lock is separate from the request-budget lock.
+func (rl *RateLimiter) isNamedProxy(ip net.IP) bool {
+	if len(rl.proxyNames) == 0 {
+		return false
+	}
+	rl.proxyMu.Lock()
+	defer rl.proxyMu.Unlock()
+	if !time.Now().Before(rl.proxyExpires) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		rl.proxyIPs = nil
+		for _, name := range rl.proxyNames {
+			if addresses, err := rl.lookupProxy(ctx, name); err == nil {
+				rl.proxyIPs = append(rl.proxyIPs, addresses...)
+			}
+		}
+		rl.proxyExpires = time.Now().Add(5 * time.Second)
+	}
+	for _, address := range rl.proxyIPs {
+		if address.IP.Equal(ip) {
 			return true
 		}
 	}

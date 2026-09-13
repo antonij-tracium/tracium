@@ -32,7 +32,7 @@ import {
   useAnomalies,
   useRecentActivity,
 } from '../hooks/useMetrics';
-import type { Kpi, KpiSet, CostBucket, LatencyBucket, ErrorBucket, AgentCost, FailureRow, ActivityItem, Anomaly } from '../interfaces';
+import type { Kpi, KpiSet, AgentCost, FailureRow, ActivityItem, Anomaly } from '../interfaces';
 import { anomalyKey, anomalyValue, toChartMarkers } from '../utils/anomalies';
 import type { ActivityId } from '../ids';
 import type { Tweaks } from './OverviewPage';
@@ -322,4 +322,3 @@ export function OverviewLivePage({ range, setView, setSelected, tweaks }: Overvi
     />
   );
 }
-

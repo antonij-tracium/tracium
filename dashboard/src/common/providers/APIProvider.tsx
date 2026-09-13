@@ -2,12 +2,14 @@ import React, { createContext, useContext, useMemo, useState } from 'react';
 import { TracesAPI } from '../api/traces';
 import { MetricsAPI } from '../api/metrics';
 import { WorkspacesAPI } from '../api/workspaces';
+import { ApiKeysAPI } from '../api/apikeys';
 import type { APIClientConfig } from '../interfaces';
 
 interface APIContextValue {
   tracesAPI: TracesAPI;
   metricsAPI: MetricsAPI;
   workspacesAPI: WorkspacesAPI;
+  apiKeysAPI: ApiKeysAPI;
   /**
    * The workspace every client is currently scoped to (undefined = unscoped).
    * Consumers MUST fold this into their react-query keys so a cached result
@@ -39,6 +41,7 @@ export function APIProvider({ config, children }: APIProviderProps) {
       tracesAPI: new TracesAPI(scopedConfig),
       metricsAPI: new MetricsAPI(scopedConfig),
       workspacesAPI: new WorkspacesAPI(scopedConfig),
+      apiKeysAPI: new ApiKeysAPI(scopedConfig),
       workspaceId,
       setWorkspaceId,
     };

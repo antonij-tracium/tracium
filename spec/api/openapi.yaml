@@ -686,6 +686,143 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /v1/workspaces/{id}/api-keys:
+    get:
+      operationId: listApiKeys
+      summary: List a workspace's ingest API keys
+      description: >
+        Every API key bound to the workspace, newest first, including revoked
+        ones (so history is visible). The secret token itself is never returned
+        here — only its non-secret prefix and metadata. Requires membership of
+        the workspace.
+      tags: [API Keys]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The workspace's API keys (metadata only).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/APIKey"
+        "403":
+          description: The caller is not a member of the workspace.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createApiKey
+      summary: Create an ingest API key
+      description: >
+        Issues a new key bound to this workspace for authenticating trace
+        ingestion. The key both authenticates the sender and determines the
+        workspace its telemetry lands in, so senders need not set a workspace
+        attribute. The plaintext token is returned in this response exactly once
+        and cannot be retrieved again — capture it now. Only its hash is stored.
+        Requires membership of the workspace; the caller is recorded as the key's
+        creator, for provenance only.
+      tags: [API Keys]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/APIKeyInput"
+      responses:
+        "201":
+          description: The created key, including the one-time plaintext token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIKeyCreated"
+        "403":
+          description: The caller is not a member of the workspace.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/workspaces/{id}/api-keys/{keyId}:
+    delete:
+      operationId: revokeApiKey
+      summary: Revoke an ingest API key
+      description: >
+        Disables a key in this workspace. Ingest requests presenting it are
+        rejected thereafter (subject to the collector's short verification
+        cache). The row is retained, marked revoked, for audit. Requires
+        membership of the workspace.
+      tags: [API Keys]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: keyId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Revoked.
+        "403":
+          description: The caller is not a member of the workspace.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No such active key in this workspace.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/ingest/keys/verify:
+    post:
+      operationId: verifyApiKey
+      summary: Verify an ingest API key (collector-facing)
+      description: >
+        Resolves a presented ingest key to the workspace it grants. This endpoint
+        is called by the collector's authenticator extension, not by end users, so
+        it is unauthenticated (it carries no session) but rate-limited. It leaks
+        no detail about why a key failed.
+      tags: [API Keys]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/APIKeyVerifyRequest"
+      responses:
+        "200":
+          description: The key is valid; the workspace it grants is returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIKeyVerifyResponse"
+        "401":
+          description: The key is missing, malformed, unknown, or revoked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -795,6 +932,77 @@ components:
           type: string
           enum: [owner, member]
           default: member
+    APIKey:
+      type: object
+      required: [id, workspace_id, created_by, name, prefix, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        workspace_id:
+          type: string
+          description: The workspace this key is bound to and ingests into.
+        created_by:
+          type: string
+          description: >
+            The account that created the key, for provenance only. It carries no
+            authority — the key keeps working regardless of this account.
+        name:
+          type: string
+          description: Human label for the key.
+        prefix:
+          type: string
+          description: >
+            Non-secret leading slice of the token (e.g. "trc_9f3a1b2c"), shown so
+            the key is identifiable in the UI without revealing it.
+        created_at:
+          type: string
+          format: date-time
+        last_used_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the key was last accepted at ingest, or null if never.
+        revoked_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the key was revoked, or null if still active.
+    APIKeyInput:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Optional label; defaults to "default" when omitted.
+    APIKeyCreated:
+      type: object
+      required: [key, token]
+      properties:
+        key:
+          $ref: "#/components/schemas/APIKey"
+        token:
+          type: string
+          description: >
+            The plaintext ingest key (e.g. "trc_..."). Returned only here, only
+            once; it is stored hashed and cannot be recovered later. Send it as
+            "Authorization: Bearer <token>" on OTLP ingest.
+    APIKeyVerifyRequest:
+      type: object
+      required: [key]
+      properties:
+        key:
+          type: string
+          description: The plaintext ingest key to verify.
+    APIKeyVerifyResponse:
+      type: object
+      required: [workspace_id]
+      properties:
+        workspace_id:
+          type: string
+          description: >
+            The workspace the key grants. The collector stamps this onto every
+            span the request carries, overriding any sender-supplied workspace —
+            the key, not the payload, decides where data lands.
     Span:
       type: object
       required:

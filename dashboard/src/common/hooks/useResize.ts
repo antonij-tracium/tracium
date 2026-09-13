@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 export function useResize(ref: React.RefObject<HTMLDivElement | null>): number {
   const [w, setW] = useState(600);
