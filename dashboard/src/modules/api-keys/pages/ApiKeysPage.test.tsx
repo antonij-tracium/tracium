@@ -22,7 +22,7 @@ function show(workspaceId: string | undefined = 'ws-1') {
 const KEY = {
   id: 'k1',
   workspace_id: 'ws-1',
-  created_by: 'antonij@tracium.ai',
+  created_by: 'demo@tracium.ai',
   name: 'Production ingest',
   prefix: 'trc_9f3a1b2c',
   created_at: '2026-03-12T10:00:00Z',

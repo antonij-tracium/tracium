@@ -66,14 +66,14 @@ interface SettingsWorkspace {
 
 const SET_USER: SettingsUser = {
   name: 'Mark Gonzales',
-  email: 'mark@aqtos.io',
+  email: 'mark@umbrella.dev',
   initials: 'MG',
   role: 'Owner',
   joined: 'Jan 14, 2025',
 };
 
 const SET_WORKSPACE: SettingsWorkspace = {
-  name: 'aqtos',
+  name: 'umbrella',
   id: 'ws_2qHv4Rt81xLpKnvR',
   defaultRetention: '30 days',
   members: 12,
