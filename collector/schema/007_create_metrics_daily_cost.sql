@@ -1,8 +1,8 @@
 -- Daily cost rollup, reconciled across ingestion sources.
 --
 -- The main rollup (tracium.metrics_daily, migrations 002/003) is span-derived
--- only: metric-source rows carry no trace/agent/model identity, so folding them
--- into that table would distort run counts and the agent/model dimensions. But
+-- only: metric-source rows carry no trace/workflow/model identity, so folding
+-- them into that table would distort run counts and the workflow/model dimensions. But
 -- cost IS metered by both sources, and the short-window (raw-span) cost path
 -- reconciles them per bucket with greatest(span, metric) — each source is a
 -- lower bound on true spend, so the greater is the tightest non-double-counting

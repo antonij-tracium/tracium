@@ -453,9 +453,9 @@ export function TraceView({ trace: t, setView }: TraceViewProps) {
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24, flexWrap: 'wrap', marginBottom: 24 }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, fontSize: 12, flexWrap: 'wrap' }}>
-            <span onClick={() => setView('agents')} style={{ color: 'var(--muted)', cursor: 'pointer' }}>Agents</span>
+            <span onClick={() => setView('workflows')} style={{ color: 'var(--muted)', cursor: 'pointer' }}>Workflows</span>
             <span style={{ color: 'var(--muted)', opacity: 0.4 }}>/</span>
-            <span style={{ color: 'var(--muted)' }}>{t.agent}</span>
+            <span style={{ color: 'var(--muted)' }}>{t.workflow}</span>
             <span style={{ color: 'var(--muted)', opacity: 0.4 }}>/</span>
             <span style={{ color: 'var(--foreground)', fontFamily: 'var(--font-mono)' }}>{t.id}</span>
           </div>
@@ -468,7 +468,7 @@ export function TraceView({ trace: t, setView }: TraceViewProps) {
               </React.Fragment>
             ))}
           </div>
-          <h1 style={{ fontSize: 26, fontWeight: 600, letterSpacing: '-0.02em', margin: '0 0 6px', color: 'var(--foreground)' }}>{t.agent}</h1>
+          <h1 style={{ fontSize: 26, fontWeight: 600, letterSpacing: '-0.02em', margin: '0 0 6px', color: 'var(--foreground)' }}>{t.workflow}</h1>
           {t.startedAt && (
             <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>
               {t.startedAt}{t.endedAt && <> <span style={{ opacity: 0.4 }}>→</span> {t.endedAt}</>}
@@ -629,7 +629,7 @@ export function TraceView({ trace: t, setView }: TraceViewProps) {
       {/* Tab: input */}
       {tab === 'input' && (
         <div style={{ maxWidth: 820 }}>
-          <SectionLabel style={{ marginBottom: 10 }}>Agent input</SectionLabel>
+          <SectionLabel style={{ marginBottom: 10 }}>Workflow input</SectionLabel>
           {t.input ? <CodeBlock maxHeight={500}>{prettifyMaybeJson(t.input)}</CodeBlock> : <EmptyBlock>No input recorded for this trace.</EmptyBlock>}
         </div>
       )}
@@ -637,7 +637,7 @@ export function TraceView({ trace: t, setView }: TraceViewProps) {
       {/* Tab: output */}
       {tab === 'output' && (
         <div style={{ maxWidth: 820 }}>
-          <SectionLabel style={{ marginBottom: 10 }}>Agent output</SectionLabel>
+          <SectionLabel style={{ marginBottom: 10 }}>Workflow output</SectionLabel>
           {t.output
             ? <CodeBlock maxHeight={500}>{prettifyMaybeJson(t.output)}</CodeBlock>
             : <EmptyBlock>{t.status === 'failed' ? 'No output — trace failed before completion.' : 'No output recorded for this trace.'}</EmptyBlock>}
@@ -650,8 +650,8 @@ export function TraceView({ trace: t, setView }: TraceViewProps) {
           <div>
             <SectionLabel>Identity</SectionLabel>
             <MetaRow label="trace.id" value={t.id} mono />
-            <MetaRow label="agent" value={t.agent} />
-            <MetaRow label="agent.version" value={t.version} />
+            <MetaRow label="workflow" value={t.workflow} />
+            <MetaRow label="workflow.version" value={t.version} />
             <MetaRow label="session.id" value={t.sessionId} mono />
             <MetaRow label="user.id" value={t.user} mono />
             <SectionLabel style={{ margin: '24px 0 8px' }}>Timing</SectionLabel>

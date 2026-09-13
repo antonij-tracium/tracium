@@ -17,7 +17,7 @@ type Span struct {
 	OutputTokens int64   `json:"output_tokens"`
 	CostUSD      float64 `json:"cost_usd"`
 	// SubtreeCostUSD is CostUSD plus the cost of every transitive descendant
-	// span, so a parent (an agent that fans out to sub-agents and tool calls)
+	// span, so a parent (an workflow that fans out to sub-workflows and tool calls)
 	// carries the total cost of everything beneath it. Derived at read time by
 	// AssignSubtreeTotals — there is no backing column, because spans stream in
 	// independently and out of order, so a subtree total can only be computed

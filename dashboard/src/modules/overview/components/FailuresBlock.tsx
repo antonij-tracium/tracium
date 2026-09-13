@@ -1,7 +1,7 @@
 // Failures section — an inline horizon strip of error counts per day (when a
 // daily series is available) with a summary line beneath it (total failed,
-// worst agent). No card; the SectionRule provides the header and a
-// shortcut into the agents view.
+// worst workflow). No card; the SectionRule provides the header and a
+// shortcut into the workflows view.
 
 import { HorizonStrip, IconArrowRight } from '../../../common';
 import type { ErrorPoint, ChartMarker } from '../../../common/interfaces';
@@ -10,8 +10,8 @@ import { SectionRule } from './SectionRule';
 interface FailuresBlockProps {
   series?: ErrorPoint[];
   totalFailed: number;
-  worstAgent: string;
-  onViewAgents: () => void;
+  worstWorkflow: string;
+  onViewWorkflows: () => void;
   range?: string;
   // Optional in-place error/volume anomaly highlights (design 1c).
   errorMarkers?: ChartMarker[];
@@ -32,17 +32,17 @@ function Divider() {
   return <div style={{ width: 1, height: 14, background: 'var(--border)' }} />;
 }
 
-export function FailuresBlock({ series, totalFailed, worstAgent, onViewAgents, range, errorMarkers }: FailuresBlockProps) {
+export function FailuresBlock({ series, totalFailed, worstWorkflow, onViewWorkflows, range, errorMarkers }: FailuresBlockProps) {
   const hourly = range === '24h';
   return (
     <div style={{ marginBottom: 44 }}>
       <SectionRule
         eyebrow="Reliability"
         title={hourly ? 'Failures by hour' : 'Failures by day'}
-        subtitle={`Error count per ${hourly ? 'hour' : 'day'} across all agents · hover for rate`}
+        subtitle={`Error count per ${hourly ? 'hour' : 'day'} across all workflows · hover for rate`}
         right={
           <button
-            onClick={onViewAgents}
+            onClick={onViewWorkflows}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -56,7 +56,7 @@ export function FailuresBlock({ series, totalFailed, worstAgent, onViewAgents, r
               background: 'transparent',
             }}
           >
-            View agents <IconArrowRight size={12} />
+            View workflows <IconArrowRight size={12} />
           </button>
         }
       />
@@ -64,7 +64,7 @@ export function FailuresBlock({ series, totalFailed, worstAgent, onViewAgents, r
       <div style={{ display: 'flex', gap: 36, alignItems: 'center', marginTop: series && series.length > 0 ? 20 : 0, fontSize: 12.5 }}>
         <SummaryStat label="Total failed" value={String(totalFailed)} valueColor="var(--error)" />
         <Divider />
-        <SummaryStat label="Worst agent" value={worstAgent} />
+        <SummaryStat label="Worst workflow" value={worstWorkflow} />
       </div>
     </div>
   );

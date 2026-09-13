@@ -8,7 +8,7 @@
 -- the two ingestion sources into two columns with sumIf, so one row per
 -- (day, user, workspace) holds both span_cost and metric_cost. Metric rows carry
 -- user_id/workspace_id (set by the collector's metric exporter) but no
--- trace/agent/model identity — which is exactly why cost is rolled up here,
+-- trace/workflow/model identity — which is exactly why cost is rolled up here,
 -- keyed only by the dimensions both sources share, rather than in metrics_daily.
 --
 -- Note: a materialized view only captures inserts made AFTER it exists. On a

@@ -76,7 +76,7 @@ export default function UsagePage({ range: _range }: UsagePageProps) {
       }}
     >
       <UsageMasthead
-        subtitle={`${data.range.start} – ${data.range.end} · ${data.users.length} active users, ${data.agents.length} agents`}
+        subtitle={`${data.range.start} – ${data.range.end} · ${data.users.length} active users, ${data.workflows.length} workflows`}
       />
 
       <div style={{ paddingBottom: 8 }}>
@@ -107,7 +107,7 @@ export default function UsagePage({ range: _range }: UsagePageProps) {
             setTab={handleTabChange}
             tabs={[
               { id: 'user', label: 'By user', count: data.users.length },
-              { id: 'agent', label: 'By agent', count: data.agents.length },
+              { id: 'workflow', label: 'By workflow', count: data.workflows.length },
             ]}
           />
         }
@@ -122,9 +122,9 @@ export default function UsagePage({ range: _range }: UsagePageProps) {
         />
       ) : (
         <Breakdown
-          rows={data.agents}
+          rows={data.workflows}
           totalCost={data.totalCost}
-          kind="agent"
+          kind="workflow"
           sortBy={sortBy}
           setSortBy={setSortBy}
         />

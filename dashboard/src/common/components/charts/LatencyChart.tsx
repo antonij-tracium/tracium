@@ -58,7 +58,7 @@ export function LatencyChart({ series, height = 220 }: LatencyChartProps) {
 
   // An isolated bucket — one non-null point with null neighbours on both sides —
   // becomes a length-1 segment, which draws no line (a lone `M` has nothing to
-  // connect to). A single-trace agent hits this and the whole series vanishes, so
+  // connect to). A single-trace workflow hits this and the whole series vanishes, so
   // render a dot for every singleton segment to keep the point visible.
   const isolatedPoints = (segs: Pt[][]): Pt[] => segs.filter((s) => s.length === 1).map((s) => s[0]);
 

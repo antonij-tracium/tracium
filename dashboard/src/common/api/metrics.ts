@@ -5,7 +5,7 @@ import type {
   CostBucket,
   LatencyBucket,
   ErrorBucket,
-  AgentCost,
+  WorkflowCost,
   FailureRow,
   Anomaly,
   AnomalyMetric,
@@ -14,10 +14,10 @@ import type {
 import type {
   ModelCost,
   UserUsage,
-  AgentUsage,
+  WorkflowUsage,
   AttributeUsage,
 } from '../../modules/usage/interfaces';
-import type { Agent, AgentDetail } from '../../modules/agents/interfaces';
+import type { Workflow, WorkflowDetail } from '../../modules/workflows/interfaces';
 
 // MetricsAPI reads the aggregated overview metrics. Each section is its own
 // endpoint so the dashboard can load and refresh them independently.
@@ -26,32 +26,32 @@ export class MetricsAPI extends BaseAPIClient {
     return this.get('/metrics/kpis', { range });
   }
 
-  // The series accept an optional `agent` to scope the chart to one agent (the
+  // The series accept an optional `workflow` to scope the chart to one workflow (the
   // detail page). Omitted, they return the workspace-wide series as before.
-  getCostSeries(range: string, agent?: string): Promise<PaginatedResponse<CostBucket>> {
-    return this.get('/metrics/cost-series', { range, agent });
+  getCostSeries(range: string, workflow?: string): Promise<PaginatedResponse<CostBucket>> {
+    return this.get('/metrics/cost-series', { range, workflow });
   }
 
-  getLatencySeries(range: string, agent?: string): Promise<PaginatedResponse<LatencyBucket>> {
-    return this.get('/metrics/latency-series', { range, agent });
+  getLatencySeries(range: string, workflow?: string): Promise<PaginatedResponse<LatencyBucket>> {
+    return this.get('/metrics/latency-series', { range, workflow });
   }
 
-  getErrorSeries(range: string, agent?: string): Promise<PaginatedResponse<ErrorBucket>> {
-    return this.get('/metrics/error-series', { range, agent });
+  getErrorSeries(range: string, workflow?: string): Promise<PaginatedResponse<ErrorBucket>> {
+    return this.get('/metrics/error-series', { range, workflow });
   }
 
-  getTopAgents(range: string): Promise<PaginatedResponse<AgentCost>> {
-    return this.get('/metrics/top-agents', { range });
+  getTopWorkflows(range: string): Promise<PaginatedResponse<WorkflowCost>> {
+    return this.get('/metrics/top-workflows', { range });
   }
 
-  getAgents(range: string): Promise<PaginatedResponse<Agent>> {
-    return this.get('/metrics/agents', { range });
+  getWorkflows(range: string): Promise<PaginatedResponse<Workflow>> {
+    return this.get('/metrics/workflows', { range });
   }
 
-  // One agent's detail payload. Raw-window only (≤30d): the server rejects
-  // longer ranges, since per-agent latency isn't in the daily rollup.
-  getAgentDetail(name: string, range: string): Promise<AgentDetail> {
-    return this.get(`/metrics/agents/${encodeURIComponent(name)}`, { range });
+  // One workflow's detail payload. Raw-window only (≤30d): the server rejects
+  // longer ranges, since per-workflow latency isn't in the daily rollup.
+  getWorkflowDetail(name: string, range: string): Promise<WorkflowDetail> {
+    return this.get(`/metrics/workflows/${encodeURIComponent(name)}`, { range });
   }
 
   getFailures(range: string): Promise<PaginatedResponse<FailureRow>> {
@@ -59,7 +59,7 @@ export class MetricsAPI extends BaseAPIClient {
   }
 
   // Statistical anomalies (cost / error-rate / run-volume) over the window,
-  // workspace-wide and per busy agent. Daily and rollup-backed, so the server
+  // workspace-wide and per busy workflow. Daily and rollup-backed, so the server
   // requires a range of 7d or longer (24h is rejected). Optional metric and
   // min_severity narrow the results.
   getAnomalies(
@@ -78,8 +78,8 @@ export class MetricsAPI extends BaseAPIClient {
     return this.get('/metrics/usage-users', { range, user_id: userId });
   }
 
-  getAgentUsage(range: string): Promise<PaginatedResponse<AgentUsage>> {
-    return this.get('/metrics/usage-agents', { range });
+  getWorkflowUsage(range: string): Promise<PaginatedResponse<WorkflowUsage>> {
+    return this.get('/metrics/usage-workflows', { range });
   }
 
   // Custom-attribute allocation. attribute-keys lists the dimensions present in

@@ -29,7 +29,7 @@ export const USAGE_DATA: UsageData = {
     { id: "u_umbrella_stg" as UserId, name: "Umbrella Staging",     cost: 0.3204, costPrev: 0.3283, runs: 612,  runsPrev: 641,  avg: 0.000524, trend: [18,20,19,22,21,20,22,21]},
     { id: "u_personal"  as UserId, name: "Personal",           cost: 0.0384, costPrev: 0.0291, runs: 133,  runsPrev: 96,   avg: 0.000289, trend: [2,3,4,3,5,6,5,8]},
   ],
-  agents: [
+  workflows: [
     { name: "summarize-comments",             cost: 0.4234, costPrev: 0.3767, runs: 847,  runsPrev: 812,  avg: 0.000500, model: "claude-3-5-haiku-20241022" },
     { name: "generate-clock-out-description", cost: 0.2891, costPrev: 0.2733, runs: 412,  runsPrev: 430,  avg: 0.000702, model: "claude-sonnet-4-5"         },
     { name: "classify-intent",                cost: 0.1204, costPrev: 0.0986, runs: 1203, runsPrev: 1040, avg: 0.000100, model: "claude-3-5-haiku-20241022" },

@@ -47,19 +47,20 @@ type Span struct {
 	ErrorType       string
 	ErrorMessage    string
 
-	// AgentName identifies the agent that owns this span, so the query layer can
-	// group traces per agent instead of by the raw span name. Derived by the
+	// WorkflowName identifies the workflow that owns this span, so the query layer
+	// can group traces per workflow instead of by the raw span name. Derived by the
 	// exporter from the first non-empty of: gen_ai.agent.name,
 	// traceloop.workflow.name, traceloop.entity.name, the resource attribute
 	// service.name, or the span name as a last resort. The span-scoped signals
-	// come first so a multi-agent trace attributes each span to its real agent.
-	AgentName string
+	// come first so a trace made of many sub-spans attributes each span to its real
+	// workflow.
+	WorkflowName string
 
 	// ServiceName is the resource-level service.name, persisted verbatim (the
 	// OTel "unknown_service" default is stored as empty). Kept as its own column
 	// so the query layer has a stable, always-present name for a trace's in-flight
 	// display — present on the very first auto-instrumented span — without folding
-	// it into AgentName and losing per-agent attribution.
+	// it into WorkflowName and losing per-workflow attribution.
 	ServiceName string
 
 	// Source records how this row entered Tracium: "span" for a real per-call

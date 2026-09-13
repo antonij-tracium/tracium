@@ -1,13 +1,13 @@
-// Deterministic, demo-only series for the agent detail page. There is no live
-// per-agent timeseries endpoint yet, so these derive stable charts from the
-// agent's own headline numbers (calls / cost / latency / error rate). The PRNG
-// is seeded from the agent name so a given agent always renders identically.
+// Deterministic, demo-only series for the workflow detail page. There is no live
+// per-workflow timeseries endpoint yet, so these derive stable charts from the
+// workflow's own headline numbers (calls / cost / latency / error rate). The PRNG
+// is seeded from the workflow name so a given workflow always renders identically.
 //
 // Note: no anomaly injection and no health-driven spikes. The charts show the
-// agent's ordinary day-to-day variation only.
+// workflow's ordinary day-to-day variation only.
 
 import type { CostPoint, LatencyPoint, ErrorPoint } from '../../../common/interfaces';
-import type { Agent, AgentRun } from '../interfaces';
+import type { Workflow, WorkflowRun } from '../interfaces';
 
 function hash(s: string): number {
   let h = 0;
@@ -35,8 +35,8 @@ function bucketLabels(range: string): string[] {
   return DAYS;
 }
 
-/** Per-bucket spend over the window, summing roughly to the agent's window cost. */
-export function buildCostSeries(a: Agent, range = '7d'): CostPoint[] {
+/** Per-bucket spend over the window, summing roughly to the workflow's window cost. */
+export function buildCostSeries(a: Workflow, range = '7d'): CostPoint[] {
   const labels = bucketLabels(range);
   const r = rng(hash(a.name) + 3);
   const avg = a.cost / labels.length;
@@ -47,7 +47,7 @@ export function buildCostSeries(a: Agent, range = '7d'): CostPoint[] {
 }
 
 /** p50 / p95 / p99 latency (seconds) per bucket over the window. */
-export function buildLatencySeries(a: Agent, range = '7d'): LatencyPoint[] {
+export function buildLatencySeries(a: Workflow, range = '7d'): LatencyPoint[] {
   const r = rng(hash(a.name) + 7);
   const base = a.avg_latency_ms / 1000;
   return bucketLabels(range).map((label) => ({
@@ -59,7 +59,7 @@ export function buildLatencySeries(a: Agent, range = '7d'): LatencyPoint[] {
 }
 
 /** Failed vs total runs per bucket over the window. */
-export function buildErrorSeries(a: Agent, range = '7d'): ErrorPoint[] {
+export function buildErrorSeries(a: Workflow, range = '7d'): ErrorPoint[] {
   const labels = bucketLabels(range);
   const r = rng(hash(a.name) + 13);
   const perBucket = Math.round(a.calls / labels.length);
@@ -78,8 +78,8 @@ const RUN_ERRORS = [
   'rate_limit_exceeded', 'context_length_exceeded', 'tool_timeout', 'validation_softfail',
 ];
 
-/** The agent's most recent runs, oldest-to-newest left in source order. */
-export function buildRuns(a: Agent): AgentRun[] {
+/** The workflow's most recent runs, oldest-to-newest left in source order. */
+export function buildRuns(a: Workflow): WorkflowRun[] {
   const r = rng(hash(a.name) + 101);
   const hex = (s: string) => (hash(s) & 0xffff).toString(16).padStart(4, '0');
   return RUN_TIMES.map((time, i) => {

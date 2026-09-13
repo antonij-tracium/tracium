@@ -16,7 +16,7 @@ import (
 // (tracium.metrics_daily), regardless of the display range: the baseline reaches
 // ~4 weeks before the display window, and the rollup holds all of that history
 // cheaply. Because the rollup's size tracks cardinality (days × dimensions), not
-// span volume, the read cost is ~(baseline+window days) × (top-N agents) rows —
+// span volume, the read cost is ~(baseline+window days) × (top-N workflows) rows —
 // a few thousand — no matter how many spans were ingested. This is why anomaly
 // detection stays fast at high trace volume where a raw-span scan would not.
 //
@@ -36,9 +36,9 @@ const (
 	// gap-filled baseline is almost all zeros) is not scored at all, rather than
 	// having its first busy day flagged against a ~0 baseline.
 	anomalyMinBaselineActive = 10
-	// anomalyAgentLimit caps how many agents are scored per request (the busiest
-	// by run volume), keeping the per-agent series query bounded.
-	anomalyAgentLimit = 50
+	// anomalyWorkflowLimit caps how many workflows are scored per request (the busiest
+	// by run volume), keeping the per-workflow series query bounded.
+	anomalyWorkflowLimit = 50
 	// anomalyResultLimit caps the returned anomalies (most severe first).
 	anomalyResultLimit = 100
 )
@@ -68,7 +68,7 @@ var anomalyMetrics = []anomalyMetric{
 	{name: "runs", absFloor: 5, volumeFloor: 10, spike: true, drop: true},
 }
 
-// dailyAgg is one bucket's rollup aggregates for one series (overall or one agent).
+// dailyAgg is one bucket's rollup aggregates for one series (overall or one workflow).
 type dailyAgg struct {
 	cost    float64
 	runs    int64
@@ -76,7 +76,7 @@ type dailyAgg struct {
 }
 
 // Anomalies detects statistical anomalies over the window in f, workspace-scoped.
-// It scores the workspace-wide series and each busy agent's series for cost,
+// It scores the workspace-wide series and each busy workflow's series for cost,
 // error rate, and run volume, and returns the flagged buckets ordered most
 // severe first. Optional f.AnomalyMetric / f.AnomalyMinSeverity narrow the output.
 func (r *ClickHouseRepository) Anomalies(ctx context.Context, f MetricsFilter) ([]model.Anomaly, error) {
@@ -109,18 +109,18 @@ func (r *ClickHouseRepository) Anomalies(ctx context.Context, f MetricsFilter) (
 	}
 	out = append(out, detectSeries(f, "workspace", "", axis, overall, detectFrom, minSev)...)
 
-	// --- Per-agent series (busiest N by run volume in the display window) ------
-	agents, err := r.anomalyTopAgents(ctx, f)
+	// --- Per-workflow series (busiest N by run volume in the display window) ------
+	workflows, err := r.anomalyTopWorkflows(ctx, f)
 	if err != nil {
 		return nil, err
 	}
-	if len(agents) > 0 {
-		byAgent, err := r.anomalyAgentSeries(ctx, f, baseStart, agents)
+	if len(workflows) > 0 {
+		byWorkflow, err := r.anomalyWorkflowSeries(ctx, f, baseStart, workflows)
 		if err != nil {
 			return nil, err
 		}
-		for _, name := range agents {
-			out = append(out, detectSeries(f, "agent", name, axis, byAgent[name], detectFrom, minSev)...)
+		for _, name := range workflows {
+			out = append(out, detectSeries(f, "workflow", name, axis, byWorkflow[name], detectFrom, minSev)...)
 		}
 	}
 
@@ -134,7 +134,7 @@ func (r *ClickHouseRepository) Anomalies(ctx context.Context, f MetricsFilter) (
 // detectSeries runs every enabled metric's detector over one series (zero-filled
 // onto axis) and returns the resulting model.Anomaly rows. metric/severity
 // filters from f are applied here so suppressed work is skipped cheaply.
-func detectSeries(f MetricsFilter, scope, agent string, axis []int64, byBucket map[int64]dailyAgg, detectFrom int64, minSev int) []model.Anomaly {
+func detectSeries(f MetricsFilter, scope, workflow string, axis []int64, byBucket map[int64]dailyAgg, detectFrom int64, minSev int) []model.Anomaly {
 	var out []model.Anomaly
 	for _, m := range anomalyMetrics {
 		if f.AnomalyMetric != "" && f.AnomalyMetric != m.name {
@@ -161,7 +161,7 @@ func detectSeries(f MetricsFilter, scope, agent string, axis []int64, byBucket m
 			a := model.Anomaly{
 				Metric:    m.name,
 				Scope:     scope,
-				Agent:     agent,
+				Workflow:     workflow,
 				BucketMs:  res.BucketMs,
 				Observed:  sanitize(res.Observed),
 				Expected:  sanitize(res.Expected),
@@ -230,66 +230,66 @@ FROM tracium.metrics_daily WHERE %s GROUP BY bucket_ms`, bucketMsExpr, clause)
 	return byBucket, rows.Err()
 }
 
-// anomalyTopAgents returns the busiest named agents in the display window by run
-// volume, capped at anomalyAgentLimit — the set whose series are worth scoring.
-func (r *ClickHouseRepository) anomalyTopAgents(ctx context.Context, f MetricsFilter) ([]string, error) {
+// anomalyTopWorkflows returns the busiest named workflows in the display window by run
+// volume, capped at anomalyWorkflowLimit — the set whose series are worth scoring.
+func (r *ClickHouseRepository) anomalyTopWorkflows(ctx context.Context, f MetricsFilter) ([]string, error) {
 	clause, args := rollupWindow(f.UserID, f.WorkspaceIDs, f.Start, f.End, true)
-	q := fmt.Sprintf(`SELECT agent_name FROM tracium.metrics_daily
-WHERE %s AND agent_name != '' GROUP BY agent_name ORDER BY uniqMerge(runs) DESC LIMIT ?`, clause)
+	q := fmt.Sprintf(`SELECT workflow_name FROM tracium.metrics_daily
+WHERE %s AND workflow_name != '' GROUP BY workflow_name ORDER BY uniqMerge(runs) DESC LIMIT ?`, clause)
 
-	rows, err := r.db.QueryContext(ctx, q, append(args, anomalyAgentLimit)...)
+	rows, err := r.db.QueryContext(ctx, q, append(args, anomalyWorkflowLimit)...)
 	if err != nil {
-		return nil, fmt.Errorf("clickhouse: anomaly top agents: %w", err)
+		return nil, fmt.Errorf("clickhouse: anomaly top workflows: %w", err)
 	}
 	defer rows.Close()
 
-	var agents []string
+	var workflows []string
 	for rows.Next() {
 		var name string
 		if err := rows.Scan(&name); err != nil {
-			return nil, fmt.Errorf("clickhouse: scan anomaly agent: %w", err)
+			return nil, fmt.Errorf("clickhouse: scan anomaly workflow: %w", err)
 		}
-		agents = append(agents, name)
+		workflows = append(workflows, name)
 	}
-	return agents, rows.Err()
+	return workflows, rows.Err()
 }
 
-// anomalyAgentSeries loads daily aggregates over [baseStart, End] for the given
-// agents, keyed by agent name then bucket.
-func (r *ClickHouseRepository) anomalyAgentSeries(ctx context.Context, f MetricsFilter, baseStart time.Time, agents []string) (map[string]map[int64]dailyAgg, error) {
+// anomalyWorkflowSeries loads daily aggregates over [baseStart, End] for the given
+// workflows, keyed by workflow name then bucket.
+func (r *ClickHouseRepository) anomalyWorkflowSeries(ctx context.Context, f MetricsFilter, baseStart time.Time, workflows []string) (map[string]map[int64]dailyAgg, error) {
 	clause, args := rollupWindow(f.UserID, f.WorkspaceIDs, baseStart, f.End, true)
-	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(agents)), ",")
-	inArgs := make([]any, len(agents))
-	for i, a := range agents {
+	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(workflows)), ",")
+	inArgs := make([]any, len(workflows))
+	for i, a := range workflows {
 		inArgs[i] = a
 	}
-	q := fmt.Sprintf(`SELECT agent_name, %s AS bucket_ms,
+	q := fmt.Sprintf(`SELECT workflow_name, %s AS bucket_ms,
     sum(cost)                        AS cost,
     toInt64(uniqMerge(runs))         AS runs,
     toInt64(uniqIfMerge(error_runs)) AS err_runs
-FROM tracium.metrics_daily WHERE %s AND agent_name IN (%s)
-GROUP BY agent_name, bucket_ms`, bucketMsExpr, clause, placeholders)
+FROM tracium.metrics_daily WHERE %s AND workflow_name IN (%s)
+GROUP BY workflow_name, bucket_ms`, bucketMsExpr, clause, placeholders)
 
 	rows, err := r.db.QueryContext(ctx, q, append(args, inArgs...)...)
 	if err != nil {
-		return nil, fmt.Errorf("clickhouse: anomaly agent series: %w", err)
+		return nil, fmt.Errorf("clickhouse: anomaly workflow series: %w", err)
 	}
 	defer rows.Close()
 
-	byAgent := make(map[string]map[int64]dailyAgg, len(agents))
+	byWorkflow := make(map[string]map[int64]dailyAgg, len(workflows))
 	for rows.Next() {
 		var name string
 		var bm int64
 		var d dailyAgg
 		if err := rows.Scan(&name, &bm, &d.cost, &d.runs, &d.errRuns); err != nil {
-			return nil, fmt.Errorf("clickhouse: scan anomaly agent bucket: %w", err)
+			return nil, fmt.Errorf("clickhouse: scan anomaly workflow bucket: %w", err)
 		}
-		if byAgent[name] == nil {
-			byAgent[name] = make(map[int64]dailyAgg)
+		if byWorkflow[name] == nil {
+			byWorkflow[name] = make(map[int64]dailyAgg)
 		}
-		byAgent[name][bm] = d
+		byWorkflow[name][bm] = d
 	}
-	return byAgent, rows.Err()
+	return byWorkflow, rows.Err()
 }
 
 // sortAnomalies orders anomalies most-actionable first: by severity, then by
@@ -326,8 +326,8 @@ func severityRank(s string) int {
 // anomalySummary renders a one-line human description from an anomaly's fields.
 func anomalySummary(a model.Anomaly) string {
 	subject := "Workspace"
-	if a.Scope == "agent" {
-		subject = fmt.Sprintf("Agent %q", a.Agent)
+	if a.Scope == "workflow" {
+		subject = fmt.Sprintf("Workflow %q", a.Workflow)
 	}
 	date := time.UnixMilli(a.BucketMs).UTC().Format(dateFmt)
 	noun := map[string]string{"cost": "cost", "runs": "run volume", "error_rate": "error rate"}[a.Metric]

@@ -77,7 +77,7 @@ func TestDetect_CostSpike(t *testing.T) {
 }
 
 func TestDetect_RunVolumeDropToZero(t *testing.T) {
-	// An agent doing ~200 runs/day that suddenly does none — a drop anomaly, the
+	// An workflow doing ~200 runs/day that suddenly does none — a drop anomaly, the
 	// silent-failure signal. Cost-style opts but drop-enabled, spike-off.
 	o := Options{
 		BaselineDays: 28, MinBaseline: 7, DetectFromMs: 0,
@@ -175,7 +175,7 @@ func TestDetect_FlatBaselineSmallMoveSuppressedByAbsFloor(t *testing.T) {
 }
 
 func TestDetect_VolumeFloorSuppressesSparseSeries(t *testing.T) {
-	// A tiny-traffic agent: baseline of $0.10/day, then $0.80 — an 8× jump by
+	// A tiny-traffic workflow: baseline of $0.10/day, then $0.80 — an 8× jump by
 	// ratio, but max support ($0.80) is under the $1 VolumeFloor, so it is noise.
 	vals := append(repeat(0.10, 28), 0.80)
 	if got := Detect(series(vals...), costOpts(0)); len(got) != 0 {

@@ -2,14 +2,14 @@
 
 The Tracium trace viewer — a React single-page app. It renders the overview
 (cost/latency/error KPIs and time series), the trace explorer and inspector, and
-per-agent, usage, and settings views.
+per-workflow, usage, and settings views.
 
 It is a **pure client of [`api`](../api)**. It holds no data of
 its own, talks to no database, and knows only the `/v1` REST surface — no direct
 ClickHouse access, ever. Every request it makes is bounded by a time range and a
 page size; an unbounded fetch is exactly what turns a healthy backend slow, so
 that discipline is a rule, not a preference. Every signed-in view — overview,
-trace explorer, agents, usage — reads from the live API; the local fixtures
+trace explorer, workflows, usage — reads from the live API; the local fixtures
 (`data.ts`) exist only to bring the logged-out auth-page preview to life.
 
 ## Stack
@@ -31,7 +31,7 @@ src/
     overview/         KPI cards + cost/latency/error series
     trace-explorer/   the trace list (paginated, windowed) + Gantt trace detail
     trace-inspector/  deep span inspector: attributes, tool calls, I/O
-    agents/  usage/    per-agent and per-user breakdowns
+    workflows/  usage/  per-workflow and per-user breakdowns
     auth/  api-keys/  settings/  shell/   account + app chrome
   common/             api client, shared hooks/components, providers
   types/              types generated from spec (do not hand-edit)

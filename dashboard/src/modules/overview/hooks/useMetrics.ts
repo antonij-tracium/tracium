@@ -38,11 +38,11 @@ export function useErrorSeries(range: string) {
   });
 }
 
-export function useTopAgents(range: string) {
+export function useTopWorkflows(range: string) {
   const { metricsAPI, workspaceId } = useAPIClient();
   return useQuery({
-    queryKey: ['overview', 'top-agents', workspaceId, range],
-    queryFn: () => metricsAPI.getTopAgents(range),
+    queryKey: ['overview', 'top-workflows', workspaceId, range],
+    queryFn: () => metricsAPI.getTopWorkflows(range),
   });
 }
 

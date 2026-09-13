@@ -38,9 +38,9 @@ paths:
           description: Filter traces that contain at least one span using this model (normalized model id).
           schema:
             type: string
-        - name: agent
+        - name: workflow
           in: query
-          description: Filter to traces belonging to a single agent (the trace root name) — powers an agent's recent runs.
+          description: Filter to traces belonging to a single workflow (the trace root name) — powers an workflow's recent runs.
           schema:
             type: string
         - name: has_error
@@ -176,7 +176,7 @@ paths:
       operationId: getOverviewKpis
       summary: Overview KPIs
       description: >
-        Returns the four headline metrics (total cost, agent runs, p95 latency,
+        Returns the four headline metrics (total cost, workflow runs, p95 latency,
         error rate) for the selected range, each with its change versus the
         equal-length preceding period.
       tags:
@@ -216,7 +216,7 @@ paths:
         - $ref: "#/components/parameters/Range"
         - $ref: "#/components/parameters/UserFilter"
         - $ref: "#/components/parameters/WorkspaceFilter"
-        - $ref: "#/components/parameters/AgentFilter"
+        - $ref: "#/components/parameters/WorkflowFilter"
       responses:
         "200":
           description: Cost buckets ordered by bucket_ms ascending.
@@ -242,7 +242,7 @@ paths:
         - $ref: "#/components/parameters/Range"
         - $ref: "#/components/parameters/UserFilter"
         - $ref: "#/components/parameters/WorkspaceFilter"
-        - $ref: "#/components/parameters/AgentFilter"
+        - $ref: "#/components/parameters/WorkflowFilter"
       responses:
         "200":
           description: Latency buckets ordered by bucket_ms ascending.
@@ -268,7 +268,7 @@ paths:
         - $ref: "#/components/parameters/Range"
         - $ref: "#/components/parameters/UserFilter"
         - $ref: "#/components/parameters/WorkspaceFilter"
-        - $ref: "#/components/parameters/AgentFilter"
+        - $ref: "#/components/parameters/WorkflowFilter"
       responses:
         "200":
           description: Error buckets ordered by bucket_ms ascending.
@@ -283,11 +283,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  /v1/metrics/top-agents:
+  /v1/metrics/top-workflows:
     get:
-      operationId: getTopAgents
-      summary: Top agents by cost
-      description: The highest-spending agents (trace root names) in the range, ordered by cost descending.
+      operationId: getTopWorkflows
+      summary: Top workflows by cost
+      description: The highest-spending workflows (trace root names) in the range, ordered by cost descending.
       tags:
         - Metrics
       parameters:
@@ -296,11 +296,11 @@ paths:
         - $ref: "#/components/parameters/WorkspaceFilter"
       responses:
         "200":
-          description: Agents ordered by cost descending.
+          description: Workflows ordered by cost descending.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PaginatedAgentCostResponse"
+                $ref: "#/components/schemas/PaginatedWorkflowCostResponse"
         "400":
           description: Invalid range.
           content:
@@ -308,14 +308,14 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  /v1/metrics/agents:
+  /v1/metrics/workflows:
     get:
-      operationId: listAgents
-      summary: Agent activity list
+      operationId: listWorkflows
+      summary: Workflow activity list
       description: >
-        Every active agent in the range with its run count, total spend, mean
+        Every active workflow in the range with its run count, total spend, mean
         run latency, error rate, and call-count sparkline — the data behind the
-        Agents page. Ordered by call count descending; sorting and filtering are
+        Workflows page. Ordered by call count descending; sorting and filtering are
         done client-side. avg_latency_ms is 0 for long windows served from the
         daily rollup, where per-trace durations are not retained.
       tags:
@@ -326,11 +326,11 @@ paths:
         - $ref: "#/components/parameters/WorkspaceFilter"
       responses:
         "200":
-          description: Agents ordered by call count descending.
+          description: Workflows ordered by call count descending.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PaginatedAgentResponse"
+                $ref: "#/components/schemas/PaginatedWorkflowResponse"
         "400":
           description: Invalid range.
           content:
@@ -338,16 +338,16 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  /v1/metrics/agents/{name}:
+  /v1/metrics/workflows/{name}:
     get:
-      operationId: getAgentDetail
-      summary: Agent detail
+      operationId: getWorkflowDetail
+      summary: Workflow detail
       description: >
-        One agent's detail-page payload: its headline metrics over the range
+        One workflow's detail-page payload: its headline metrics over the range
         plus the tool surface from its most recent run. Span-backed only — there
-        is no agent-config store, so runtime params (temperature, retries,
+        is no workflow-config store, so runtime params (temperature, retries,
         version, owner, …) are not served. A raw-window feature: ranges longer
-        than 30d (90d, 1y) are rejected with a 400, since per-agent latency
+        than 30d (90d, 1y) are rejected with a 400, since per-workflow latency
         cannot be derived from the daily rollup.
       tags:
         - Metrics
@@ -355,7 +355,7 @@ paths:
         - name: name
           in: path
           required: true
-          description: The agent name (the trace root span name).
+          description: The workflow name (the trace root span name).
           schema:
             type: string
         - $ref: "#/components/parameters/Range"
@@ -363,11 +363,11 @@ paths:
         - $ref: "#/components/parameters/WorkspaceFilter"
       responses:
         "200":
-          description: The agent's detail payload.
+          description: The workflow's detail payload.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AgentDetail"
+                $ref: "#/components/schemas/WorkflowDetail"
         "400":
           description: Invalid range, or a range longer than 30d.
           content:
@@ -375,7 +375,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "404":
-          description: No agent with that name has runs in the window.
+          description: No workflow with that name has runs in the window.
           content:
             application/json:
               schema:
@@ -386,8 +386,8 @@ paths:
       operationId: getFailures
       summary: Recent failures
       description: >
-        The agents with the most errored runs in the range. The response total
-        counts every failed run in the window, not just the listed agents.
+        The workflows with the most errored runs in the range. The response total
+        counts every failed run in the window, not just the listed workflows.
       tags:
         - Metrics
       parameters:
@@ -396,7 +396,7 @@ paths:
         - $ref: "#/components/parameters/WorkspaceFilter"
       responses:
         "200":
-          description: Failed agents ordered by failure count descending.
+          description: Failed workflows ordered by failure count descending.
           content:
             application/json:
               schema:
@@ -414,7 +414,7 @@ paths:
       summary: Statistical anomalies
       description: >
         Buckets that deviated significantly from their own recent history, for
-        cost, error rate, and run volume — workspace-wide and per busy agent.
+        cost, error rate, and run volume — workspace-wide and per busy workflow.
         Detection is daily and robust (median + MAD over a trailing 28-day
         baseline), served entirely from the daily rollup, so a range of 7d or
         longer is required (24h is rejected with a 400). Results are ordered most
@@ -509,13 +509,13 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  /v1/metrics/usage-agents:
+  /v1/metrics/usage-workflows:
     get:
-      operationId: getAgentUsage
-      summary: Usage by agent
+      operationId: getWorkflowUsage
+      summary: Usage by workflow
       description: >
-        Spend and run counts grouped by agent over the range, each paired
-        with the preceding window for change, plus the agent's most-used
+        Spend and run counts grouped by workflow over the range, each paired
+        with the preceding window for change, plus the workflow's most-used
         model. Ordered by cost descending.
       tags:
         - Metrics
@@ -525,11 +525,11 @@ paths:
         - $ref: "#/components/parameters/WorkspaceFilter"
       responses:
         "200":
-          description: Agents ordered by cost descending.
+          description: Workflows ordered by cost descending.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PaginatedAgentUsageResponse"
+                $ref: "#/components/schemas/PaginatedWorkflowUsageResponse"
         "400":
           description: Invalid range.
           content:
@@ -1009,14 +1009,14 @@ components:
         dashboard passes the active workspace from its switcher.
       schema:
         type: string
-    AgentFilter:
-      name: agent
+    WorkflowFilter:
+      name: workflow
       in: query
       description: >-
-        Optional: restrict the metric to a single agent (the trace root name),
-        powering the agent detail page's charts. Agent-scoped metrics are a
+        Optional: restrict the metric to a single workflow (the trace root name),
+        powering the workflow detail page's charts. Workflow-scoped metrics are a
         raw-window feature — ranges longer than 30d (90d, 1y) are rejected with a
-        400, since per-agent latency cannot be derived from the daily rollup.
+        400, since per-workflow latency cannot be derived from the daily rollup.
       schema:
         type: string
 
@@ -1372,7 +1372,7 @@ components:
           description: Total cost in USD.
         runs:
           allOf: [{ $ref: "#/components/schemas/Kpi" }]
-          description: Agent runs (distinct traces).
+          description: Workflow runs (distinct traces).
         latency_p95:
           allOf: [{ $ref: "#/components/schemas/Kpi" }]
           description: p95 trace duration in ms.
@@ -1447,7 +1447,7 @@ components:
             99th-percentile span duration in the bucket, ms. Null when no runs
             fell in the bucket.
 
-    AgentCost:
+    WorkflowCost:
       type: object
       required:
         - name
@@ -1457,7 +1457,7 @@ components:
       properties:
         name:
           type: string
-          description: Agent name (the trace root span name).
+          description: Workflow name (the trace root span name).
         cost:
           type: number
           minimum: 0
@@ -1465,7 +1465,7 @@ components:
         calls:
           type: integer
           minimum: 0
-          description: Number of runs (traces) for this agent.
+          description: Number of runs (traces) for this workflow.
         trend:
           type: array
           items:
@@ -1475,7 +1475,7 @@ components:
             Call count per time bucket across the window, oldest first and
             zero-filled, aligned to a shared axis for the usage sparkline.
 
-    Agent:
+    Workflow:
       type: object
       required:
         - name
@@ -1488,11 +1488,11 @@ components:
       properties:
         name:
           type: string
-          description: Agent name (the trace root span name).
+          description: Workflow name (the trace root span name).
         calls:
           type: integer
           minimum: 0
-          description: Number of runs (traces) for this agent over the window.
+          description: Number of runs (traces) for this workflow over the window.
         cost:
           type: number
           minimum: 0
@@ -1508,7 +1508,7 @@ components:
           type: number
           minimum: 0
           maximum: 1
-          description: Fraction of the agent's runs that errored (0–1).
+          description: Fraction of the workflow's runs that errored (0–1).
         trend:
           type: array
           items:
@@ -1520,7 +1520,7 @@ components:
         last_trace_id:
           type: string
           description: >-
-            The agent's most recent trace in the window, for deep-linking a row
+            The workflow's most recent trace in the window, for deep-linking a row
             to its trace detail. Empty for long windows served from the daily
             rollup, which does not retain trace identity.
 
@@ -1535,12 +1535,12 @@ components:
           description: Tool name as offered to the model.
         used:
           type: boolean
-          description: Whether the agent invoked this tool in the sampled run.
+          description: Whether the workflow invoked this tool in the sampled run.
         description:
           type: string
           description: Human-readable description of what the tool does.
 
-    AgentDetail:
+    WorkflowDetail:
       type: object
       required:
         - name
@@ -1558,11 +1558,11 @@ components:
       properties:
         name:
           type: string
-          description: Agent name (the trace root span name).
+          description: Workflow name (the trace root span name).
         calls:
           type: integer
           minimum: 0
-          description: Number of runs (traces) for this agent over the window.
+          description: Number of runs (traces) for this workflow over the window.
         cost:
           type: number
           minimum: 0
@@ -1582,18 +1582,18 @@ components:
           type: number
           minimum: 0
           maximum: 1
-          description: Fraction of the agent's runs that errored (0–1).
+          description: Fraction of the workflow's runs that errored (0–1).
         input_tokens:
           type: integer
           minimum: 0
-          description: Total input tokens across the agent's runs over the window.
+          description: Total input tokens across the workflow's runs over the window.
         output_tokens:
           type: integer
           minimum: 0
-          description: Total output tokens across the agent's runs over the window.
+          description: Total output tokens across the workflow's runs over the window.
         model:
           type: string
-          description: The agent's most-used normalized model id over the window.
+          description: The workflow's most-used normalized model id over the window.
         provider:
           type: string
           description: Provider inferred from the model id; empty when unrecognised.
@@ -1602,33 +1602,33 @@ components:
           items:
             $ref: "#/components/schemas/AvailableTool"
           description: >-
-            The agent's tool surface — the union of available_tools from its most
+            The workflow's tool surface — the union of available_tools from its most
             recent run. Empty when content/tool capture is disabled.
         last_trace_id:
           type: string
-          description: The agent's most recent trace in the window, for deep-linking.
+          description: The workflow's most recent trace in the window, for deep-linking.
 
     Failure:
       type: object
       required:
-        - agent
+        - workflow
         - count
         - pct
         - top_error
       properties:
-        agent:
+        workflow:
           type: string
-          description: Agent name (the trace root span name).
+          description: Workflow name (the trace root span name).
         count:
           type: integer
           minimum: 0
           description: Number of failed runs.
         pct:
           type: number
-          description: Fraction of this agent's runs that failed.
+          description: Fraction of this workflow's runs that failed.
         top_error:
           type: string
-          description: Most common error_type among this agent's failed runs.
+          description: Most common error_type among this workflow's failed runs.
 
     PaginatedCostBucketResponse:
       type: object
@@ -1675,14 +1675,14 @@ components:
         page_size:
           type: integer
 
-    PaginatedAgentCostResponse:
+    PaginatedWorkflowCostResponse:
       type: object
       required: [items, total, page, page_size]
       properties:
         items:
           type: array
           items:
-            $ref: "#/components/schemas/AgentCost"
+            $ref: "#/components/schemas/WorkflowCost"
         total:
           type: integer
         page:
@@ -1690,14 +1690,14 @@ components:
         page_size:
           type: integer
 
-    PaginatedAgentResponse:
+    PaginatedWorkflowResponse:
       type: object
       required: [items, total, page, page_size]
       properties:
         items:
           type: array
           items:
-            $ref: "#/components/schemas/Agent"
+            $ref: "#/components/schemas/Workflow"
         total:
           type: integer
         page:
@@ -1715,7 +1715,7 @@ components:
             $ref: "#/components/schemas/Failure"
         total:
           type: integer
-          description: Total failed runs in the window (not just the listed agents).
+          description: Total failed runs in the window (not just the listed workflows).
         page:
           type: integer
         page_size:
@@ -1726,7 +1726,7 @@ components:
       required:
         - metric
         - scope
-        - agent
+        - workflow
         - bucket_ms
         - observed
         - expected
@@ -1742,11 +1742,11 @@ components:
           description: The metric that deviated.
         scope:
           type: string
-          enum: ["workspace", "agent"]
-          description: Whether this anomaly is workspace-wide or for one agent.
-        agent:
+          enum: ["workspace", "workflow"]
+          description: Whether this anomaly is workspace-wide or for one workflow.
+        workflow:
           type: string
-          description: The agent name when scope is "agent"; empty otherwise.
+          description: The workflow name when scope is "workflow"; empty otherwise.
         bucket_ms:
           type: integer
           description: Anomalous day bucket, Unix epoch milliseconds (UTC midnight).
@@ -1856,7 +1856,7 @@ components:
             Cost per time bucket across the current window, oldest first
             and zero-filled, for the row sparkline.
 
-    AgentUsage:
+    WorkflowUsage:
       type: object
       required:
         - name
@@ -1868,10 +1868,10 @@ components:
       properties:
         name:
           type: string
-          description: Agent name (the trace root span name).
+          description: Workflow name (the trace root span name).
         model:
           type: string
-          description: The agent's most-used model over the window.
+          description: The workflow's most-used model over the window.
         cost:
           type: number
           minimum: 0
@@ -1953,14 +1953,14 @@ components:
         page_size:
           type: integer
 
-    PaginatedAgentUsageResponse:
+    PaginatedWorkflowUsageResponse:
       type: object
       required: [items, total, page, page_size]
       properties:
         items:
           type: array
           items:
-            $ref: "#/components/schemas/AgentUsage"
+            $ref: "#/components/schemas/WorkflowUsage"
         total:
           type: integer
         page:

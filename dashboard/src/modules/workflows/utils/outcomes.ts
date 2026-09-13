@@ -1,4 +1,4 @@
-// Derive completed/failed run counts for the stats strip. The agents endpoints
+// Derive completed/failed run counts for the stats strip. The workflows endpoints
 // report `calls` and `error_rate` (a fraction the server computed as
 // failed/calls over the window), so rounding the product recovers the failed
 // count without a second query.

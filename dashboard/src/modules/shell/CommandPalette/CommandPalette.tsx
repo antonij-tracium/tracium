@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   IconHome,
-  IconAgents,
+  IconWorkflows,
   IconUsers,
   IconUsage,
   IconKey,
@@ -26,7 +26,7 @@ interface CommandPaletteProps {
 
 const CMD_ITEMS: CmdItemData[] = [
   { label: 'Overview', icon: <IconHome size={14} />, action: { view: 'overview' } },
-  { label: 'Agents', icon: <IconAgents size={14} />, action: { view: 'agents' } },
+  { label: 'Workflows', icon: <IconWorkflows size={14} />, action: { view: 'workflows' } },
   { label: 'Usage', icon: <IconUsage size={14} />, action: { view: 'usage' } },
   { label: 'Users', icon: <IconUsers size={14} />, action: { view: 'users' } },
   { label: 'API Keys', icon: <IconKey size={14} />, action: { view: 'keys' } },
@@ -128,7 +128,7 @@ export function CommandPalette({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKey}
-            placeholder="Search views, traces, agents…"
+            placeholder="Search views, traces, workflows…"
             style={{
               flex: 1,
               background: 'transparent',

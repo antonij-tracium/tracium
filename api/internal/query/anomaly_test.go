@@ -82,15 +82,15 @@ func TestAnomalySummary(t *testing.T) {
 		contains []string
 	}{
 		{
-			model.Anomaly{Metric: "cost", Scope: "agent", Agent: "planner", Direction: "spike", Observed: 120, Expected: 10},
-			[]string{`Agent "planner"`, "cost", "$120.00", "12.0×", "$10.00"},
+			model.Anomaly{Metric: "cost", Scope: "workflow", Workflow: "planner", Direction: "spike", Observed: 120, Expected: 10},
+			[]string{`Workflow "planner"`, "cost", "$120.00", "12.0×", "$10.00"},
 		},
 		{
 			model.Anomaly{Metric: "runs", Scope: "workspace", Direction: "drop", Observed: 0, Expected: 200},
 			[]string{"Workspace", "run volume", "fell to 0", "typical 200"},
 		},
 		{
-			model.Anomaly{Metric: "error_rate", Scope: "agent", Agent: "x", Direction: "spike", Observed: 0.14, Expected: 0.01},
+			model.Anomaly{Metric: "error_rate", Scope: "workflow", Workflow: "x", Direction: "spike", Observed: 0.14, Expected: 0.01},
 			[]string{"error rate", "14.0%", "1.0%"},
 		},
 		{

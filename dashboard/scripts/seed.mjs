@@ -526,12 +526,12 @@ function wfResearch(T, root, seq) {
 }
 
 const WORKFLOWS = [
-  { agent: "support-ticket-resolver", team: "support", feature: "ticket-triage", cost_center: "CC-1001", weight: 20, build: wfSupport },
-  { agent: "invoice-extractor", team: "finance", feature: "invoice-ocr", cost_center: "CC-2100", weight: 14, build: wfInvoice },
-  { agent: "code-review-bot", team: "engineering", feature: "pr-review", cost_center: "CC-3050", weight: 12, build: wfCodeReview },
-  { agent: "semantic-search", team: "growth", feature: "kb-search", cost_center: "CC-4200", weight: 14, build: wfSearch },
-  { agent: "content-moderation", team: "trust-safety", feature: "auto-moderation", cost_center: "CC-5500", weight: 30, build: wfModeration },
-  { agent: "research-assistant", team: "research", feature: "deep-research", cost_center: "CC-6300", weight: 10, build: wfResearch },
+  { workflow: "support-ticket-resolver", team: "support", feature: "ticket-triage", cost_center: "CC-1001", weight: 20, build: wfSupport },
+  { workflow: "invoice-extractor", team: "finance", feature: "invoice-ocr", cost_center: "CC-2100", weight: 14, build: wfInvoice },
+  { workflow: "code-review-bot", team: "engineering", feature: "pr-review", cost_center: "CC-3050", weight: 12, build: wfCodeReview },
+  { workflow: "semantic-search", team: "growth", feature: "kb-search", cost_center: "CC-4200", weight: 14, build: wfSearch },
+  { workflow: "content-moderation", team: "trust-safety", feature: "auto-moderation", cost_center: "CC-5500", weight: 30, build: wfModeration },
+  { workflow: "research-assistant", team: "research", feature: "deep-research", cost_center: "CC-6300", weight: 10, build: wfResearch },
 ];
 
 // makeTrace builds one trace starting at startNs. forceWf pins the workflow (for
@@ -550,7 +550,7 @@ function makeTrace(startNs, forceWf) {
 
   const T = newTrace(traceId, startNs);
   // root structural agent span; content filled in by the builder via root.opts_*
-  const root = T.span("", wf.agent, startNs, 10, { op: "invoke_agent" });
+  const root = T.span("", wf.workflow, startNs, 10, { op: "invoke_agent" });
   let cursor = startNs + BigInt(randint(20, 120)) * MS;
   const seq = () => cursor;
   wf.build(T, root, seq);
@@ -564,7 +564,7 @@ function makeTrace(startNs, forceWf) {
   // collector stamps it (overriding any sender-supplied value). The seeder groups
   // spans by _workspaceId below and sends each group under that workspace's key.
   const resourceAttrs = [
-    kv("service.name", sv(wf.agent)),
+    kv("service.name", sv(wf.workflow)),
     kv("tracium.user.id", sv(userId)),
     kv("environment", sv(env)),
     kv("region", sv(region)),
@@ -654,7 +654,7 @@ async function post(resourceSpans, token) {
 // injected outliers stand out the way real incidents do, instead of every recent
 // day looking anomalous. These helpers mutate a built trace in place.
 
-const findWorkflow = (agent) => WORKFLOWS.find((w) => w.agent === agent);
+const findWorkflow = (workflow) => WORKFLOWS.find((w) => w.workflow === workflow);
 
 // scaleTokens multiplies every LLM span's token usage, inflating the trace's
 // priced cost — a runaway-context / prompt-bloat cost spike.

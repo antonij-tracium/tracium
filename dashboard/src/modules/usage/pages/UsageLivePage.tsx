@@ -5,7 +5,7 @@
 // presentational components are shared with the demo UsagePage.
 //
 // Spend / Runs reuse the overview KPI + series endpoints; the three breakdowns
-// (models, users, agents) have their own usage endpoints. Per-row change vs
+// (models, users, workflows) have their own usage endpoints. Per-row change vs
 // the previous period comes straight from the *_prev fields the API returns.
 // ---------------------------------------------------------------------------
 
@@ -37,7 +37,7 @@ import type { KpiItem, DeltaTone, BreakdownTab, SortKey } from '../components';
 import {
   useModelCosts,
   useUserUsage,
-  useAgentUsage,
+  useWorkflowUsage,
   useAttributeKeys,
   useAttributeUsage,
 } from '../hooks/useUsage';
@@ -45,11 +45,11 @@ import type {
   DailySeriesPoint,
   ModelSummary,
   UserSummary,
-  AgentSummary,
+  WorkflowSummary,
   AttributeSummary,
   ModelCost,
   UserUsage,
-  AgentUsage,
+  WorkflowUsage,
   AttributeUsage,
 } from '../interfaces';
 
@@ -146,8 +146,8 @@ const toUserSummaries = (users: UserUsage[]): UserSummary[] =>
     trend: t.trend ?? [],
   }));
 
-const toAgentSummaries = (agents: AgentUsage[]): AgentSummary[] =>
-  agents.map((a) => ({
+const toWorkflowSummaries = (workflows: WorkflowUsage[]): WorkflowSummary[] =>
+  workflows.map((a) => ({
     name: a.name,
     model: a.model,
     cost: a.cost,
@@ -188,7 +188,7 @@ export function UsageLivePage({ range }: UsageLivePageProps) {
   const errors = useErrorSeries(range);
   const models = useModelCosts(range);
   const users = useUserUsage(range);
-  const agents = useAgentUsage(range);
+  const workflows = useWorkflowUsage(range);
   const attrKeys = useAttributeKeys(range);
 
   const attributeKeys = attrKeys.data?.items ?? [];
@@ -225,12 +225,12 @@ export function UsageLivePage({ range }: UsageLivePageProps) {
     ? modelRows.reduce((s, m) => s + m.inputTokens + m.outputTokens, 0)
     : undefined;
   const userRows = users.data ? toUserSummaries(users.data.items) : [];
-  const agentRows = agents.data ? toAgentSummaries(agents.data.items) : [];
+  const workflowRows = workflows.data ? toWorkflowSummaries(workflows.data.items) : [];
   const attrRows = attrUsage.data ? toAttributeSummaries(attrUsage.data.items) : [];
 
   const userCount = users.data?.items.length ?? 0;
-  const agentCount = agents.data?.items.length ?? 0;
-  const subtitle = `${RANGE_LABEL[range] ?? RANGE_LABEL['7d']} · ${userCount} active users, ${agentCount} agents`;
+  const workflowCount = workflows.data?.items.length ?? 0;
+  const subtitle = `${RANGE_LABEL[range] ?? RANGE_LABEL['7d']} · ${userCount} active users, ${workflowCount} workflows`;
 
   // Freshness reflects the most recent successful fetch across the page's
   // sections; 0 (nothing loaded yet) hides the badge.
@@ -241,7 +241,7 @@ export function UsageLivePage({ range }: UsageLivePageProps) {
       errors.dataUpdatedAt,
       models.dataUpdatedAt,
       users.dataUpdatedAt,
-      agents.dataUpdatedAt,
+      workflows.dataUpdatedAt,
     ) || undefined;
 
   return (
@@ -292,7 +292,7 @@ export function UsageLivePage({ range }: UsageLivePageProps) {
             setTab={handleTabChange}
             tabs={[
               { id: 'user', label: 'By user', count: userCount },
-              { id: 'agent', label: 'By agent', count: agentCount },
+              { id: 'workflow', label: 'By workflow', count: workflowCount },
             ]}
             attribute={{
               keys: attributeKeys,
@@ -313,12 +313,12 @@ export function UsageLivePage({ range }: UsageLivePageProps) {
           />
         </Section>
       )}
-      {tab === 'agent' && (
-        <Section isLoading={agents.isLoading} isError={agents.isError}>
+      {tab === 'workflow' && (
+        <Section isLoading={workflows.isLoading} isError={workflows.isError}>
           <Breakdown
-            rows={agentRows}
-            totalCost={sumCost(agentRows)}
-            kind="agent"
+            rows={workflowRows}
+            totalCost={sumCost(workflowRows)}
+            kind="workflow"
             sortBy={sortBy}
             setSortBy={setSortBy}
           />

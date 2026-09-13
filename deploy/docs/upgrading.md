@@ -95,7 +95,7 @@ directing users at long-range cost if that transient is unacceptable.
 
 Migrations `009`/`010` add two views over `tracium.spans`:
 `tracium.calls` (`source='span'`) and `tracium.usage_metrics` (`source='metric'`).
-The API reads these instead of filtering `source` itself, so a trace/agent/latency
+The API reads these instead of filtering `source` itself, so a trace/workflow/latency
 query structurally cannot see identity-less metric rows, and cost reconciliation
 reads both views explicitly. They hold no data and copy nothing — reading a view
 is rewritten to its underlying `SELECT` at run time.

@@ -24,7 +24,7 @@
 //     metric-specific minimum. This kills the "$0.01 → $0.05 is 5×!" problem and
 //     is also what makes a flat (MAD=0) baseline safe to score.
 //   - VolumeFloor: the series must carry enough activity (Support) to be worth
-//     scoring at all, so a barely-used agent with two runs a week does not
+//     scoring at all, so a barely-used workflow with two runs a week does not
 //     generate a stream of alerts.
 package anomaly
 
@@ -40,7 +40,7 @@ const (
 	// Spike is an upward deviation (observed above the baseline).
 	Spike Direction = "spike"
 	// Drop is a downward deviation (observed below the baseline) — e.g. run
-	// volume collapsing toward zero, the signature of a silently failing agent.
+	// volume collapsing toward zero, the signature of a silently failing workflow.
 	Drop Direction = "drop"
 )
 

@@ -112,12 +112,12 @@ func TestFromOTLP_SetsKind(t *testing.T) {
 	}
 }
 
-// agentName prefers span-scoped signals (gen_ai.agent.name, traceloop
-// entity/workflow) over the resource-level service.name, so a multi-agent trace
-// attributes each span to its real agent; the OTel "unknown_service" default is
-// treated as absent so traces don't collapse under it (or under a raw operation
-// name like "openai.chat").
-func TestAgentName_DerivationPriority(t *testing.T) {
+// workflowName prefers span-scoped signals (gen_ai.agent.name, traceloop
+// entity/workflow) over the resource-level service.name, so a trace made of many
+// sub-spans attributes each span to its real workflow; the OTel "unknown_service"
+// default is treated as absent so traces don't collapse under it (or under a raw
+// operation name like "openai.chat").
+func TestWorkflowName_DerivationPriority(t *testing.T) {
 	tests := []struct {
 		name                                                    string
 		service, genaiAgent, traceloopWorkflow, traceloopEntity string
@@ -125,8 +125,8 @@ func TestAgentName_DerivationPriority(t *testing.T) {
 		want                                                    string
 	}{
 		{"gen_ai.agent.name wins over service.name", "checkout-svc", "research-agent", "wf", "ent", "openai.chat", "research-agent"},
-		{"multi-agent: each span keeps its own agent, not the shared service", "weather-svc", "Weather Agent", "", "", "invoke_agent", "Weather Agent"},
-		{"child span with no agent falls back to service.name", "weather-svc", "", "", "", "openai.chat", "weather-svc"},
+		{"span-scoped signal wins over the shared service", "weather-svc", "Weather Agent", "", "", "invoke_agent", "Weather Agent"},
+		{"span with no span-scoped signal falls back to service.name", "weather-svc", "", "", "", "openai.chat", "weather-svc"},
 		{"then traceloop.workflow.name over service.name", "svc", "", "summarize", "ent", "openai.chat", "summarize"},
 		{"then traceloop.entity.name over service.name", "svc", "", "", "fetch_docs", "openai.chat", "fetch_docs"},
 		{"service.name used when no span-scoped signal", "checkout-svc", "", "", "", "openai.chat", "checkout-svc"},
@@ -138,9 +138,9 @@ func TestAgentName_DerivationPriority(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := agentName(tt.service, tt.genaiAgent, tt.traceloopWorkflow, tt.traceloopEntity, tt.spanName)
+			got := workflowName(tt.service, tt.genaiAgent, tt.traceloopWorkflow, tt.traceloopEntity, tt.spanName)
 			if got != tt.want {
-				t.Errorf("agentName(%q,%q,%q,%q,%q) = %q, want %q",
+				t.Errorf("workflowName(%q,%q,%q,%q,%q) = %q, want %q",
 					tt.service, tt.genaiAgent, tt.traceloopWorkflow, tt.traceloopEntity, tt.spanName, got, tt.want)
 			}
 		})
@@ -175,7 +175,7 @@ func TestFromOTLP_ServiceNameColumn(t *testing.T) {
 // namespaces so they are not duplicated into the map.
 func TestFromOTLP_RetainsCustomAttributes(t *testing.T) {
 	res := pcommon.NewMap()
-	res.PutStr("service.name", "billing-agent") // promoted → agent, excluded
+	res.PutStr("service.name", "billing-agent") // promoted → workflow, excluded
 	res.PutStr("deployment.environment", "prod")
 	res.PutStr("team", "platform")
 

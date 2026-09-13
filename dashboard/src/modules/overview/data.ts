@@ -3,21 +3,21 @@ import type { ActivityId } from './ids';
 import type { CostPoint, LatencyPoint, ErrorPoint } from '../../common/interfaces';
 
 export const ACTIVITY_FEED: ActivityItem[] = [
-  { id: "t_a9f2" as ActivityId, agent: "rewrite-message",                status: "failed",    time: "just now", cost: 0.0012, latency: 4.8, msg: "rate_limit_exceeded" },
-  { id: "t_a9f1" as ActivityId, agent: "summarize-comments",             status: "completed", time: "2s ago",   cost: 0.0003, latency: 2.1 },
-  { id: "t_a9f0" as ActivityId, agent: "classify-intent",                status: "completed", time: "4s ago",   cost: 0.0001, latency: 0.8 },
-  { id: "t_a9ef" as ActivityId, agent: "rewrite-message",                status: "failed",    time: "7s ago",   cost: 0.0009, latency: 6.2, msg: "context_length" },
-  { id: "t_a9ee" as ActivityId, agent: "moderate-content",               status: "completed", time: "9s ago",   cost: 0.0000, latency: 0.3 },
-  { id: "t_a9ed" as ActivityId, agent: "summarize-comments",             status: "completed", time: "12s ago",  cost: 0.0005, latency: 1.9 },
-  { id: "t_a9ec" as ActivityId, agent: "detect-sentiment",               status: "completed", time: "14s ago",  cost: 0.0001, latency: 0.6 },
-  { id: "t_a9eb" as ActivityId, agent: "classify-intent",                status: "completed", time: "16s ago",  cost: 0.0001, latency: 0.7 },
-  { id: "t_a9ea" as ActivityId, agent: "extract-entities",               status: "completed", time: "19s ago",  cost: 0.0002, latency: 1.1 },
-  { id: "t_a9e9" as ActivityId, agent: "summarize-comments",             status: "completed", time: "21s ago",  cost: 0.0004, latency: 2.2 },
-  { id: "t_a9e8" as ActivityId, agent: "moderate-content",               status: "completed", time: "24s ago",  cost: 0.0000, latency: 0.4 },
-  { id: "t_a9e7" as ActivityId, agent: "rewrite-message",                status: "completed", time: "27s ago",  cost: 0.0008, latency: 3.9 },
-  { id: "t_a9e6" as ActivityId, agent: "classify-intent",                status: "completed", time: "29s ago",  cost: 0.0001, latency: 0.9 },
-  { id: "t_a9e5" as ActivityId, agent: "generate-clock-out-description", status: "completed", time: "32s ago",  cost: 0.0001, latency: 3.1 },
-  { id: "t_a9e4" as ActivityId, agent: "detect-sentiment",               status: "completed", time: "34s ago",  cost: 0.0000, latency: 0.5 },
+  { id: "t_a9f2" as ActivityId, workflow: "rewrite-message",                status: "failed",    time: "just now", cost: 0.0012, latency: 4.8, msg: "rate_limit_exceeded" },
+  { id: "t_a9f1" as ActivityId, workflow: "summarize-comments",             status: "completed", time: "2s ago",   cost: 0.0003, latency: 2.1 },
+  { id: "t_a9f0" as ActivityId, workflow: "classify-intent",                status: "completed", time: "4s ago",   cost: 0.0001, latency: 0.8 },
+  { id: "t_a9ef" as ActivityId, workflow: "rewrite-message",                status: "failed",    time: "7s ago",   cost: 0.0009, latency: 6.2, msg: "context_length" },
+  { id: "t_a9ee" as ActivityId, workflow: "moderate-content",               status: "completed", time: "9s ago",   cost: 0.0000, latency: 0.3 },
+  { id: "t_a9ed" as ActivityId, workflow: "summarize-comments",             status: "completed", time: "12s ago",  cost: 0.0005, latency: 1.9 },
+  { id: "t_a9ec" as ActivityId, workflow: "detect-sentiment",               status: "completed", time: "14s ago",  cost: 0.0001, latency: 0.6 },
+  { id: "t_a9eb" as ActivityId, workflow: "classify-intent",                status: "completed", time: "16s ago",  cost: 0.0001, latency: 0.7 },
+  { id: "t_a9ea" as ActivityId, workflow: "extract-entities",               status: "completed", time: "19s ago",  cost: 0.0002, latency: 1.1 },
+  { id: "t_a9e9" as ActivityId, workflow: "summarize-comments",             status: "completed", time: "21s ago",  cost: 0.0004, latency: 2.2 },
+  { id: "t_a9e8" as ActivityId, workflow: "moderate-content",               status: "completed", time: "24s ago",  cost: 0.0000, latency: 0.4 },
+  { id: "t_a9e7" as ActivityId, workflow: "rewrite-message",                status: "completed", time: "27s ago",  cost: 0.0008, latency: 3.9 },
+  { id: "t_a9e6" as ActivityId, workflow: "classify-intent",                status: "completed", time: "29s ago",  cost: 0.0001, latency: 0.9 },
+  { id: "t_a9e5" as ActivityId, workflow: "generate-clock-out-description", status: "completed", time: "32s ago",  cost: 0.0001, latency: 3.1 },
+  { id: "t_a9e4" as ActivityId, workflow: "detect-sentiment",               status: "completed", time: "34s ago",  cost: 0.0000, latency: 0.5 },
 ];
 
 export const COST_SERIES_7D: CostPoint[] = [

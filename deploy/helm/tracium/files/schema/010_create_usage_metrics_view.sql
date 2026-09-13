@@ -4,8 +4,8 @@
 -- exposes the source='metric' rows — synthetic, identity-less rows the collector
 -- writes from gen_ai.client.token.usage data points (one row per input/output
 -- token data point, priced upstream). They carry cost, tokens, model, user, and
--- workspace, but no trace/span/agent identity, so they belong only in cost and
--- token aggregates, never in trace/agent/latency/run math.
+-- workspace, but no trace/span/workflow identity, so they belong only in cost and
+-- token aggregates, never in trace/workflow/latency/run math.
 --
 -- The API reads tracium.usage_metrics only alongside tracium.calls when
 -- reconciling cost across the two ingestion sources (each is a lower bound on true

@@ -103,14 +103,14 @@ type MockMetricsRepository struct {
 	Cost          []model.CostPoint
 	Latency       []model.LatencyPoint
 	Errors        []model.ErrorPoint
-	Agents        []model.AgentCost
-	AgentRows     []model.Agent
-	AgentDetailV  model.AgentDetail
+	Workflows        []model.WorkflowCost
+	WorkflowRows     []model.Workflow
+	WorkflowDetailV  model.WorkflowDetail
 	FailureItems  []model.Failure
 	FailuresTotal int64
 	Models        []model.ModelCost
 	Users         []model.UserUsage
-	AgentUsages   []model.AgentUsage
+	WorkflowUsages   []model.WorkflowUsage
 	AttrKeys      []string
 	AttrUsage     []model.AttributeUsage
 	AnomalyItems  []model.Anomaly
@@ -134,16 +134,16 @@ func (m *MockMetricsRepository) ErrorSeries(_ context.Context, _ query.MetricsFi
 	return m.Errors, m.Err
 }
 
-func (m *MockMetricsRepository) TopAgents(_ context.Context, _ query.MetricsFilter, _ int) ([]model.AgentCost, error) {
-	return m.Agents, m.Err
+func (m *MockMetricsRepository) TopWorkflows(_ context.Context, _ query.MetricsFilter, _ int) ([]model.WorkflowCost, error) {
+	return m.Workflows, m.Err
 }
 
-func (m *MockMetricsRepository) ListAgents(_ context.Context, _ query.MetricsFilter, _ int) ([]model.Agent, error) {
-	return m.AgentRows, m.Err
+func (m *MockMetricsRepository) ListWorkflows(_ context.Context, _ query.MetricsFilter, _ int) ([]model.Workflow, error) {
+	return m.WorkflowRows, m.Err
 }
 
-func (m *MockMetricsRepository) AgentDetail(_ context.Context, _ query.MetricsFilter) (model.AgentDetail, error) {
-	return m.AgentDetailV, m.Err
+func (m *MockMetricsRepository) WorkflowDetail(_ context.Context, _ query.MetricsFilter) (model.WorkflowDetail, error) {
+	return m.WorkflowDetailV, m.Err
 }
 
 func (m *MockMetricsRepository) Failures(_ context.Context, _ query.MetricsFilter, _ int) ([]model.Failure, int64, error) {
@@ -158,8 +158,8 @@ func (m *MockMetricsRepository) UserUsage(_ context.Context, _ query.MetricsFilt
 	return m.Users, m.Err
 }
 
-func (m *MockMetricsRepository) AgentUsage(_ context.Context, _ query.MetricsFilter, _ int) ([]model.AgentUsage, error) {
-	return m.AgentUsages, m.Err
+func (m *MockMetricsRepository) WorkflowUsage(_ context.Context, _ query.MetricsFilter, _ int) ([]model.WorkflowUsage, error) {
+	return m.WorkflowUsages, m.Err
 }
 
 func (m *MockMetricsRepository) AttributeKeys(_ context.Context, _ query.MetricsFilter, _ int) ([]string, error) {

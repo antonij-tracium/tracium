@@ -10,7 +10,7 @@ import (
 func TestAssignSubtreeTotals(t *testing.T) {
 	// Tree (cost / input tokens / output tokens):
 	//   root (0.001 / 10 / 5)
-	//   ├── sub-agent (0 / 0 / 0)
+	//   ├── sub-workflow (0 / 0 / 0)
 	//   │   ├── llm (0.004 / 100 / 40)
 	//   │   └── tool (0 / 0 / 0)
 	//   └── llm (0.002 / 60 / 20)

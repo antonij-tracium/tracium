@@ -1,16 +1,16 @@
 // ---------------------------------------------------------------------------
-// AgentsLivePage — the signed-in Agents view, fed by GET /v1/metrics/agents.
+// WorkflowsLivePage — the signed-in Workflows view, fed by GET /v1/metrics/workflows.
 // It owns the data fetch (the page is the composition layer) and hands the
-// resolved list to the presentational AgentsPage. Loading / error / empty are
-// handled here so AgentsPage stays a pure renderer.
+// resolved list to the presentational WorkflowsPage. Loading / error / empty are
+// handled here so WorkflowsPage stays a pure renderer.
 // ---------------------------------------------------------------------------
 
 import type { ReactNode } from 'react';
 import { EmptyState, Spinner } from '../../../common';
-import { useAgents } from '../hooks/useAgents';
-import { AgentsPage } from './AgentsPage';
+import { useWorkflows } from '../hooks/useWorkflows';
+import { WorkflowsPage } from './WorkflowsPage';
 
-interface AgentsLivePageProps {
+interface WorkflowsLivePageProps {
   range: string;
   setView: (v: string) => void;
   setSelected: (updater: (prev: Record<string, string>) => Record<string, string>) => void;
@@ -34,8 +34,8 @@ function Centered({ children }: { children: ReactNode }) {
   );
 }
 
-export function AgentsLivePage({ range, setView, setSelected, workspaceName }: AgentsLivePageProps) {
-  const { data, isLoading, isError, dataUpdatedAt } = useAgents(range);
+export function WorkflowsLivePage({ range, setView, setSelected, workspaceName }: WorkflowsLivePageProps) {
+  const { data, isLoading, isError, dataUpdatedAt } = useWorkflows(range);
 
   if (isLoading) {
     return (
@@ -45,22 +45,22 @@ export function AgentsLivePage({ range, setView, setSelected, workspaceName }: A
     );
   }
   if (isError) {
-    return <Centered>Failed to load agents</Centered>;
+    return <Centered>Failed to load workflows</Centered>;
   }
 
-  const agents = data?.items ?? [];
-  if (agents.length === 0) {
+  const workflows = data?.items ?? [];
+  if (workflows.length === 0) {
     return (
       <EmptyState
-        message="No agents yet"
-        description="Agents appear here once they start emitting traces."
+        message="No workflows yet"
+        description="Workflows appear here once they start emitting traces."
       />
     );
   }
 
   return (
-    <AgentsPage
-      agents={agents}
+    <WorkflowsPage
+      workflows={workflows}
       setView={setView}
       setSelected={setSelected}
       workspaceName={workspaceName}

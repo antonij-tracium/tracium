@@ -93,7 +93,7 @@ export function ActivityFeed({ items, onSelectTrace }: ActivityFeedProps) {
                   textOverflow: 'ellipsis',
                 }}
               >
-                {it.agent}
+                {it.workflow}
               </span>
               {it.msg && (
                 <span style={{ fontSize: 12, color: it.status === 'failed' ? 'var(--error)' : 'var(--muted)' }}>

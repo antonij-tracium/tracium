@@ -10,17 +10,17 @@ import (
 	"github.com/tracium/api/internal/query"
 )
 
-// overviewLimit caps the rows returned by the top-agents and failures lists —
+// overviewLimit caps the rows returned by the top-workflows and failures lists —
 // the overview shows five of each.
 const overviewLimit = 5
 
 // usageLimit caps the rows returned by the usage-page breakdown lists (models,
-// users, agents), which show more rows than the overview's top-five.
+// users, workflows), which show more rows than the overview's top-five.
 const usageLimit = 50
 
-// agentsLimit caps the rows returned by the Agents page, which lists every
-// active agent (sorted/filtered client-side) rather than a top-N slice.
-const agentsLimit = 200
+// workflowsLimit caps the rows returned by the Workflows page, which lists every
+// active workflow (sorted/filtered client-side) rather than a top-N slice.
+const workflowsLimit = 200
 
 // MetricsHandler serves the aggregated metrics powering the dashboard overview.
 type MetricsHandler struct {
@@ -61,13 +61,13 @@ func (h *MetricsHandler) filter(w http.ResponseWriter, r *http.Request) (query.M
 	}
 	f.WorkspaceIDs = scope
 
-	// agent narrows the series to one derived agent (the detail page's charts).
-	// Agent-scoped metrics are a raw-window feature: per-agent latency can't come
+	// workflow narrows the series to one derived workflow (the detail page's charts).
+	// Workflow-scoped metrics are a raw-window feature: per-workflow latency can't come
 	// from the daily rollup, so reject ranges that would use it rather than
-	// silently returning all-agent data.
-	f.Agent = r.URL.Query().Get("agent")
-	if f.Agent != "" && f.UseRollup() {
-		respondError(w, http.StatusBadRequest, "BAD_REQUEST", "agent filtering is available for ranges up to 30d")
+	// silently returning all-workflow data.
+	f.Workflow = r.URL.Query().Get("workflow")
+	if f.Workflow != "" && f.UseRollup() {
+		respondError(w, http.StatusBadRequest, "BAD_REQUEST", "workflow filtering is available for ranges up to 30d")
 		return query.MetricsFilter{}, false
 	}
 	return f, true
@@ -170,67 +170,67 @@ func (h *MetricsHandler) ErrorSeries(w http.ResponseWriter, r *http.Request) {
 	respondPage(w, points, len(points), 1, len(points))
 }
 
-// TopAgents handles GET /v1/metrics/top-agents.
-func (h *MetricsHandler) TopAgents(w http.ResponseWriter, r *http.Request) {
+// TopWorkflows handles GET /v1/metrics/top-workflows.
+func (h *MetricsHandler) TopWorkflows(w http.ResponseWriter, r *http.Request) {
 	f, ok := h.filter(w, r)
 	if !ok {
 		return
 	}
-	agents, err := h.repo.TopAgents(r.Context(), f, overviewLimit)
+	workflows, err := h.repo.TopWorkflows(r.Context(), f, overviewLimit)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "INTERNAL", "failed to load top agents")
+		respondError(w, http.StatusInternalServerError, "INTERNAL", "failed to load top workflows")
 		return
 	}
-	respondPage(w, agents, len(agents), 1, len(agents))
+	respondPage(w, workflows, len(workflows), 1, len(workflows))
 }
 
-// Agents handles GET /v1/metrics/agents — the Agents page's full activity list.
-func (h *MetricsHandler) Agents(w http.ResponseWriter, r *http.Request) {
+// Workflows handles GET /v1/metrics/workflows — the Workflows page's full activity list.
+func (h *MetricsHandler) Workflows(w http.ResponseWriter, r *http.Request) {
 	f, ok := h.filter(w, r)
 	if !ok {
 		return
 	}
-	agents, err := h.repo.ListAgents(r.Context(), f, agentsLimit)
+	workflows, err := h.repo.ListWorkflows(r.Context(), f, workflowsLimit)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "INTERNAL", "failed to load agents")
+		respondError(w, http.StatusInternalServerError, "INTERNAL", "failed to load workflows")
 		return
 	}
-	respondPage(w, agents, len(agents), 1, len(agents))
+	respondPage(w, workflows, len(workflows), 1, len(workflows))
 }
 
-// AgentDetail handles GET /v1/metrics/agents/{name} — one agent's detail page
-// payload. The agent name comes from the path, so the shared filter()'s query
-// param is irrelevant here; the rollup gate is re-checked once the path agent
+// WorkflowDetail handles GET /v1/metrics/workflows/{name} — one workflow's detail page
+// payload. The workflow name comes from the path, so the shared filter()'s query
+// param is irrelevant here; the rollup gate is re-checked once the path workflow
 // is set.
-func (h *MetricsHandler) AgentDetail(w http.ResponseWriter, r *http.Request) {
+func (h *MetricsHandler) WorkflowDetail(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
 	if name == "" {
-		respondError(w, http.StatusBadRequest, "BAD_REQUEST", "agent name is required")
+		respondError(w, http.StatusBadRequest, "BAD_REQUEST", "workflow name is required")
 		return
 	}
 	f, ok := h.filter(w, r)
 	if !ok {
 		return
 	}
-	f.Agent = name
+	f.Workflow = name
 	if f.UseRollup() {
-		respondError(w, http.StatusBadRequest, "BAD_REQUEST", "agent detail is available for ranges up to 30d")
+		respondError(w, http.StatusBadRequest, "BAD_REQUEST", "workflow detail is available for ranges up to 30d")
 		return
 	}
-	detail, err := h.repo.AgentDetail(r.Context(), f)
+	detail, err := h.repo.WorkflowDetail(r.Context(), f)
 	if err != nil {
 		if errors.Is(err, query.ErrNotFound) {
-			respondError(w, http.StatusNotFound, "AGENT_NOT_FOUND", "agent not found")
+			respondError(w, http.StatusNotFound, "WORKFLOW_NOT_FOUND", "workflow not found")
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "INTERNAL", "failed to load agent")
+		respondError(w, http.StatusInternalServerError, "INTERNAL", "failed to load workflow")
 		return
 	}
 	respondJSON(w, http.StatusOK, detail)
 }
 
 // Failures handles GET /v1/metrics/failures. Total counts every failed run in
-// the window, not just the listed agents.
+// the window, not just the listed workflows.
 func (h *MetricsHandler) Failures(w http.ResponseWriter, r *http.Request) {
 	f, ok := h.filter(w, r)
 	if !ok {
@@ -272,18 +272,18 @@ func (h *MetricsHandler) UserUsage(w http.ResponseWriter, r *http.Request) {
 	respondPage(w, users, len(users), 1, len(users))
 }
 
-// AgentUsage handles GET /v1/metrics/usage-agents.
-func (h *MetricsHandler) AgentUsage(w http.ResponseWriter, r *http.Request) {
+// WorkflowUsage handles GET /v1/metrics/usage-workflows.
+func (h *MetricsHandler) WorkflowUsage(w http.ResponseWriter, r *http.Request) {
 	f, ok := h.filter(w, r)
 	if !ok {
 		return
 	}
-	agents, err := h.repo.AgentUsage(r.Context(), f, usageLimit)
+	workflows, err := h.repo.WorkflowUsage(r.Context(), f, usageLimit)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "INTERNAL", "failed to load agent usage")
+		respondError(w, http.StatusInternalServerError, "INTERNAL", "failed to load workflow usage")
 		return
 	}
-	respondPage(w, agents, len(agents), 1, len(agents))
+	respondPage(w, workflows, len(workflows), 1, len(workflows))
 }
 
 // AttributeKeys lists the custom-attribute dimensions available in the window,
@@ -293,7 +293,7 @@ func (h *MetricsHandler) AttributeKeys(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	keys, err := h.repo.AttributeKeys(r.Context(), f, agentsLimit)
+	keys, err := h.repo.AttributeKeys(r.Context(), f, workflowsLimit)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "INTERNAL", "failed to load attribute keys")
 		return

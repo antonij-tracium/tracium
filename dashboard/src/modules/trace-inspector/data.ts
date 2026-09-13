@@ -3,7 +3,7 @@ import type { TraceDetailId, SpanDetailId, SessionId } from './ids';
 
 export const TRACE_DETAIL: TraceDetail = {
   id:           "t_a9f2_eb7c" as TraceDetailId,
-  agent:        "rewrite-message",
+  workflow:        "rewrite-message",
   version:      "v2.4.1",
   status:       "failed",
   startedAt:    "Apr 18, 2026 · 7:41:17 AM",
@@ -33,18 +33,18 @@ export const TRACE_DETAIL: TraceDetail = {
     type:    "rate_limit_exceeded",
     message: "Rate limit of 40 requests per minute exceeded for model claude-haiku-4-5. Retry after 23 seconds.",
     code:    "429",
-    stack: `RateLimitError: 429 rate_limit_exceeded\n  at Anthropic.request (anthropic-sdk/dist/core.js:214:23)\n  at Anthropic.messages.create (anthropic-sdk/dist/resources/messages.js:48:17)\n  at async rewriteMessage (src/agents/rewrite-message.ts:82:20)\n  at async Agent.run (tracium/runtime.ts:341:14)`,
+    stack: `RateLimitError: 429 rate_limit_exceeded\n  at Anthropic.request (anthropic-sdk/dist/core.js:214:23)\n  at Anthropic.messages.create (anthropic-sdk/dist/resources/messages.js:48:17)\n  at async rewriteMessage (src/workflows/rewrite-message.ts:82:20)\n  at async Workflow.run (tracium/runtime.ts:341:14)`,
   },
   spans: [
     {
       id: "s1" as SpanDetailId, name: "rewrite-message", type: "agent", start: 0, duration: 4823, depth: 0,
       cost: 0, tokens: 0, inputTokens: 0, outputTokens: 0, subtreeCost: 0.0012, childCount: 6, status: "failed",
-      attributes: { "agent.version": "v2.4.1", "user.id": "user_38291", "tags": "retry,high-latency" },
+      attributes: { "workflow.version": "v2.4.1", "user.id": "user_38291", "tags": "retry,high-latency" },
       input: "Rewrite draft for audience internal-slack, max 60 words.",
       output: "(failed — rate_limit_exceeded on retry)",
       error: {
-        type:    "AgentRunError",
-        message: "Agent aborted: the retry LLM call failed and no fallback was configured.",
+        type:    "WorkflowRunError",
+        message: "Workflow aborted: the retry LLM call failed and no fallback was configured.",
         code:    "",
         stack:   "",
       },
@@ -85,7 +85,7 @@ export const TRACE_DETAIL: TraceDetail = {
         { name: "style_guide.fetch", used: false, description: "Retrieves the workspace's writing style guide entries by audience tag." },
         { name: "draft.refine",      used: false, description: "One-shot LLM refinement pass on a candidate draft against a target tone." },
         { name: "users.lookup",      used: false, description: "Resolves a Slack user ID to a profile (name, role, timezone) for personalisation." },
-        { name: "memory.recall",     used: false, description: "Searches long-term agent memory for prior interactions with this user." },
+        { name: "memory.recall",     used: false, description: "Searches long-term workflow memory for prior interactions with this user." },
         { name: "rate_limit.check",  used: false, description: "Returns the user's remaining rewrite quota and reset time." },
         { name: "pii.redact",        used: false, description: "Strips emails, phone numbers, and SSNs from a string before logging." },
       ],
@@ -115,7 +115,7 @@ export const TRACE_DETAIL: TraceDetail = {
       availableTools: [
         { name: "style_guide.fetch", used: false, description: "Retrieves the workspace's writing style guide entries by audience tag." },
         { name: "draft.refine",      used: false, description: "One-shot LLM refinement pass on a candidate draft against a target tone." },
-        { name: "memory.recall",     used: false, description: "Searches long-term agent memory for prior interactions with this user." },
+        { name: "memory.recall",     used: false, description: "Searches long-term workflow memory for prior interactions with this user." },
       ],
     },
   ],

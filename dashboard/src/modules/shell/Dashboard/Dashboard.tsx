@@ -5,7 +5,7 @@ import { Sidebar } from '../Sidebar';
 import { TopBar } from '../TopBar';
 import { CommandPalette } from '../CommandPalette';
 import { OverviewPage, OverviewLivePage } from '../../overview';
-import { AgentsPage, AgentsLivePage, AgentDetailDemoPage, AgentDetailLivePage, AGENTS } from '../../agents';
+import { WorkflowsPage, WorkflowsLivePage, WorkflowDetailDemoPage, WorkflowDetailLivePage, WORKFLOWS } from '../../workflows';
 import { TraceDetailDashPage, TRACE_DETAIL } from '../../trace-inspector';
 import { TraceDetailView } from '../../trace-explorer';
 import { UsersPage, UsersLivePage, UserDetailPage, UsagePage, UsageLivePage, USERS } from '../../usage';
@@ -39,12 +39,12 @@ export interface DashboardProps {
 }
 
 /**
- * Demo data (KPIs, agents, traces, usage…) exists only to bring the logged-out
+ * Demo data (KPIs, workflows, traces, usage…) exists only to bring the logged-out
  * auth-page preview to life. A real signed-in workspace starts empty until it
  * receives its own data, so these data views render an empty state instead.
  * Keyed by ViewId; views not listed here (settings, keys, detail
  * views) are either functional or unreachable from an empty workspace. Overview,
- * agents and usage are also absent: OverviewLivePage / AgentsLivePage /
+ * workflows and usage are also absent: OverviewLivePage / WorkflowsLivePage /
  * UsageLivePage fetch real metrics and render their own empty state when there
  * are no runs yet.
  */
@@ -77,7 +77,7 @@ function WorkspaceEmptyState({ onCreate }: { onCreate: () => void }) {
         Create your first workspace
       </h2>
       <p style={{ fontSize: 13.5, color: 'var(--muted)', maxWidth: 420, margin: 0, lineHeight: 1.5 }}>
-        Workspaces hold your agents, traces, and usage. Create one to start
+        Workspaces hold your workflows, traces, and usage. Create one to start
         sending data to Tracium.
       </p>
       <button
@@ -119,7 +119,7 @@ function computeInitialNav(persist: boolean, pages: readonly ExtensionPage[]): N
   }
 
   const stored = localStorage.getItem('tracium_view') as ViewId | null;
-  const valid = stored && (pages.some(p => p.id === stored) || ['overview','agents','trace','usage','keys','settings','users','user'].includes(stored));
+  const valid = stored && (pages.some(p => p.id === stored) || ['overview','workflows','trace','usage','keys','settings','users','user'].includes(stored));
   return { view: valid ? stored : 'overview', selected: {} };
 }
 
@@ -290,16 +290,16 @@ export function Dashboard({ embedded = false, onLogout, extensions = EMPTY_EXTEN
     const page = pages.find(p => p.id === view);
     if (page) return [{ label: page.label }];
     if (view === 'trace')      return [{ label: 'Overview', onClick: () => setView('overview') }, { label: selected.traceId ?? TRACE_DETAIL.id }];
-    if (view === 'agents')     return selected.agent
-      ? [{ label: 'Agents', onClick: () => { setSelected(s => { const n = { ...s }; delete n.agent; return n; }); setView('agents'); } }, { label: selected.agent }]
-      : [{ label: 'Agents' }];
+    if (view === 'workflows')     return selected.workflow
+      ? [{ label: 'Workflows', onClick: () => { setSelected(s => { const n = { ...s }; delete n.workflow; return n; }); setView('workflows'); } }, { label: selected.workflow }]
+      : [{ label: 'Workflows' }];
     if (view === 'usage')      return [{ label: 'Usage' }];
     if (view === 'users')    return [{ label: 'Users' }];
     if (view === 'user')     return [{ label: 'Users', onClick: () => setView('users') }, { label: 'User detail' }];
     if (view === 'keys')       return [{ label: 'Settings', onClick: () => setView('settings') }, { label: 'API Keys' }];
     if (view === 'settings')   return [{ label: 'Settings' }];
     return [{ label: 'Overview' }];
-  }, [view, selected.traceId, selected.agent]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [view, selected.traceId, selected.workflow]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCommandSelect = (action: CommandAction | undefined) => {
     if (!action) return;
@@ -308,9 +308,9 @@ export function Dashboard({ embedded = false, onLogout, extensions = EMPTY_EXTEN
       setView('trace');
       return;
     }
-    if (action.view === 'agent-detail') {
-      if (action.agent) setSelected(s => ({ ...s, agent: action.agent! }));
-      setView('agents');
+    if (action.view === 'workflow-detail') {
+      if (action.workflow) setSelected(s => ({ ...s, workflow: action.workflow! }));
+      setView('workflows');
       return;
     }
     if (action.view) setView(action.view);
@@ -375,18 +375,18 @@ export function Dashboard({ embedded = false, onLogout, extensions = EMPTY_EXTEN
           {view === 'overview'    && (embedded
             ? <OverviewPage range={range} setView={setView} setSelected={setSelected} tweaks={TWEAK_DEFAULTS} />
             : <OverviewLivePage range={range} setView={setView} setSelected={setSelected} tweaks={TWEAK_DEFAULTS} />)}
-          {view === 'agents'      && (selected.agent
+          {view === 'workflows'      && (selected.workflow
             ? (embedded
-              ? <AgentDetailDemoPage agent={AGENTS.find(a => a.name === selected.agent) ?? AGENTS[0]} range={range} setView={setView} setSelected={setSelected} />
-              : <AgentDetailLivePage agentName={selected.agent} range={range} setView={setView} setSelected={setSelected} />)
+              ? <WorkflowDetailDemoPage workflow={WORKFLOWS.find(a => a.name === selected.workflow) ?? WORKFLOWS[0]} range={range} setView={setView} setSelected={setSelected} />
+              : <WorkflowDetailLivePage workflowName={selected.workflow} range={range} setView={setView} setSelected={setSelected} />)
             : (embedded
-              ? <AgentsPage agents={AGENTS} setView={setView} setSelected={setSelected} workspaceName={workspace?.name} />
-              : <AgentsLivePage range={range} setView={setView} setSelected={setSelected} workspaceName={workspace?.name} />))}
+              ? <WorkflowsPage workflows={WORKFLOWS} setView={setView} setSelected={setSelected} workspaceName={workspace?.name} />
+              : <WorkflowsLivePage range={range} setView={setView} setSelected={setSelected} workspaceName={workspace?.name} />))}
           {view === 'trace'       && (embedded
             ? <TraceDetailDashPage setView={setView} />
             : selected.traceId
               ? <TraceDetailView traceId={selected.traceId} setView={setView} />
-              : <EmptyState message="No trace selected" description="Open a trace from an agent or the overview to see its detail." />)}
+              : <EmptyState message="No trace selected" description="Open a trace from an workflow or the overview to see its detail." />)}
           {view === 'usage'       && (embedded
             ? <UsagePage range={range} />
             : <UsageLivePage range={range} />)}

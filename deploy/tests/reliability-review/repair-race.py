@@ -21,7 +21,7 @@ sql=sys.argv[sys.argv.index('--data-binary')+1]
 state['queries'].append(sql)
 compact=' '.join(sql.split())
 if 'SELECT engine, sorting_key' in compact:
-    result='AggregatingMergeTree\\tbucket_date, user_id, workspace_id, agent_name, model'
+    result='AggregatingMergeTree\\tbucket_date, user_id, workspace_id, workflow_name, model'
 elif 'SELECT name, type FROM system.columns' in compact:
     result=state['columns']
 elif 'SELECT as_select FROM system.tables' in compact or compact.startswith('EXPLAIN SYNTAX'):

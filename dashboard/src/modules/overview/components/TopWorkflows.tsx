@@ -1,40 +1,40 @@
-// Most-used agents — a flat, clickable list (no card). Each row shows the agent
-// name, a thin volume bar scaled to the busiest agent, an optional trend
-// sparkline, and its call count + cost. The caller passes agents already
+// Most-used workflows — a flat, clickable list (no card). Each row shows the workflow
+// name, a thin volume bar scaled to the busiest workflow, an optional trend
+// sparkline, and its call count + cost. The caller passes workflows already
 // sorted/sliced to the rows it wants shown.
 
 import { Sparkline, fmtNum, fmtCost, RANGE_LABEL } from '../../../common';
 import { SectionRule } from './SectionRule';
 
-export interface TopAgentRow {
+export interface TopWorkflowRow {
   name: string;
   calls: number;
   cost: number;
   trend?: number[];
 }
 
-export function TopAgents({
-  agents,
-  onSelectAgent,
+export function TopWorkflows({
+  workflows,
+  onSelectWorkflow,
   range = '7d',
 }: {
-  agents: TopAgentRow[];
-  onSelectAgent: (name: string) => void;
+  workflows: TopWorkflowRow[];
+  onSelectWorkflow: (name: string) => void;
   range?: string;
 }) {
-  const maxCalls = Math.max(...agents.map((a) => a.calls), 1);
+  const maxCalls = Math.max(...workflows.map((a) => a.calls), 1);
 
   return (
     <div>
-      <SectionRule eyebrow="Volume" title="Most used agents" subtitle={`By call count, ${RANGE_LABEL[range] ?? RANGE_LABEL['7d']}`} />
+      <SectionRule eyebrow="Volume" title="Most used workflows" subtitle={`By call count, ${RANGE_LABEL[range] ?? RANGE_LABEL['7d']}`} />
       <div style={{ margin: '-4px 0' }}>
-        {agents.map((a, i) => {
+        {workflows.map((a, i) => {
           const pct = (a.calls / maxCalls) * 100;
           const tone = 'var(--accent)';
           return (
             <button
               key={a.name}
-              onClick={() => onSelectAgent(a.name)}
+              onClick={() => onSelectWorkflow(a.name)}
               style={{
                 display: 'grid',
                 gridTemplateColumns: '1fr auto auto',
@@ -45,7 +45,7 @@ export function TopAgents({
                 border: 'none',
                 textAlign: 'left',
                 borderBottom:
-                  i < agents.length - 1 ? '1px solid color-mix(in srgb, var(--border) 55%, transparent)' : 'none',
+                  i < workflows.length - 1 ? '1px solid color-mix(in srgb, var(--border) 55%, transparent)' : 'none',
                 background: 'transparent',
               }}
               onMouseEnter={(e) => (e.currentTarget.style.background = 'color-mix(in srgb, var(--surface-alt) 60%, transparent)')}

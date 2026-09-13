@@ -109,7 +109,7 @@ button:not(:disabled), [role="button"] {
   background: var(--scrollbar-thumb-hover);
 }
 
-/* ── Agent detail layout ─────────────────────────────────────────────────────
+/* ── Workflow detail layout ─────────────────────────────────────────────────────
    Two side-by-side charts split by a divider, and a content/aside split. Both
    collapse to a single column on narrow viewports. */
 

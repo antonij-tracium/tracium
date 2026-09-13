@@ -11,7 +11,7 @@ describe('application extensions',()=>{
   expect(stateToPath('extension:billing',{},pages)).toBe('/extensions/billing');
   expect(pathToState('/extensions/billing',pages)?.view).toBe('extension:billing');
   expect(pathToState('/extensions/billing')).toBeNull();
-  expect(pathToState('/agents/%invalid')).toBeNull();
+  expect(pathToState('/workflows/%invalid')).toBeNull();
   expect(pathToState('/traces/a%2Fb')?.selected.traceId).toBe('a/b');
  });
  it('refuses duplicate and invalid extension identifiers',()=>{

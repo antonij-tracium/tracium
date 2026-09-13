@@ -1,5 +1,5 @@
 // Outliers panel — a triage worklist, not a distribution plot. The task here is
-// to read each flagged bucket, decide (inspect the agent, or dismiss the flag),
+// to read each flagged bucket, decide (inspect the workflow, or dismiss the flag),
 // and move on, so the surface is a ranked list that stays scannable no matter how
 // many outliers there are: everything needed to judge a row is on the row, most
 // severe first, with the "why flagged" math one click away in place.
@@ -7,7 +7,7 @@
 // Two views share the same rows:
 //   • List — one row per flagged bucket (design 1).
 //   • Grouped — flags for the same target on the same day collapse into one
-//     incident card (design 2); a single bad day for an agent usually trips cost,
+//     incident card (design 2); a single bad day for an workflow usually trips cost,
 //     errors and volume together, and that reads as one event.
 //
 // Selection is controlled by the page so a chart flag and this panel stay in sync
@@ -266,7 +266,7 @@ function OutlierRow({
   const meta = SEVERITY_META[a.severity];
   const m = METRIC_META[a.metric];
   const dirWord = a.direction === 'spike' ? 'spike' : 'drop';
-  const target = a.scope === 'agent' ? a.agent : 'Workspace-wide';
+  const target = a.scope === 'workflow' ? a.workflow : 'Workspace-wide';
   const ratio = ratioLabel(a.observed, a.expected);
 
   return (
@@ -367,9 +367,9 @@ function IncidentCard({
 }) {
   const cardRef = useScrollIntoView<HTMLDivElement>(expanded);
   const meta = SEVERITY_META[incident.severity];
-  const target = incident.scope === 'agent' ? incident.agent : 'Workspace-wide';
+  const target = incident.scope === 'workflow' ? incident.workflow : 'Workspace-wide';
   const n = incident.anomalies.length;
-  const agentAnom = incident.anomalies.find((a) => a.scope === 'agent');
+  const workflowAnom = incident.anomalies.find((a) => a.scope === 'workflow');
 
   return (
     <div
@@ -431,9 +431,9 @@ function IncidentCard({
           ))}
           {/* one action bar for the whole incident */}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingTop: 2 }}>
-            {agentAnom && onInspect && (
-              <button onClick={() => onInspect(agentAnom)} style={primaryBtn}>
-                Inspect {agentAnom.agent} →
+            {workflowAnom && onInspect && (
+              <button onClick={() => onInspect(workflowAnom)} style={primaryBtn}>
+                Inspect {workflowAnom.workflow} →
               </button>
             )}
             <button onClick={() => incident.anomalies.forEach(onDismiss)} style={ghostBtn}>
@@ -547,9 +547,9 @@ function DetailStat({ k, v, color }: { k: string; v: string; color?: string }) {
 function RowActions({ anomaly: a, onDismiss, onInspect }: { anomaly: Anomaly; onDismiss: (a: Anomaly) => void; onInspect?: (a: Anomaly) => void }) {
   return (
     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 'auto' }}>
-      {a.scope === 'agent' && onInspect && (
+      {a.scope === 'workflow' && onInspect && (
         <button onClick={() => onInspect(a)} style={primaryBtn}>
-          Inspect agent →
+          Inspect workflow →
         </button>
       )}
       <button onClick={() => onDismiss(a)} style={ghostBtn}>

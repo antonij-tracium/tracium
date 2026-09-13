@@ -72,12 +72,12 @@ CREATE TABLE IF NOT EXISTS tracium.spans (
     output            String,
     available_tools   String,
     source            LowCardinality(String) DEFAULT 'span',
-    agent_name        LowCardinality(String) DEFAULT '',
+    workflow_name     LowCardinality(String) DEFAULT '',
     -- Resource-level service.name, kept verbatim ("unknown_service*" stored as '').
-    -- agent_name now prefers span-scoped signals (gen_ai.agent.name, traceloop
-    -- entity/workflow) so multi-agent traces attribute each span to its real
-    -- agent; service_name preserves the always-present resource name the query
-    -- layer falls back to for a trace's in-flight display name. Additive column —
+    -- workflow_name now prefers span-scoped signals (gen_ai.agent.name, traceloop
+    -- entity/workflow) so a trace made of many sub-spans attributes each span to
+    -- its real workflow; service_name preserves the always-present resource name
+    -- the query layer falls back to for a trace's in-flight display name. Additive column —
     -- per Rule 5 it does not bump schema_version, and existing tables do not adopt
     -- it (CREATE IF NOT EXISTS); add it in place with:
     --   ALTER TABLE tracium.spans ADD COLUMN IF NOT EXISTS

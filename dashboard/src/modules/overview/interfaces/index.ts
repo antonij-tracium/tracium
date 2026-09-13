@@ -6,7 +6,7 @@ export type {
   CostBucket,
   LatencyBucket,
   ErrorBucket,
-  AgentCost,
+  WorkflowCost,
   FailureRow,
   AnomalyMetric,
   AnomalyScope,

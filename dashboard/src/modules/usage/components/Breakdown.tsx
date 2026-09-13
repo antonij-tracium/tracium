@@ -1,5 +1,5 @@
 // Breakdown — the "who's driving cost" table. One sortable grid shared by the
-// user and agent tabs. Each numeric column carries its own up/down red/green
+// user and workflow tabs. Each numeric column carries its own up/down red/green
 // change vs the previous period (MetricCell + DeltaTag).
 //
 // The Avg column reports cost per 1,000 runs — sub-cent per-run figures compress
@@ -17,13 +17,13 @@ import {
   costFormatter,
   fmtNum,
 } from '../../../common';
-import type { UserSummary, AgentSummary, AttributeSummary } from '../interfaces';
+import type { UserSummary, WorkflowSummary, AttributeSummary } from '../interfaces';
 import styles from './Breakdown.module.css';
 
-export type BreakdownTab = 'user' | 'agent' | 'attribute';
+export type BreakdownTab = 'user' | 'workflow' | 'attribute';
 export type SortKey = 'name' | 'runs' | 'avg' | 'cost';
 
-export type BreakdownRowData = UserSummary | AgentSummary | AttributeSummary;
+export type BreakdownRowData = UserSummary | WorkflowSummary | AttributeSummary;
 
 export interface TabDef {
   id: BreakdownTab;
@@ -48,15 +48,15 @@ const USER_COLS: ColDef[] = [
   { key: 'share', label: 'Share',    w: 'minmax(140px, 1fr)',    sortable: false, align: 'left'  },
 ];
 
-const AGENT_COLS: ColDef[] = [
-  { key: 'name',  label: 'Agent',    w: 'minmax(220px, 1.4fr)', sortable: true,  align: 'left'  },
+const WORKFLOW_COLS: ColDef[] = [
+  { key: 'name',  label: 'Workflow',    w: 'minmax(220px, 1.4fr)', sortable: true,  align: 'left'  },
   { key: 'runs',  label: 'Runs',     w: '110px',                 sortable: true,  align: 'right' },
   { key: 'avg',   label: 'Avg / 1K', w: '116px',                 sortable: true,  align: 'right' },
   { key: 'cost',  label: 'Cost',     w: '118px',                 sortable: true,  align: 'right' },
   { key: 'share', label: 'Share',    w: 'minmax(140px, 1fr)',    sortable: false, align: 'left'  },
 ];
 
-// Attribute allocation shares the agent layout (no trend column); only the name
+// Attribute allocation shares the workflow layout (no trend column); only the name
 // header differs — it's labelled with the chosen attribute key (e.g. "team").
 const ATTRIBUTE_COLS: ColDef[] = [
   { key: 'name',  label: 'Value',    w: 'minmax(220px, 1.4fr)', sortable: true,  align: 'left'  },
@@ -83,7 +83,7 @@ export function TabPill({
   tabs: TabDef[];
   // When provided (and it has keys), appends the "By attribute" dropdown tab —
   // the third selector in "Who's driving cost". Sits in the same tab row so it
-  // aligns with the fixed user/agent tabs.
+  // aligns with the fixed user/workflow tabs.
   attribute?: AttributeTabConfig;
 }) {
   return (
@@ -184,10 +184,10 @@ function BreakdownRow({ row, kind, sharePct, isTop, isLast, tmpl }: BreakdownRow
           <span className={styles.nameText}>{row.name}</span>
         </div>
         <span
-          className={`${styles.subline} ${isTop ? styles.indented : ''} ${kind === 'agent' ? styles.mono : ''}`}
+          className={`${styles.subline} ${isTop ? styles.indented : ''} ${kind === 'workflow' ? styles.mono : ''}`}
         >
           {user && user.id && user.id !== row.name && <span>{user.id}</span>}
-          {kind === 'agent' && <span>{(row as AgentSummary).model}</span>}
+          {kind === 'workflow' && <span>{(row as WorkflowSummary).model}</span>}
         </span>
       </div>
 
@@ -234,7 +234,7 @@ export interface BreakdownProps {
   sortBy: SortKey;
   setSortBy: (k: SortKey) => void;
   // For kind="attribute", the header label of the name column — the chosen
-  // attribute key (e.g. "team"). Ignored for the user/agent tabs.
+  // attribute key (e.g. "team"). Ignored for the user/workflow tabs.
   nameLabel?: string;
 }
 
@@ -260,7 +260,7 @@ export function Breakdown({ rows, totalCost, kind, sortBy, setSortBy, nameLabel 
   }
 
   const baseCols =
-    kind === 'user' ? USER_COLS : kind === 'agent' ? AGENT_COLS : ATTRIBUTE_COLS;
+    kind === 'user' ? USER_COLS : kind === 'workflow' ? WORKFLOW_COLS : ATTRIBUTE_COLS;
   // The attribute tab labels its name column with the chosen key.
   const cols =
     kind === 'attribute' && nameLabel
@@ -306,10 +306,10 @@ export function Breakdown({ rows, totalCost, kind, sortBy, setSortBy, nameLabel 
 }
 
 // AttributeTab is the third selector in the "Who's driving cost" tab row: a
-// tab-styled trigger that, unlike the fixed user/agent tabs, opens a searchable
+// tab-styled trigger that, unlike the fixed user/workflow tabs, opens a searchable
 // popover over every custom attribute the instrumentation tags spans with
 // (team, user.id, environment, …). Picking a key both activates the attribute
-// view and chooses the dimension. `active` mirrors the user/agent tabs'
+// view and chooses the dimension. `active` mirrors the user/workflow tabs'
 // selected styling. Closes on outside-click or Escape.
 function AttributeTab({
   keys,

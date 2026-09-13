@@ -2,7 +2,7 @@
 
 **Open-source LLM observability.** Tracium is an OpenTelemetry-native backend for
 LLM apps: point any OTel-instrumented app at it and get accurate cost, token,
-latency, and error analytics per model, agent, and end-client — built to stay
+latency, and error analytics per model, workflow, and end-client — built to stay
 fast from the first span to hundreds of millions.
 
 It doesn't wrap the OTel SDK, it *is* an OTel backend: any app already exporting

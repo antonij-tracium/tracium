@@ -23,7 +23,7 @@ describe('live user details', () => {
     show('missing-user');
     expect(await screen.findByText('No usage found')).toBeInTheDocument();
     expect(screen.queryByText('another-user')).not.toBeInTheDocument();
-    expect(screen.queryByText('Usage by agent')).not.toBeInTheDocument();
+    expect(screen.queryByText('Usage by workflow')).not.toBeInTheDocument();
   });
 
   it('loads the selected user and opens an actual returned trace', async () => {

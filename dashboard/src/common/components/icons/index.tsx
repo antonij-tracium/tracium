@@ -36,7 +36,7 @@ export type IconOnlyProps = Omit<IconProps, 'd'>;
 // ---------------------------------------------------------------------------
 
 export const IconHome         = (p: IconOnlyProps) => <Icon d="M3 10.5L12 3l9 7.5V20a1 1 0 01-1 1h-5v-7h-6v7H4a1 1 0 01-1-1v-9.5z" {...p} />;
-export const IconAgents       = (p: IconOnlyProps) => <Icon d="M4 6h7v7H4zM13 11h7v7h-7zM13 4h7M4 17h7" {...p} />;
+export const IconWorkflows       = (p: IconOnlyProps) => <Icon d="M4 6h7v7H4zM13 11h7v7h-7zM13 4h7M4 17h7" {...p} />;
 export const IconUsers      = (p: IconOnlyProps) => <Icon d="M3 21V8l6-4 6 4v13M9 21v-6h0M15 14h6v7H3M18 18h0M18 14v0" {...p} />;
 export const IconUsage        = (p: IconOnlyProps) => <Icon d="M4 20V10M10 20V4M16 20v-6M22 20v-9" {...p} />;
 export const IconKey          = (p: IconOnlyProps) => <Icon d="M15 7a4 4 0 11-6.93 3.93L3 16v4h4v-3h3v-3l.07-.07A4 4 0 0115 7z" {...p} />;

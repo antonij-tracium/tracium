@@ -58,10 +58,10 @@ func (r *ClickHouseRepository) Ping(ctx context.Context) error {
 
 // A trace is the aggregation of all spans sharing a trace_id. start/end span the
 // whole tree; has_error is true if any span carries an error_type.
-// trace_name prefers the collector-derived agent_name (see the collector's
-// agentName helper) so the displayed name matches the agent the trace is grouped
-// under — mirroring agentExpr's precedence: the root span's agent_name first
-// (parent_span_id = ”, the trace's entry agent), then any span's agent_name.
+// trace_name prefers the collector-derived workflow_name (see the collector's
+// workflowName helper) so the displayed name matches the workflow the trace is grouped
+// under — mirroring workflowExpr's precedence: the root span's workflow_name first
+// (parent_span_id = ”, the trace's entry workflow), then any span's workflow_name.
 // Both are taken from the root/earliest span rather than simply the earliest by
 // start_time_ms because a span wrapping an auto-instrumented call starts in the
 // same millisecond as its child, and a plain argMin would tie-break arbitrarily
@@ -70,7 +70,7 @@ func (r *ClickHouseRepository) Ping(ctx context.Context) error {
 // gen_ai.agent.name exports — we then fall back to the root span's own name and
 // to service_name, the resource-level name present on the very first
 // auto-instrumented span (e.g. "openai.chat"). The final fallback is the earliest
-// span's raw name (rows written before agent_name/service_name existed, which
+// span's raw name (rows written before workflow_name/service_name existed, which
 // read back empty).
 // Aliases deliberately differ from the raw column names: an alias that shadows a
 // column (e.g. AS start_time_ms) gets substituted back into argMin(name, start_time_ms),
@@ -79,8 +79,8 @@ func (r *ClickHouseRepository) Ping(ctx context.Context) error {
 const traceSelect = `
 SELECT
     trace_id,
-    coalesce(nullIf(argMinIf(agent_name, start_time_ms, agent_name != '' AND parent_span_id = ''), ''),
-             nullIf(argMinIf(agent_name, start_time_ms, agent_name != ''), ''),
+    coalesce(nullIf(argMinIf(workflow_name, start_time_ms, workflow_name != '' AND parent_span_id = ''), ''),
+             nullIf(argMinIf(workflow_name, start_time_ms, workflow_name != ''), ''),
              nullIf(argMinIf(name, start_time_ms, parent_span_id = ''), ''),
              nullIf(argMinIf(service_name, start_time_ms, service_name != ''), ''),
              argMin(name, start_time_ms)) AS trace_name,
@@ -144,12 +144,12 @@ func traceFilterSQL(filter TraceFilter) (string, []any) {
 		having = append(having, "countIf(model = ?) > 0")
 		args = append(args, filter.Model)
 	}
-	// Restrict to one derived agent (the same derivation the agents metrics use),
-	// so an agent's "recent runs" list reuses the trace listing. The HAVING runs
+	// Restrict to one derived workflow (the same derivation the workflows metrics use),
+	// so an workflow's "recent runs" list reuses the trace listing. The HAVING runs
 	// inside the already time-bounded GROUP BY trace_id — still window-pruned.
-	if filter.Agent != "" {
-		having = append(having, agentExpr+" = ?")
-		args = append(args, filter.Agent)
+	if filter.Workflow != "" {
+		having = append(having, workflowExpr+" = ?")
+		args = append(args, filter.Workflow)
 	}
 	if filter.HasError != nil {
 		hasError := uint8(0)

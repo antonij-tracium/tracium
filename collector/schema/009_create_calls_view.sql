@@ -2,13 +2,13 @@
 --
 -- tracium.spans is a tagged union — real OTLP spans (source='span') and
 -- token-usage metric points rolled into span-shaped rows (source='metric') share
--- one table. Every read that reconstructs a trace, agent, latency, or run count
+-- one table. Every read that reconstructs a trace, workflow, latency, or run count
 -- must exclude the metric rows, which carry no trace identity; forgetting the
 -- source predicate collapses them into a phantom trace. That predicate used to be
 -- repeated at ~20 call sites in the API, one omission away from a bug.
 --
 -- This view is the single place that predicate lives now. The API reads
--- tracium.calls for everything trace/agent/latency/run-shaped, so a query against
+-- tracium.calls for everything trace/workflow/latency/run-shaped, so a query against
 -- it *cannot* see metric rows — the exclusion is structural, not a convention each
 -- query has to remember. Cost is the one figure metered by both sources; it reads
 -- tracium.calls and tracium.usage_metrics explicitly and reconciles them (see the

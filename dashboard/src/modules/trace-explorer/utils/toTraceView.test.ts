@@ -18,7 +18,7 @@ function span(partial: Partial<Record<keyof Span, unknown>>): Span {
 
 function trace(spans: Span[]): TraceDetail {
   return {
-    trace_id: 't1', name: 'agent', start_time_ms: 1000, end_time_ms: 3000,
+    trace_id: 't1', name: 'workflow', start_time_ms: 1000, end_time_ms: 3000,
     duration_ms: 2000, user_id: '', span_count: spans.length,
     has_error: spans.some(s => !!s.error_type), total_cost_usd: 0, spans,
   } as unknown as TraceDetail;
@@ -36,19 +36,19 @@ describe('toTraceView', () => {
     expect(view.spans[0].availableTools).toEqual(tools);
   });
 
-  it('derives the agent-level input/output from the root span', () => {
+  it('derives the workflow-level input/output from the root span', () => {
     const view = toTraceView(trace([
-      span({ span_id: 'root', parent_span_id: '', input: 'agent in', output: 'agent out' }),
+      span({ span_id: 'root', parent_span_id: '', input: 'workflow in', output: 'workflow out' }),
       span({ span_id: 'child', parent_span_id: 'root', input: 'child in', output: 'child out' }),
     ]));
 
-    expect(view.input).toBe('agent in');
-    expect(view.output).toBe('agent out');
+    expect(view.input).toBe('workflow in');
+    expect(view.output).toBe('workflow out');
   });
 
   it('falls back to child content when the root span is structural (no content)', () => {
     // OpenLLMetry workflow/task roots carry no LLM content; the prompt/completion
-    // live on child gen_ai spans. The agent tabs should show the earliest input
+    // live on child gen_ai spans. The workflow tabs should show the earliest input
     // and latest output rather than nothing.
     const view = toTraceView(trace([
       span({ span_id: 'root', parent_span_id: '', start_time_ms: 1000 }),
@@ -97,7 +97,7 @@ describe('toTraceView', () => {
 
   it('orders spans in tree pre-order even when a child shares the parent start time', () => {
     // The API returns the LLM child first (same start_time_ms tie). The view
-    // must still render the root agent span above its child.
+    // must still render the root workflow span above its child.
     const view = toTraceView(trace([
       span({ span_id: 'llm', parent_span_id: 'root', model: 'gpt-4o', start_time_ms: 1000 }),
       span({ span_id: 'root', parent_span_id: '', start_time_ms: 1000 }),
