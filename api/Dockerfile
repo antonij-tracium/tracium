@@ -9,7 +9,7 @@ RUN CGO_ENABLED=0 go build -o api ./cmd/api
 # it can be run in-cluster against ClickHouse's native port; see rollup-repair.md.
 RUN CGO_ENABLED=0 go build -o repair-rollup ./cmd/repair-rollup
 
-FROM alpine:3.22
+FROM alpine:3.24
 RUN apk --no-cache add ca-certificates
 WORKDIR /app
 COPY --from=builder /app/api .
