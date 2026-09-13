@@ -109,6 +109,10 @@ jobs:
       - run: helm lint deploy/helm/tracium
 
   smoke:
+    needs: changes
+    # The full-stack smoke test is expensive (~25 min). Only run it when code
+    # that ships in an image changed — skip it for docs/spec-only PRs.
+    if: ${{ needs.changes.outputs.go == 'true' || needs.changes.outputs.dashboard == 'true' || needs.changes.outputs.helm == 'true' || needs.changes.outputs.spec == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
