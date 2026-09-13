@@ -33,7 +33,7 @@ RUN for attempt in 1 2 3 4 5; do \
     done; \
     test -x _build/tracium-collector
 
-FROM alpine:3.22
+FROM alpine:3.24
 RUN apk --no-cache add ca-certificates
 WORKDIR /app
 COPY --from=builder /src/_build/tracium-collector /app/tracium-collector
