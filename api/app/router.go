@@ -56,7 +56,9 @@ func newRouter(cfg Config, repo query.Repository, wsStore workspace.Store, userS
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.Auth(authenticator))
 		r.Get(version.Route(version.V1, "/workspaces"), workspaceHandler.List)
-		r.Post(version.Route(version.V1, "/workspaces"), workspaceHandler.Create)
+		// Creating a workspace consults the entitlements provider so a hosted
+		// deployment can cap the count per plan; self-hosted allows all.
+		r.With(services.Gate("workspaces.create")).Post(version.Route(version.V1, "/workspaces"), workspaceHandler.Create)
 		r.Delete(version.Route(version.V1, "/workspaces/{id}"), workspaceHandler.Delete)
 		r.Post(version.Route(version.V1, "/workspaces/{id}/members"), workspaceHandler.AddMember)
 		r.Delete(version.Route(version.V1, "/workspaces/{id}/members/{userId}"), workspaceHandler.RemoveMember)
@@ -79,6 +81,10 @@ func newRouter(cfg Config, repo query.Repository, wsStore workspace.Store, userS
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.Auth(authenticator))
 		r.Use(middleware.RequireTenant())
+		// Telemetry reads consult the entitlements provider for the caller, so a
+		// hosted deployment can lock a lapsed account out of its dashboards;
+		// self-hosted allows all.
+		r.Use(services.Gate("telemetry.read"))
 
 		r.Get(version.Route(version.V1, "/traces"), traceHandler.ListTraces)
 		r.Get(version.Route(version.V1, "/traces/{id}"), traceHandler.GetTrace)
