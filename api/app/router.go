@@ -76,7 +76,9 @@ func newRouter(cfg Config, repo query.Repository, wsStore workspace.Store, userS
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.Auth(authenticator))
 		r.Get(version.Route(version.V1, "/workspaces"), workspaceHandler.List)
-		r.Post(version.Route(version.V1, "/workspaces"), workspaceHandler.Create)
+		// Workspace creation passes through the entitlements provider; the default
+		// provider allows it.
+		r.With(services.Gate("workspaces.create")).Post(version.Route(version.V1, "/workspaces"), workspaceHandler.Create)
 		r.Delete(version.Route(version.V1, "/workspaces/{id}"), workspaceHandler.Delete)
 		r.Post(version.Route(version.V1, "/workspaces/{id}/members"), workspaceHandler.AddMember)
 		r.Delete(version.Route(version.V1, "/workspaces/{id}/members/{userId}"), workspaceHandler.RemoveMember)
@@ -106,6 +108,9 @@ func newRouter(cfg Config, repo query.Repository, wsStore workspace.Store, userS
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.Auth(authenticator))
 		r.Use(middleware.RequireTenant())
+		// Telemetry reads pass through the entitlements provider for the caller;
+		// the default provider allows them.
+		r.Use(services.Gate("telemetry.read"))
 
 		r.Get(version.Route(version.V1, "/traces"), traceHandler.ListTraces)
 		r.Get(version.Route(version.V1, "/traces/{id}"), traceHandler.GetTrace)
