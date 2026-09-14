@@ -45,8 +45,17 @@ type Entitlements interface {
 }
 type CoreEntitlements struct{}
 
+// CoreEntitlements is the default provider. It grants the baseline features the
+// core itself gates, so a deployment with no provider configured runs with no
+// restrictions. Optional features are withheld unless an embedding application
+// supplies its own provider via app.Options.
 func (CoreEntitlements) Check(_ context.Context, _ Subject, feature string) (Decision, error) {
-	return Decision{Allowed: feature == "traces.read" || feature == "metrics.read"}, nil
+	switch feature {
+	case "traces.read", "metrics.read", "telemetry.read", "workspaces.create":
+		return Decision{Allowed: true}, nil
+	default:
+		return Decision{}, nil
+	}
 }
 
 type WorkspaceAccess interface {
@@ -56,6 +65,37 @@ type Services struct {
 	Mail         Mailer
 	Entitlements Entitlements
 	Workspaces   WorkspaceAccess
+}
+
+// Gate is a caller-scoped entitlement check for routes that are not tied to a
+// single workspace (user-wide actions like creating a workspace, or reads that
+// span every workspace a user owns). It consults the entitlements provider for
+// the authenticated user and rejects the request when the feature is not
+// allowed. A nil provider (no entitlements configured) allows the request.
+func (s Services) Gate(feature string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if s.Entitlements == nil {
+				next.ServeHTTP(w, r)
+				return
+			}
+			p, ok := PrincipalFromContext(r.Context())
+			if !ok || p.UserID == "" {
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
+			decision, err := s.Entitlements.Check(r.Context(), Subject{UserID: p.UserID}, feature)
+			if err != nil {
+				http.Error(w, "service unavailable", http.StatusServiceUnavailable)
+				return
+			}
+			if !decision.Allowed {
+				http.Error(w, "feature unavailable", http.StatusForbidden)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 // RequireFeature checks workspace membership before consulting entitlements.

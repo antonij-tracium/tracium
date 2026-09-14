@@ -54,6 +54,36 @@ func TestFeatureChecksMembershipFirst(t *testing.T) {
 		})
 	}
 }
+func TestGateConsultsEntitlementsForCaller(t *testing.T) {
+	for _, tt := range []struct {
+		name        string
+		entitlement *entitlement
+		want        int
+		called      bool
+	}{
+		{"no provider allows", nil, 204, false},
+		{"denied", &entitlement{allowed: false}, 403, true},
+		{"provider failure", &entitlement{allowed: true, err: errors.New("offline")}, 503, true},
+		{"allowed", &entitlement{allowed: true}, 204, true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			called := false
+			s := Services{}
+			if tt.entitlement != nil {
+				tt.entitlement.called = &called
+				s.Entitlements = *tt.entitlement
+			}
+			h := s.Gate("workspaces.create")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(204) }))
+			r := httptest.NewRequest("POST", "/", nil)
+			r = r.WithContext(middleware.ContextWithPrincipal(r.Context(), &Principal{UserID: "u"}))
+			w := httptest.NewRecorder()
+			h.ServeHTTP(w, r)
+			if w.Code != tt.want || called != tt.called {
+				t.Fatalf("status=%d called=%v", w.Code, called)
+			}
+		})
+	}
+}
 func TestDefaultsDoNotGrantUnknownFeatures(t *testing.T) {
 	d, err := (CoreEntitlements{}).Check(context.Background(), Subject{}, "notifications.email")
 	if err != nil || d.Allowed {
