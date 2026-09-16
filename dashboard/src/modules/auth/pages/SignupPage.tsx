@@ -12,6 +12,9 @@ interface SignupPageProps {
 export default function SignupPage({ onLogin, appearance }: SignupPageProps) {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  // Set once the account is created but still needs email confirmation; holds
+  // the address we sent the link to so we can show it back to the user.
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -28,8 +31,14 @@ export default function SignupPage({ onLogin, appearance }: SignupPageProps) {
     setFormError(null);
 
     try {
-      const { token } = await registerUser({ email, password });
-      onLogin(token, email);
+      const result = await registerUser({ email, password });
+      // The hosted service withholds the session until the email is confirmed;
+      // prompt the user to check their inbox instead of signing them in.
+      if (result.confirmationRequired || !result.token) {
+        setPendingEmail(email);
+        return;
+      }
+      onLogin(result.token, email);
     } catch (err) {
       if (err instanceof AuthError && err.status === 409) {
         setFormError('An account with that email already exists. Try signing in instead.');
@@ -42,6 +51,27 @@ export default function SignupPage({ onLogin, appearance }: SignupPageProps) {
       setSubmitting(false);
     }
   };
+
+  if (pendingEmail) {
+    return (
+      <AuthShell appearance={appearance}
+        active="signup"
+        title="Confirm your email"
+        subtitle="Your account is almost ready."
+        footnote={{ text: 'Already confirmed?', linkText: 'Sign in', to: '/login' }}
+      >
+        <div className={styles.notice}>
+          <p>
+            We sent a confirmation link to <strong>{pendingEmail}</strong>. Open it to
+            activate your account, then come back to sign in.
+          </p>
+          <p className={styles.noticeMuted}>
+            The link expires in 24 hours. If it isn't in your inbox, check your spam folder.
+          </p>
+        </div>
+      </AuthShell>
+    );
+  }
 
   return (
     <AuthShell appearance={appearance}

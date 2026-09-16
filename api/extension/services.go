@@ -21,6 +21,9 @@ type Message struct {
 	To      string
 	Subject string
 	Text    string
+	// HTML is an optional pre-rendered HTML body. When empty, transports may
+	// render their own presentation from Text.
+	HTML string
 }
 type Mailer interface {
 	Send(context.Context, Message) error
@@ -31,6 +34,44 @@ var ErrMailDisabled = errors.New("email delivery is not configured")
 type DisabledMailer struct{}
 
 func (DisabledMailer) Send(context.Context, Message) error { return ErrMailDisabled }
+
+// Account identifies a newly registered or authenticating account passed to
+// AccountLifecycle hooks.
+type Account struct {
+	ID       string
+	Email    string
+	TenantID string
+	Role     string
+}
+
+// RegistrationOutcome tells the auth service how to complete a registration once
+// an AccountLifecycle hook has run.
+type RegistrationOutcome int
+
+const (
+	// GrantSession issues a session token immediately (the standalone default).
+	GrantSession RegistrationOutcome = iota
+	// RequireConfirmation withholds the session token; the account must confirm
+	// its email before it can sign in.
+	RequireConfirmation
+)
+
+// ErrEmailUnverified is returned by AccountLifecycle.EnsureCanLogin when an
+// account has not confirmed its email. Handlers map it to a 403 response.
+var ErrEmailUnverified = errors.New("email not verified")
+
+// AccountLifecycle lets an embedding application (such as the hosted service)
+// require email confirmation. The standalone application leaves it unset, so
+// registration and login run with no verification step.
+type AccountLifecycle interface {
+	// AfterRegister runs after a new account is persisted. Returning an error
+	// fails the registration. Returning RequireConfirmation withholds the session
+	// token; implementations typically send a confirmation email here.
+	AfterRegister(context.Context, Account) (RegistrationOutcome, error)
+	// EnsureCanLogin runs during login after credentials are verified. Returning
+	// ErrEmailUnverified blocks an unconfirmed account from signing in.
+	EnsureCanLogin(context.Context, Account) error
+}
 
 type Subject struct {
 	UserID      string

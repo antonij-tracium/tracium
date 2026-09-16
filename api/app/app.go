@@ -41,6 +41,10 @@ type Options struct {
 	Mail         extension.Mailer
 	Entitlements extension.Entitlements
 	Migrations   []migrations.Set
+	// Accounts is an optional account lifecycle hook. When set (as the hosted
+	// service does), registration requires email confirmation and login is gated
+	// on it. When nil, registration and login run without a verification step.
+	Accounts extension.AccountLifecycle
 }
 type Application struct {
 	Handler http.Handler
@@ -106,7 +110,7 @@ func New(ctx context.Context, cfg Config, opts Options) (*Application, error) {
 		return nil, err
 	}
 	apiKeyService := apikey.NewService(apiKeys)
-	service := auth.NewService(users, auth.NewTokenIssuer(cfg.Auth.JWTSecret))
+	service := auth.NewService(users, auth.NewTokenIssuer(cfg.Auth.JWTSecret), opts.Accounts)
 	var authenticator middleware.Authenticator = service.Authenticator()
 	if cfg.Auth.Mode == config.AuthModeNone {
 		log.Println("WARNING: auth.mode=none — never use this outside local development")
