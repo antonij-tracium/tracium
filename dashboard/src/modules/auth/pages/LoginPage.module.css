@@ -100,3 +100,25 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+.notice {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  font-size: 14px;
+  color: var(--foreground);
+  line-height: 1.5;
+}
+
+.notice p {
+  margin: 0;
+}
+
+.noticeMuted {
+  font-size: 13px;
+  color: var(--muted-foreground);
+}

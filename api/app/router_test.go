@@ -23,7 +23,7 @@ func TestVerifyRateLimitIsSeparateFromLogin(t *testing.T) {
 
 	repo := repository{mocks.NewMockTraceRepository(), &mocks.MockMetricsRepository{}}
 	issuer := auth.NewTokenIssuer("test-only-secret")
-	router := newRouter(cfg, repo, &mocks.MockWorkspaceStore{}, nil, issuer, auth.NewService(nil, issuer), apikey.NewService(nil), nil, Options{})
+	router := newRouter(cfg, repo, &mocks.MockWorkspaceStore{}, nil, issuer, auth.NewService(nil, issuer, nil), apikey.NewService(nil), nil, Options{})
 
 	do := func(path, body string) int {
 		r := httptest.NewRequest("POST", path, strings.NewReader(body))
@@ -79,7 +79,7 @@ func TestExtensionsShareAuthAndCannotReplaceCoreRoutes(t *testing.T) {
 		})
 	}, Webhooks: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(202) })}}}
 	repo := repository{mocks.NewMockTraceRepository(), &mocks.MockMetricsRepository{}}
-	router := newRouter(cfg, repo, &mocks.MockWorkspaceStore{}, nil, issuer, auth.NewService(nil, issuer), apikey.NewService(nil), nil, opts)
+	router := newRouter(cfg, repo, &mocks.MockWorkspaceStore{}, nil, issuer, auth.NewService(nil, issuer, nil), apikey.NewService(nil), nil, opts)
 	for _, tt := range []struct {
 		path, token string
 		want        int

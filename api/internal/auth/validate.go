@@ -18,13 +18,13 @@ const (
 )
 
 // ErrInvalidEmail is returned when the email is not a syntactically valid address.
-var ErrInvalidEmail = errors.New("email must be a valid address")
+var ErrInvalidEmail = errors.New("Email must be a valid address")
 
 // ErrPasswordTooShort is returned when the password is below MinPasswordLen.
-var ErrPasswordTooShort = errors.New("password is too short")
+var ErrPasswordTooShort = errors.New("Password is too short")
 
 // ErrPasswordTooLong is returned when the password exceeds MaxPasswordLen.
-var ErrPasswordTooLong = errors.New("password is too long")
+var ErrPasswordTooLong = errors.New("Password is too long")
 
 // ValidateCredentials enforces the format rules for registration and login
 // input. It returns a specific sentinel error the handler maps to a 400 so that

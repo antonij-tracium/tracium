@@ -7,6 +7,16 @@ export interface LoginResponse {
   token: string;
 }
 
+/**
+ * Outcome of a registration. The hosted service withholds the session token
+ * until the account confirms its email (confirmationRequired), so token is null
+ * in that case. The standalone application issues a token immediately.
+ */
+export interface RegisterResult {
+  token: string | null;
+  confirmationRequired: boolean;
+}
+
 export class AuthError extends Error {
   status: number;
   constructor(message: string, status: number) {
@@ -16,7 +26,7 @@ export class AuthError extends Error {
   }
 }
 
-async function postCredentials(path: string, req: LoginRequest, failureLabel: string): Promise<LoginResponse> {
+async function postCredentials(path: string, req: LoginRequest, failureLabel: string): Promise<Response> {
   const base = import.meta.env.VITE_API_URL || window.location.origin;
   const response = await fetch(`${base}${path}`, {
     method: 'POST',
@@ -35,13 +45,21 @@ async function postCredentials(path: string, req: LoginRequest, failureLabel: st
     throw new AuthError(message, response.status);
   }
 
+  return response;
+}
+
+export async function loginUser(req: LoginRequest): Promise<LoginResponse> {
+  const response = await postCredentials('/v1/auth/login', req, 'Login failed');
   return response.json() as Promise<LoginResponse>;
 }
 
-export function loginUser(req: LoginRequest): Promise<LoginResponse> {
-  return postCredentials('/v1/auth/login', req, 'Login failed');
-}
-
-export function registerUser(req: LoginRequest): Promise<LoginResponse> {
-  return postCredentials('/v1/auth/register', req, 'Sign up failed');
+export async function registerUser(req: LoginRequest): Promise<RegisterResult> {
+  const response = await postCredentials('/v1/auth/register', req, 'Sign up failed');
+  // 202 Accepted: the account was created but must confirm its email before it
+  // can sign in, so no token is issued. 201 Created: a token was returned.
+  if (response.status === 202) {
+    return { token: null, confirmationRequired: true };
+  }
+  const body = await response.json() as LoginResponse;
+  return { token: body.token, confirmationRequired: false };
 }
