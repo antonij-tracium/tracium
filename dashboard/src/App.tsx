@@ -44,6 +44,9 @@ export default function App({ extensions = EMPTY_EXTENSIONS }: AppProps = {}) {
         <Routes>
           <Route path="/login" element={<LoginPage appearance={extensions.authAppearance} onLogin={handleLogin} />} />
           <Route path="/signup" element={<SignupPage appearance={extensions.authAppearance} onLogin={handleLogin} />} />
+          {(extensions.authRoutes ?? []).map((route) => (
+            <Route key={route.path} path={route.path} element={route.element} />
+          ))}
           <Route path="*" element={<RequireAuthRedirect />} />
         </Routes>
       </BrowserRouter>

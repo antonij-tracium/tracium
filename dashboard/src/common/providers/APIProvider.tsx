@@ -3,6 +3,7 @@ import { TracesAPI } from '../api/traces';
 import { MetricsAPI } from '../api/metrics';
 import { WorkspacesAPI } from '../api/workspaces';
 import { ApiKeysAPI } from '../api/apikeys';
+import { UsersAPI } from '../api/users';
 import type { APIClientConfig } from '../interfaces';
 
 interface APIContextValue {
@@ -10,6 +11,7 @@ interface APIContextValue {
   metricsAPI: MetricsAPI;
   workspacesAPI: WorkspacesAPI;
   apiKeysAPI: ApiKeysAPI;
+  usersAPI: UsersAPI;
   /**
    * The workspace every client is currently scoped to (undefined = unscoped).
    * Consumers MUST fold this into their react-query keys so a cached result
@@ -42,6 +44,7 @@ export function APIProvider({ config, children }: APIProviderProps) {
       metricsAPI: new MetricsAPI(scopedConfig),
       workspacesAPI: new WorkspacesAPI(scopedConfig),
       apiKeysAPI: new ApiKeysAPI(scopedConfig),
+      usersAPI: new UsersAPI(scopedConfig),
       workspaceId,
       setWorkspaceId,
     };

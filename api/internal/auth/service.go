@@ -14,6 +14,10 @@ import (
 // ErrInvalidCredentials is returned when an email/password pair does not match.
 var ErrInvalidCredentials = errors.New("invalid credentials")
 
+// ErrInvalidCurrentPassword is returned when ChangePassword's currentPassword
+// does not match the account's stored hash.
+var ErrInvalidCurrentPassword = errors.New("current password is incorrect")
+
 // Service ties account storage and token issuance together.
 type Service struct {
 	users     *UserStore
@@ -44,7 +48,7 @@ type RegisterResult struct {
 // role. With no lifecycle configured it returns a signed token. When a lifecycle
 // requires confirmation it runs the AfterRegister hook and withholds the token.
 func (s *Service) Register(ctx context.Context, email, password string) (RegisterResult, error) {
-	hash, err := hashPassword(password)
+	hash, err := HashPassword(password)
 	if err != nil {
 		return RegisterResult{}, err
 	}
@@ -99,6 +103,28 @@ func (s *Service) Login(ctx context.Context, email, password string) (string, er
 	}
 
 	return s.tokens.Issue(user.ID, user.TenantID, user.Role)
+}
+
+// ChangePassword updates a signed-in user's password after verifying their
+// current one. Unlike the CLI reset-password tool (for operators without
+// access to the old password) and the hosted email-reset flow, this is the
+// self-service path available to every deployment, since it needs no email.
+func (s *Service) ChangePassword(ctx context.Context, userID, currentPassword, newPassword string) error {
+	user, err := s.users.ByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if !checkPassword(user.PasswordHash, currentPassword) {
+		return ErrInvalidCurrentPassword
+	}
+	if err := ValidateCredentials(user.Email, newPassword); err != nil {
+		return err
+	}
+	hash, err := HashPassword(newPassword)
+	if err != nil {
+		return err
+	}
+	return s.users.UpdatePasswordHash(ctx, user.ID, hash)
 }
 
 func account(u model.User) extension.Account {

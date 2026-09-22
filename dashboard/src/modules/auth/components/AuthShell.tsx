@@ -7,7 +7,9 @@ import styles from './AuthShell.module.css';
 
 interface AuthShellProps {
   appearance?: AuthAppearance;
-  active: 'signin' | 'signup';
+  /** Highlights the matching tab. Omit to render the card without the sign-in
+   * / create-account tab bar (e.g. forgot/reset password pages). */
+  active?: 'signin' | 'signup';
   title: string;
   subtitle: string;
   footnote: { text: string; linkText: string; to: string };
@@ -16,7 +18,8 @@ interface AuthShellProps {
 
 /**
  * Shared chrome for the auth screens: the drifting background, the brand
- * header, and a single tabbed card. The tabs double as navigation between the
+ * header, and a single card. When `active` is set, the card also gets the
+ * sign-in / create-account tab bar that doubles as navigation between the
  * /login and /signup routes, so each page keeps its own form logic while the
  * two read as one surface.
  */
@@ -35,20 +38,22 @@ export function AuthShell({ active, title, subtitle, footnote, children, appeara
         </header>
 
         <div className={styles.card}>
-          <nav className={styles.tabs}>
-            <Link
-              to="/login"
-              className={`${styles.tab} ${active === 'signin' ? styles.tabActive : ''}`}
-            >
-              Sign in
-            </Link>
-            <Link
-              to="/signup"
-              className={`${styles.tab} ${active === 'signup' ? styles.tabActive : ''}`}
-            >
-              Create account
-            </Link>
-          </nav>
+          {active && (
+            <nav className={styles.tabs}>
+              <Link
+                to="/login"
+                className={`${styles.tab} ${active === 'signin' ? styles.tabActive : ''}`}
+              >
+                Sign in
+              </Link>
+              <Link
+                to="/signup"
+                className={`${styles.tab} ${active === 'signup' ? styles.tabActive : ''}`}
+              >
+                Create account
+              </Link>
+            </nav>
+          )}
 
           <div className={styles.body}>
             <div className={styles.heading}>

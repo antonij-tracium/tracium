@@ -8,6 +8,7 @@ import (
 
 	"github.com/tracium/api/extension"
 	"github.com/tracium/api/internal/auth"
+	"github.com/tracium/api/internal/middleware"
 )
 
 // AuthHandler handles account registration and login.
@@ -82,6 +83,43 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondJSON(w, http.StatusOK, tokenResponse{Token: token})
+}
+
+type changePasswordRequest struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
+}
+
+// ChangePassword handles POST /v1/auth/password for the signed-in user.
+func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	principal, ok := middleware.PrincipalFromContext(r.Context())
+	if !ok || principal.UserID == "" {
+		respondError(w, http.StatusUnauthorized, "UNAUTHORIZED", "user identity could not be resolved")
+		return
+	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, maxCredentialBody)
+	var req changePasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "BAD_REQUEST", "Request body must be valid JSON")
+		return
+	}
+	if req.CurrentPassword == "" || req.NewPassword == "" {
+		respondError(w, http.StatusBadRequest, "MISSING_FIELDS", "Current and new password are required")
+		return
+	}
+
+	err := h.svc.ChangePassword(r.Context(), principal.UserID, req.CurrentPassword, req.NewPassword)
+	switch {
+	case err == nil:
+		w.WriteHeader(http.StatusNoContent)
+	case errors.Is(err, auth.ErrInvalidCurrentPassword):
+		respondError(w, http.StatusUnauthorized, "INVALID_CURRENT_PASSWORD", "Current password is incorrect")
+	case errors.Is(err, auth.ErrPasswordTooShort), errors.Is(err, auth.ErrPasswordTooLong):
+		respondError(w, http.StatusBadRequest, "INVALID_PASSWORD_FORMAT", err.Error())
+	default:
+		respondError(w, http.StatusInternalServerError, "INTERNAL", "Could not change password")
+	}
 }
 
 // maxCredentialBody caps the request body for auth endpoints. Credentials are

@@ -3,6 +3,15 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import SettingsPage from './SettingsPage';
 import type { Workspace } from '../../shell/interfaces';
+import { APIError } from '../../../common/api';
+
+// AccountView's password-change field reads usersAPI from context; the
+// 'workspace setup' tests exercise workspace setup, not the API client, so a
+// mock is enough there. The 'change password' tests below override it per case.
+const changePassword = vi.fn();
+vi.mock('../../../common/providers/APIProvider', () => ({
+  useAPIClient: () => ({ usersAPI: { changePassword } }),
+}));
 
 const workspace: Workspace = {
   id: 'ws_generated_123' as Workspace['id'], name: 'Acme Production',
@@ -102,5 +111,48 @@ describe('workspace setup', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Account' }));
     rerender(<SettingsPage workspace={workspace} createWorkspace={create} createMode />);
     expect(screen.getByRole('heading', { name: 'Create workspace' })).toBeInTheDocument();
+  });
+});
+
+describe('change password', () => {
+  beforeEach(() => {
+    changePassword.mockReset();
+  });
+
+  function openForm() {
+    render(<SettingsPage workspace={workspace} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Account' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }));
+  }
+
+  it('submits the current and new password and shows confirmation', async () => {
+    changePassword.mockResolvedValue(undefined);
+    openForm();
+    fireEvent.change(screen.getByLabelText('Current password'), { target: { value: 'old-pass' } });
+    fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'new-password' } });
+    fireEvent.change(screen.getByLabelText('Confirm new password'), { target: { value: 'new-password' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save password' }));
+    await waitFor(() => expect(changePassword).toHaveBeenCalledWith('old-pass', 'new-password'));
+    expect(await screen.findByText('Password updated.')).toBeInTheDocument();
+  });
+
+  it('rejects a mismatched confirmation without calling the API', () => {
+    openForm();
+    fireEvent.change(screen.getByLabelText('Current password'), { target: { value: 'old-pass' } });
+    fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'new-password' } });
+    fireEvent.change(screen.getByLabelText('Confirm new password'), { target: { value: 'something-else' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save password' }));
+    expect(screen.getByRole('alert')).toHaveTextContent("New passwords don't match.");
+    expect(changePassword).not.toHaveBeenCalled();
+  });
+
+  it('surfaces the API error message (e.g. wrong current password)', async () => {
+    changePassword.mockRejectedValue(new APIError('Current password is incorrect', 401, 'INVALID_CURRENT_PASSWORD'));
+    openForm();
+    fireEvent.change(screen.getByLabelText('Current password'), { target: { value: 'wrong' } });
+    fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'new-password' } });
+    fireEvent.change(screen.getByLabelText('Confirm new password'), { target: { value: 'new-password' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save password' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Current password is incorrect');
   });
 });
