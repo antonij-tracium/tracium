@@ -36,20 +36,19 @@ function Flow({ create }: { create: () => Promise<Workspace> }) {
 }
 
 describe('workspace setup', () => {
-  it('explains the ID before creation and shows the server-generated ID after success', async () => {
+  it('explains key-based ingest before creation and shows the exporter setup after success', async () => {
     const create = vi.fn().mockResolvedValue(workspace);
     render(<Flow create={create} />);
-    expect(screen.getByText(/Tracium generates a separate workspace ID/)).toBeInTheDocument();
+    expect(screen.getByText(/Applications send data with an API key/)).toBeInTheDocument();
     fireEvent.change(screen.getByRole('textbox', { name: 'Workspace name' }), { target: { value: workspace.name } });
     expect(screen.getByRole('textbox', { name: 'Slug' })).toHaveValue(workspace.slug);
     fireEvent.click(screen.getByRole('button', { name: 'Create workspace & continue' }));
     expect(await screen.findByRole('heading', { name: 'Connect your application' })).toHaveFocus();
-    expect(screen.getByText(workspace.id)).toBeInTheDocument();
     expect(screen.getByText(/created · Step 2 of 2/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Copy workspace ID' }));
-    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith(workspace.id));
+    expect(screen.queryByText(workspace.id)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Copy configuration' }));
-    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith(`OTEL_RESOURCE_ATTRIBUTES="tracium.workspace.id=${workspace.id}"`));
+    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith(expect.stringContaining('OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer YOUR_API_KEY"')));
+    expect(navigator.clipboard.writeText).not.toHaveBeenCalledWith(expect.stringContaining('tracium.workspace.id'));
     expect(create).toHaveBeenCalledTimes(1);
   });
 
@@ -68,42 +67,35 @@ describe('workspace setup', () => {
     expect(screen.getByRole('button', { name: 'Create workspace & continue' })).toBeEnabled();
   });
 
-  it('keeps setup available later and updates copied values when switching workspaces', async () => {
+  it('keeps setup available later and follows the selected workspace', async () => {
     const overview = vi.fn();
     const { rerender } = render(<SettingsPage workspace={workspace} onOpenOverview={overview} />);
     expect(screen.getByRole('heading', { name: 'Connect your application' })).toBeInTheDocument();
     expect(screen.queryByText(/created · Step 2/)).not.toBeInTheDocument();
     const other = { ...workspace, id: 'ws_other' as Workspace['id'], name: 'Staging' };
     rerender(<SettingsPage workspace={other} onOpenOverview={overview} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Copy workspace ID' }));
-    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith('ws_other'));
-    expect(screen.queryByText(workspace.id)).not.toBeInTheDocument();
+    expect(screen.getAllByText('Staging').length).toBeGreaterThan(0);
+    expect(screen.queryByText(workspace.name)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Go to overview' }));
     expect(overview).toHaveBeenCalledOnce();
+  });
+
+  it('links to the API keys screen to create the ingest key', () => {
+    const openKeys = vi.fn();
+    render(<SettingsPage workspace={workspace} onOpenApiKeys={openKeys} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Create API key' }));
+    expect(openKeys).toHaveBeenCalledOnce();
   });
 
   it('offers manual copying when clipboard access fails', async () => {
     vi.mocked(navigator.clipboard.writeText).mockRejectedValue(new Error('Permission denied'));
     render(<SettingsPage workspace={workspace} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Copy workspace ID' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Copy configuration' }));
     expect(await screen.findByText('Couldn’t copy. Select and copy the text manually.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Copied' })).not.toBeInTheDocument();
-    expect(screen.getByText(workspace.id)).toBeInTheDocument();
+    expect(screen.getByText(/OTEL_EXPORTER_OTLP_HEADERS/)).toBeInTheDocument();
   });
 
-  it('uses the same copy feedback for the compact demo workspace control', async () => {
-    render(<SettingsPage demo />);
-    fireEvent.click(screen.getByRole('button', { name: 'Workspace' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
-    expect(await screen.findByRole('button', { name: 'Copied' })).toBeInTheDocument();
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('ws_2qHv4Rt81xLpKnvR');
-    expect(screen.getByRole('status')).toHaveTextContent('workspace ID copied to clipboard.');
-
-    vi.mocked(navigator.clipboard.writeText).mockRejectedValue(new Error('Permission denied'));
-    fireEvent.click(screen.getByRole('button', { name: 'Copied' }));
-    expect(await screen.findByRole('button', { name: 'Copy manually' })).toHaveAttribute('title', 'Couldn’t copy. Select and copy the text manually.');
-    expect(screen.getByRole('status')).toHaveTextContent('Couldn’t copy. Select and copy the text manually.');
-  });
 
   it('opens creation when requested while Settings is already mounted', () => {
     const create = vi.fn().mockResolvedValue(workspace);
