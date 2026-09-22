@@ -18,6 +18,8 @@ import {
   useMaxWidth,
   BREAKPOINTS,
 } from '../../../common';
+import { useAPIClient } from '../../../common/providers/APIProvider';
+import { APIError } from '../../../common/api';
 
 // ---------------------------------------------------------------------------
 // Exported page props
@@ -375,11 +377,90 @@ interface AccountViewProps {
   demo: boolean;
 }
 
+function ChangePasswordField() {
+  const { usersAPI } = useAPIClient();
+  const [editing, setEditing] = useState(false);
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [justChanged, setJustChanged] = useState(false);
+
+  const reset = () => {
+    setEditing(false);
+    setCurrent('');
+    setNext('');
+    setConfirm('');
+    setError('');
+  };
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (saving) return;
+    if (next !== confirm) {
+      setError("New passwords don't match.");
+      return;
+    }
+    setSaving(true);
+    setError('');
+    try {
+      await usersAPI.changePassword(current, next);
+      reset();
+      setJustChanged(true);
+    } catch (err) {
+      const message = err instanceof APIError ? err.message : 'Could not change password. Please try again.';
+      setError(message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!editing) {
+    return (
+      <Field
+        label="Password"
+        hint={justChanged ? 'Password updated.' : undefined}
+        right={<Btn variant="secondary" onClick={() => { setJustChanged(false); setEditing(true); }}>Change</Btn>}
+        last
+      >
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--muted)', letterSpacing: '0.2em' }}>•••••••••••</span>
+      </Field>
+    );
+  }
+
+  return (
+    <form onSubmit={submit} aria-busy={saving}>
+      <fieldset disabled={saving} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
+        <Field label="Current password">
+          <Input label="Current password" type="password" value={current} onChange={e => setCurrent(e.target.value)} />
+        </Field>
+        <Field label="New password" hint="At least 8 characters.">
+          <Input label="New password" type="password" value={next} onChange={e => setNext(e.target.value)} />
+        </Field>
+        <Field label="Confirm new password" last>
+          <Input label="Confirm new password" type="password" value={confirm} onChange={e => setConfirm(e.target.value)} />
+        </Field>
+      </fieldset>
+      {error && <p role="alert" style={{ color: 'var(--error)', fontSize: 13 }}>{error}</p>}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 18 }}>
+        <Btn variant="ghost" disabled={saving} onClick={reset}>Cancel</Btn>
+        <Btn variant="primary" type="submit" disabled={saving || !current || !next || !confirm}>
+          {saving ? 'Saving…' : 'Save password'}
+        </Btn>
+      </div>
+    </form>
+  );
+}
+
 function AccountView({ user, demo }: AccountViewProps) {
   const [tabnav, setTabnav] = useState(true);
   if (!demo) return <div>
-    <SectionHead first title="Account" hint="Your sign-in identity. Profile and password editing are not yet available." />
+    <SectionHead first title="Account" hint="Your sign-in identity." />
     <Field label="Email" last><span>{user.email}</span></Field>
+
+    <SectionHead title="Security" hint="Change the password used to sign in." />
+    <ChangePasswordField />
   </div>;
 
   return (

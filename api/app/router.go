@@ -75,6 +75,10 @@ func newRouter(cfg Config, repo query.Repository, wsStore workspace.Store, userS
 	// Workspace routes — auth only (no tenant required; workspaces are per-user).
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.Auth(authenticator))
+		// Self-service password change for the signed-in user. Unlike register/login
+		// this is authenticated, so it doesn't need its own rate limiter — the auth
+		// middleware already requires a valid session.
+		r.Post(version.Route(version.V1, "/auth/password"), authHandler.ChangePassword)
 		r.Get(version.Route(version.V1, "/workspaces"), workspaceHandler.List)
 		// Workspace creation passes through the entitlements provider; the default
 		// provider allows it.

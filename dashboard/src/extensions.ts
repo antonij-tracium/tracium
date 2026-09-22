@@ -20,9 +20,17 @@ export interface SettingsSection {
   icon?: ReactNode;
   component: ComponentType<{ workspace: Workspace | null }>;
 }
-export interface AuthAppearance { tagline?: string; footer?: string }
+export interface AuthAppearance {
+  tagline?: string;
+  footer?: string;
+  /** Shows a "Forgot password?" link on the login page pointing here when set. */
+  forgotPasswordHref?: string;
+}
+export interface AuthRoute { path: string; element: ReactNode }
 export interface DashboardExtensions {
   authAppearance?: AuthAppearance;
+  /** Extra routes rendered alongside /login and /signup for logged-out visitors. */
+  authRoutes?: readonly AuthRoute[];
   pages?: readonly ExtensionPage[];
   settingsSections?: readonly SettingsSection[];
   /** Wraps the authenticated application; render children once onboarding completes. */

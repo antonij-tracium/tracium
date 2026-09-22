@@ -82,9 +82,11 @@ export default function LoginPage({ onLogin, appearance }: LoginPageProps) {
             <label className={styles.label} htmlFor="password">
               Password
             </label>
-            <Link to="/forgot-password" className={styles.hint}>
-              Forgot password?
-            </Link>
+            {appearance?.forgotPasswordHref ? (
+              <Link to={appearance.forgotPasswordHref} className={styles.hint}>
+                Forgot password?
+              </Link>
+            ) : null}
           </div>
           <input
             id="password"
