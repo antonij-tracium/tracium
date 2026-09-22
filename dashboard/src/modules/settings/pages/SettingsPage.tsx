@@ -36,6 +36,8 @@ export interface SettingsPageProps {
   /** Persists a new workspace and selects it. Provided by the Dashboard shell. */
   createWorkspace?: (draft: WorkspaceDraft) => Promise<Workspace>;
   onOpenOverview?: () => void;
+  /** Opens the API keys screen for the selected workspace. */
+  onOpenApiKeys?: () => void;
   onCancelCreate?: () => void;
   /** When true, the Workspace tab opens on a create-workspace form. */
   createMode?: boolean;
@@ -557,14 +559,14 @@ function CreateWorkspaceView({ onCreate, onCancel }: CreateWorkspaceViewProps) {
       <SectionHead
         first
         title="Create workspace"
-        hint="First, name your workspace. Next, we’ll give you its ID and the configuration to connect your application."
+        hint="First, name your workspace. Next, we’ll show you how to connect your application."
       />
       <fieldset disabled={pending} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
         <Field label="Workspace name" hint="Shown in the workspace switcher and on invites.">
           <Input label="Workspace name" value={name} onChange={e => setName(e.target.value)} placeholder="Acme Production" />
         </Field>
 
-        <Field label="Slug" hint="A readable label. Tracium generates a separate workspace ID for sending data.">
+        <Field label="Slug" hint="A readable label. Applications send data with an API key, not the slug.">
           <Input
             label="Slug"
             value={effectiveSlug}
@@ -604,9 +606,10 @@ interface WorkspaceViewProps {
   demo?: boolean;
   justCreated?: boolean;
   onOpenOverview?: () => void;
+  onOpenApiKeys?: () => void;
 }
 
-function CopyButton({ value, label, compact = false }: { value: string; label: string; compact?: boolean }) {
+function CopyButton({ value, label }: { value: string; label: string }) {
   const [status, setStatus] = useState<'idle' | 'copied' | 'error'>('idle');
   useEffect(() => {
     setStatus('idle');
@@ -626,70 +629,62 @@ function CopyButton({ value, label, compact = false }: { value: string; label: s
     }
   };
   const message = status === 'error' ? 'Couldn’t copy. Select and copy the text manually.' : status === 'copied' ? `${label.replace('Copy ', '')} copied to clipboard.` : '';
-  const iconSize = compact ? 11 : 13;
-  return <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-start', gap: compact ? 0 : 6 }}>
-    <Btn onClick={copy} title={compact ? message || label : undefined} style={compact ? {
-      padding: '3px 8px', borderRadius: 5, gap: 4, fontSize: 11,
-      color: status === 'copied' ? 'var(--accent)' : status === 'error' ? 'var(--error)' : 'var(--muted)',
-    } : undefined}>
-      {status === 'copied' ? <IconCheck size={iconSize} /> : <IconCopy size={iconSize} />}
-      {status === 'copied' ? 'Copied' : compact ? status === 'error' ? 'Copy manually' : 'Copy' : label}
+  return <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
+    <Btn onClick={copy}>
+      {status === 'copied' ? <IconCheck size={13} /> : <IconCopy size={13} />}
+      {status === 'copied' ? 'Copied' : label}
     </Btn>
-    <span role="status" style={compact ? {
-      position: 'absolute', width: 1, height: 1, padding: 0, margin: -1,
-      overflow: 'hidden', clipPath: 'inset(50%)', whiteSpace: 'nowrap', border: 0,
-    } : { fontSize: 12, color: status === 'error' ? 'var(--error)' : 'var(--muted)' }}>
+    <span role="status" style={{ fontSize: 12, color: status === 'error' ? 'var(--error)' : 'var(--muted)' }}>
       {message}
     </span>
   </span>;
 }
 
-function WorkspaceConnection({ ws, justCreated, onOpenOverview }: WorkspaceViewProps) {
+const EXPORTER_CONFIG = [
+  'OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318',
+  'OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf',
+  'OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer YOUR_API_KEY"',
+].join('\n');
+
+function WorkspaceConnection({ ws, justCreated, onOpenOverview, onOpenApiKeys }: WorkspaceViewProps) {
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     if (justCreated) heading.current?.focus();
   }, [justCreated]);
-  const config = `OTEL_RESOURCE_ATTRIBUTES="tracium.workspace.id=${ws.id}"`;
+  const divider = '1px solid color-mix(in srgb, var(--border) 50%, transparent)';
   return <div>
     {justCreated && <p role="status" style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent)', fontSize: 13, margin: '0 0 16px' }}>
       <IconCheck size={14} /> {ws.name} created · Step 2 of 2
     </p>}
     <SectionHead first title="Connect your application" headingRef={heading} style={{ paddingBottom: 8 }} />
     <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, margin: '0 0 24px', maxWidth: 620 }}>
-      Every application sending data to <strong style={{ color: 'var(--foreground)' }}>{ws.name}</strong> needs this workspace ID. It tells Tracium where your traces belong.
+      Applications send traces with an API key. Each key belongs to one workspace, so traces sent with a key from <strong style={{ color: 'var(--foreground)' }}>{ws.name}</strong> land here.
     </p>
-    <div style={{ paddingBottom: 24, borderBottom: '1px solid color-mix(in srgb, var(--border) 50%, transparent)', marginBottom: 24 }}>
-      <div style={{ display: 'flex', gap: 12, alignItems: 'baseline', flexWrap: 'wrap', marginBottom: 10 }}>
-        <span style={{ fontSize: 13, fontWeight: 600 }}>Workspace ID</span>
-        <span style={{ color: 'var(--accent)', fontSize: 11, fontWeight: 600 }}>Required for ingestion</span>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px 24px', flexWrap: 'wrap' }}>
-        <code style={{ minWidth: 0, fontSize: 14, fontFamily: 'var(--font-mono)', overflowWrap: 'anywhere', userSelect: 'all' }}>{ws.id}</code>
-        <CopyButton value={ws.id} label="Copy workspace ID" />
-      </div>
-      <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5, margin: '10px 0 0' }}>Generated by Tracium. Use this exact ID in your configuration; the workspace name and slug won’t work.</p>
+    <h3 style={{ fontSize: 14, fontWeight: 600, margin: '0 0 8px' }}>1. Create an API key</h3>
+    <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, margin: '0 0 12px' }}>Create a key for this workspace and copy its <code>trc_…</code> token. It is shown only once. Use a separate key for each application so you can revoke them independently.</p>
+    {onOpenApiKeys && <div style={{ marginBottom: 12 }}><Btn onClick={onOpenApiKeys}>Create API key</Btn></div>}
+    <div style={{ paddingBottom: 12, borderBottom: divider }} />
+    <h3 style={{ fontSize: 14, fontWeight: 600, margin: '24px 0 8px' }}>2. Configure your OpenTelemetry exporter</h3>
+    <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, margin: '0 0 12px' }}>Set these environment variables where your application runs, replacing <code>YOUR_API_KEY</code> with the token. The endpoint shown is for an application on the host of a local Docker installation; for other deployments, use the collector address provided by your operator.</p>
+    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px 24px', flexWrap: 'wrap', padding: '8px 0 24px', borderBottom: divider }}>
+      <pre style={{ minWidth: 0, flex: '1 1 280px', margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: 12, lineHeight: 1.7, fontFamily: 'var(--font-mono)' }}>{EXPORTER_CONFIG}</pre>
+      <CopyButton value={EXPORTER_CONFIG} label="Copy configuration" />
     </div>
-    <h3 style={{ fontSize: 14, fontWeight: 600, margin: '0 0 8px' }}>1. Add the workspace to your application</h3>
-    <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, margin: '0 0 12px' }}>Set this environment variable where your OpenTelemetry application runs. If you already set resource attributes, append <code>tracium.workspace.id={ws.id}</code> to the existing comma-separated list.</p>
-    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px 24px', flexWrap: 'wrap', padding: '8px 0 24px', borderBottom: '1px solid color-mix(in srgb, var(--border) 50%, transparent)' }}>
-      <pre style={{ minWidth: 0, flex: '1 1 280px', margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: 12, lineHeight: 1.7, fontFamily: 'var(--font-mono)' }}>{config}</pre>
-      <CopyButton value={config} label="Copy configuration" />
-    </div>
-    <h3 style={{ fontSize: 14, fontWeight: 600, margin: '24px 0 8px' }}>2. Send your first trace</h3>
-    <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, margin: 0 }}>Point <code>OTEL_EXPORTER_OTLP_ENDPOINT</code> to your collector, then restart your instrumented application and run a request. For an application running on the host of a local Docker installation, the HTTP endpoint is <code>http://localhost:4318</code>. For other deployments, use the collector address provided by your operator.</p>
-    <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6, margin: '16px 0 0' }}>You can always find this ID and configuration in <strong style={{ color: 'var(--foreground)' }}>Settings → Workspace</strong>.</p>
+    <h3 style={{ fontSize: 14, fontWeight: 600, margin: '24px 0 8px' }}>3. Send your first trace</h3>
+    <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, margin: 0 }}>Restart your instrumented application and run a request. Requests without a valid key are rejected with <code>401</code> and nothing is stored.</p>
+    <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6, margin: '16px 0 0' }}>You can always find these instructions in <strong style={{ color: 'var(--foreground)' }}>Settings → Workspace</strong>.</p>
     {onOpenOverview && <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 24 }}>
       <Btn variant="primary" onClick={onOpenOverview}>Go to overview</Btn>
     </div>}
   </div>;
 }
 
-function WorkspaceView({ ws, demo = false, justCreated = false, onOpenOverview }: WorkspaceViewProps) {
+function WorkspaceView({ ws, demo = false, justCreated = false, onOpenOverview, onOpenApiKeys }: WorkspaceViewProps) {
   const [name, setName] = useState(ws.name);
   const [retention, setRetention] = useState(ws.defaultRetention);
 
   if (!demo) return <div>
-    {ws.id ? <WorkspaceConnection ws={ws} justCreated={justCreated} onOpenOverview={onOpenOverview} /> : <SectionHead first title="Workspace" hint="Create a workspace to get its ID and connection instructions." />}
+    {ws.id ? <WorkspaceConnection ws={ws} justCreated={justCreated} onOpenOverview={onOpenOverview} onOpenApiKeys={onOpenApiKeys} /> : <SectionHead first title="Workspace" hint="Create a workspace to get its connection instructions." />}
     {!justCreated && <>
       <SectionHead title="Retention" hint="Retention is configured by the deployment operator. Expired spans are deleted; daily aggregates are retained separately." />
       <p style={{ fontSize: 13, color: 'var(--muted)' }}>Workspace editing and retention controls are not yet available.</p>
@@ -701,21 +696,11 @@ function WorkspaceView({ ws, demo = false, justCreated = false, onOpenOverview }
       <SectionHead
         first
         title="Identity"
-        hint="The display name and identifiers your team and SDKs use to reach this workspace."
+        hint="The display name your team uses to recognise this workspace."
       />
       <div>
-        <Field label="Workspace name" hint="Shown in the workspace switcher and on invites.">
+        <Field label="Workspace name" hint="Shown in the workspace switcher and on invites." last>
           <Input value={name} onChange={e => setName(e.target.value)} />
-        </Field>
-
-        <Field label="Workspace ID" hint="Pass to the SDK as workspace. This value is stable." last>
-          <Input
-            value={ws.id}
-            onChange={() => undefined}
-            mono
-            readOnly
-            suffix={<CopyButton value={ws.id} label="Copy workspace ID" compact />}
-          />
         </Field>
       </div>
 
@@ -809,6 +794,7 @@ export default function SettingsPage({
   sections = [],
   createWorkspace,
   onOpenOverview,
+  onOpenApiKeys,
   onCancelCreate,
   createMode = false,
   demo = false,
@@ -867,7 +853,7 @@ export default function SettingsPage({
           setTab('workspace');
         }} onCancel={() => { setCreating(false); onCancelCreate?.(); }} />
       : <>
-          <WorkspaceView key={ws.id} ws={ws} demo={demo} justCreated={createdId === ws.id} onOpenOverview={onOpenOverview} />
+          <WorkspaceView key={ws.id} ws={ws} demo={demo} justCreated={createdId === ws.id} onOpenOverview={onOpenOverview} onOpenApiKeys={onOpenApiKeys} />
           {!demo && createWorkspace && <div style={{ marginTop: 24 }}><Btn onClick={() => { setCreatedId(null); setCreating(true); }}>{ws.id ? 'Create another workspace' : 'Create workspace'}</Btn></div>}
         </>,
     danger:    <DangerView />,
@@ -880,7 +866,7 @@ export default function SettingsPage({
         <h1 style={{ fontSize: 26, fontWeight: 600, color: 'var(--foreground)', margin: 0, letterSpacing: '-0.02em', lineHeight: 1.15 }}>Settings</h1>
         <p style={{ fontSize: 13, color: 'var(--muted)', margin: '6px 0 0', maxWidth: 620, lineHeight: 1.55 }}>
           Account and workspace settings for <span style={{ color: 'var(--foreground)', fontWeight: 500 }}>{ws.name || 'this workspace'}</span>.
-          Select a workspace to view its identity and connection instructions.
+          Select a workspace to view its connection instructions.
         </p>
       </div>
 

@@ -391,7 +391,7 @@ export function Dashboard({ embedded = false, onLogout, extensions = EMPTY_EXTEN
             ? <UsagePage range={range} />
             : <UsageLivePage range={range} />)}
           {view === 'keys'        && <ApiKeysPage demo={embedded} workspaceId={workspace?.id} />}
-          {view === 'settings'    && <SettingsPage sections={extensions.settingsSections} createWorkspace={embedded ? undefined : createWorkspace} createMode={createWsIntent} onCancelCreate={() => setCreateWsIntent(false)} onOpenOverview={() => setView('overview')} demo={embedded} workspace={workspace} account={embedded ? null : readAccount()} />}
+          {view === 'settings'    && <SettingsPage sections={extensions.settingsSections} createWorkspace={embedded ? undefined : createWorkspace} createMode={createWsIntent} onCancelCreate={() => setCreateWsIntent(false)} onOpenOverview={() => setView('overview')} onOpenApiKeys={() => setView('keys')} demo={embedded} workspace={workspace} account={embedded ? null : readAccount()} />}
           {view === 'users'     && (embedded
             ? <UsersPage users={USERS} periodLabel="Apr 1 – Apr 30" setView={setView} setSelected={setSelected} />
             : <UsersLivePage range={range} setView={setView} setSelected={setSelected} />)}
