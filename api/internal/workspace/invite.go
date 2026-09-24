@@ -57,10 +57,10 @@ type InviteStore interface {
 	// can no longer be accepted.
 	PreviewInvite(ctx context.Context, tokenHash string) (*model.InvitePreview, error)
 	// AcceptInvite adds the account to the invite's workspace as a member and
-	// closes the invite, atomically. email must be the account's own (stored,
-	// normalized) email; it must equal the invited address. Returns the joined
+	// closes the invite, atomically. The account's email must be the invited
+	// address, or it returns ErrInviteEmailMismatch. Returns the joined
 	// workspace's id.
-	AcceptInvite(ctx context.Context, tokenHash, userID, email string) (string, error)
+	AcceptInvite(ctx context.Context, tokenHash, userID string) (string, error)
 }
 
 // NewInviteToken mints a fresh invite token and its storable hash. An RNG
@@ -217,9 +217,10 @@ func (s *PostgresStore) PreviewInvite(ctx context.Context, tokenHash string) (*m
 }
 
 // AcceptInvite joins the account to the invite's workspace and closes the
-// invite. The row is locked for the transaction so two concurrent accepts of the
-// same link cannot both succeed.
-func (s *PostgresStore) AcceptInvite(ctx context.Context, tokenHash, userID, email string) (string, error) {
+// invite. The invite row is locked for the transaction so two concurrent accepts
+// of the same link cannot both succeed, and the account's email is checked in
+// the same statement.
+func (s *PostgresStore) AcceptInvite(ctx context.Context, tokenHash, userID string) (string, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return "", fmt.Errorf("workspace store: begin: %w", err)
@@ -227,16 +228,18 @@ func (s *PostgresStore) AcceptInvite(ctx context.Context, tokenHash, userID, ema
 	defer tx.Rollback(ctx) //nolint:errcheck // no-op after a successful Commit
 
 	var (
-		id, workspaceID, invited, role string
-		open                           bool
+		id, workspaceID, role string
+		open, emailMatches    bool
 	)
 	err = tx.QueryRow(ctx,
-		`SELECT id::text, workspace_id, email, role,
-		        accepted_at IS NULL AND revoked_at IS NULL AND expires_at > NOW()
-		   FROM workspace_invites
-		  WHERE token_hash = $1
-		    FOR UPDATE`, tokenHash,
-	).Scan(&id, &workspaceID, &invited, &role, &open)
+		`SELECT i.id::text, i.workspace_id, i.role,
+		        i.accepted_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > NOW(),
+		        COALESCE(lower(u.email) = i.email, false)
+		   FROM workspace_invites i
+		   LEFT JOIN users u ON u.id::text = $2
+		  WHERE i.token_hash = $1
+		    FOR UPDATE OF i`, tokenHash, userID,
+	).Scan(&id, &workspaceID, &role, &open, &emailMatches)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", ErrInviteNotFound
 	}
@@ -246,7 +249,7 @@ func (s *PostgresStore) AcceptInvite(ctx context.Context, tokenHash, userID, ema
 	if !open {
 		return "", ErrInviteClosed
 	}
-	if !strings.EqualFold(invited, email) {
+	if !emailMatches {
 		return "", ErrInviteEmailMismatch
 	}
 

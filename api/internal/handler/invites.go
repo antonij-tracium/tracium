@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -23,64 +22,30 @@ import (
 // to enforce seat limits.
 const InviteFeature = "workspaces.invite"
 
-// OwnerCheck reports whether a user owns a workspace. Satisfied by the workspace
-// store.
-type OwnerCheck interface {
-	IsOwner(ctx context.Context, workspaceID, userID string) (bool, error)
-}
-
-// UserByID resolves an account by id, so an accepting user's email can be
-// compared with the invited address. Satisfied by the auth user store.
-type UserByID interface {
-	ByID(ctx context.Context, id string) (*model.User, error)
-}
-
 // InviteHandler manages workspace invitations. Owners create, list and revoke
 // invites for a workspace; the holder of an invite link previews it without a
 // session and accepts it while signed in to the invited account.
 type InviteHandler struct {
 	invites      workspace.InviteStore
 	owners       OwnerCheck
-	users        UserByID
 	entitlements extension.Entitlements
 	now          func() time.Time
 }
 
 // NewInviteHandler constructs an InviteHandler. entitlements may be nil, in
 // which case invite creation is not gated.
-func NewInviteHandler(invites workspace.InviteStore, owners OwnerCheck, users UserByID, entitlements extension.Entitlements) *InviteHandler {
-	return &InviteHandler{invites: invites, owners: owners, users: users, entitlements: entitlements, now: time.Now}
+func NewInviteHandler(invites workspace.InviteStore, owners OwnerCheck, entitlements extension.Entitlements) *InviteHandler {
+	return &InviteHandler{invites: invites, owners: owners, entitlements: entitlements, now: time.Now}
 }
 
 // maxInviteBody caps invite request bodies; they carry a single email address.
 const maxInviteBody = 4 << 10 // 4 KiB
 
-// requireOwner resolves the caller and checks they own the {id} workspace. It
-// answers 404 to non-owners — never reveal a workspace the caller can't manage.
-func (h *InviteHandler) requireOwner(w http.ResponseWriter, r *http.Request) (userID, workspaceID string, ok bool) {
-	principal, ok := middleware.PrincipalFromContext(r.Context())
-	if !ok || principal.UserID == "" {
-		respondError(w, http.StatusUnauthorized, "UNAUTHORIZED", "user identity could not be resolved")
-		return "", "", false
-	}
-	workspaceID = chi.URLParam(r, "id")
-	owner, err := h.owners.IsOwner(r.Context(), workspaceID, principal.UserID)
-	if err != nil {
-		respondError(w, http.StatusInternalServerError, "INTERNAL", "could not verify ownership")
-		return "", "", false
-	}
-	if !owner {
-		respondError(w, http.StatusNotFound, "WORKSPACE_NOT_FOUND", "workspace not found")
-		return "", "", false
-	}
-	return principal.UserID, workspaceID, true
-}
-
 // Create handles POST /v1/workspaces/{id}/invites — invites an email address to
 // the workspace as a member. Owner-only. The link token is in the response
 // exactly once; the owner shares the link with the invitee.
 func (h *InviteHandler) Create(w http.ResponseWriter, r *http.Request) {
-	userID, workspaceID, ok := h.requireOwner(w, r)
+	userID, workspaceID, ok := requireOwner(w, r, h.owners)
 	if !ok {
 		return
 	}
@@ -142,7 +107,7 @@ func (h *InviteHandler) Create(w http.ResponseWriter, r *http.Request) {
 // List handles GET /v1/workspaces/{id}/invites — the workspace's open invites.
 // Owner-only.
 func (h *InviteHandler) List(w http.ResponseWriter, r *http.Request) {
-	_, workspaceID, ok := h.requireOwner(w, r)
+	_, workspaceID, ok := requireOwner(w, r, h.owners)
 	if !ok {
 		return
 	}
@@ -160,7 +125,7 @@ func (h *InviteHandler) List(w http.ResponseWriter, r *http.Request) {
 // Revoke handles DELETE /v1/workspaces/{id}/invites/{inviteId} — closes an open
 // invite so its link stops working. Owner-only.
 func (h *InviteHandler) Revoke(w http.ResponseWriter, r *http.Request) {
-	_, workspaceID, ok := h.requireOwner(w, r)
+	_, workspaceID, ok := requireOwner(w, r, h.owners)
 	if !ok {
 		return
 	}
@@ -206,17 +171,7 @@ func (h *InviteHandler) Accept(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.users.ByID(r.Context(), principal.UserID)
-	if err != nil {
-		if errors.Is(err, auth.ErrUserNotFound) {
-			respondError(w, http.StatusUnauthorized, "UNAUTHORIZED", "user identity could not be resolved")
-			return
-		}
-		respondError(w, http.StatusInternalServerError, "INTERNAL", "could not look up account")
-		return
-	}
-
-	workspaceID, err := h.invites.AcceptInvite(r.Context(), workspace.HashInviteToken(token), user.ID, user.Email)
+	workspaceID, err := h.invites.AcceptInvite(r.Context(), workspace.HashInviteToken(token), principal.UserID)
 	if err != nil {
 		respondInviteError(w, err)
 		return

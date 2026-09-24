@@ -19,7 +19,7 @@ func newRouter(cfg Config, repo query.Repository, wsStore workspace.Store, invit
 	authHandler := handler.NewAuthHandler(authService)
 	workspaceHandler := handler.NewWorkspaceHandler(wsStore, userStore)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService, wsStore)
-	inviteHandler := handler.NewInviteHandler(inviteStore, wsStore, userStore, opts.Entitlements)
+	inviteHandler := handler.NewInviteHandler(inviteStore, wsStore, opts.Entitlements)
 	services := extension.Services{Mail: opts.Mail, Entitlements: opts.Entitlements, Workspaces: wsStore}
 	// ── Handlers ─────────────────────────────────────────────────────────────
 

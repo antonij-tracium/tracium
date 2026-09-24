@@ -16,6 +16,7 @@ import {
   IconCopy,
   IconPlus,
   IconUsers,
+  formatDate,
   useMaxWidth,
   BREAKPOINTS,
 } from '../../../common';
@@ -731,10 +732,6 @@ function WorkspaceView({ ws, demo = false, justCreated = false, onOpenOverview, 
 // VIEW: Members
 // ---------------------------------------------------------------------------
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
 function errorMessage(err: unknown, fallback: string): string {
   return err instanceof APIError ? err.message : fallback;
 }
@@ -761,9 +758,9 @@ function MembersView({ workspace, account }: MembersViewProps) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [actionError, setActionError] = useState('');
 
-  const refresh = () => {
+  const refreshInvites = () => void queryClient.invalidateQueries({ queryKey: invitesKey });
+  const refreshMembers = () => {
     void queryClient.invalidateQueries({ queryKey: membersKey });
-    void queryClient.invalidateQueries({ queryKey: invitesKey });
     // The workspace switcher shows each workspace's member count.
     void queryClient.invalidateQueries({ queryKey: ['workspaces'] });
   };
@@ -776,7 +773,7 @@ function MembersView({ workspace, account }: MembersViewProps) {
       const invite = await workspacesAPI.invite(workspace.id, address.trim());
       setCreated(invite);
       setEmail('');
-      refresh();
+      refreshInvites();
     } catch (err) {
       setInviteError(errorMessage(err, 'Could not create the invite. Please try again.'));
     } finally {
@@ -784,12 +781,12 @@ function MembersView({ workspace, account }: MembersViewProps) {
     }
   };
 
-  const runAction = async (id: string, action: () => Promise<void>, fallback: string) => {
+  const runAction = async (id: string, action: () => Promise<void>, onDone: () => void, fallback: string) => {
     setBusyId(id);
     setActionError('');
     try {
       await action();
-      refresh();
+      onDone();
     } catch (err) {
       setActionError(errorMessage(err, fallback));
     } finally {
@@ -846,7 +843,7 @@ function MembersView({ workspace, account }: MembersViewProps) {
             <div style={meta}>{m.role === 'owner' ? 'Owner' : 'Member'} · joined {formatDate(m.joined_at)}</div>
           </div>
           {isOwner && m.role !== 'owner' && <Btn variant="ghost" disabled={busyId === m.user_id} title={`Remove ${m.email}`}
-            onClick={() => { if (window.confirm(`Remove ${m.email} from ${workspace.name}? They’ll lose access immediately.`)) void runAction(m.user_id, () => workspacesAPI.removeMember(workspace.id, m.user_id), 'Could not remove the member. Please try again.'); }}>
+            onClick={() => { if (window.confirm(`Remove ${m.email} from ${workspace.name}? They’ll lose access immediately.`)) void runAction(m.user_id, () => workspacesAPI.removeMember(workspace.id, m.user_id), refreshMembers, 'Could not remove the member. Please try again.'); }}>
             {busyId === m.user_id ? 'Removing…' : 'Remove'}
           </Btn>}
         </li>;
@@ -866,7 +863,7 @@ function MembersView({ workspace, account }: MembersViewProps) {
           <div style={{ display: 'flex', gap: 8 }}>
             <Btn disabled={inviting || busyId === inv.id} title={`Create a new link for ${inv.email}`} onClick={() => void sendInvite(inv.email)}>New link</Btn>
             <Btn variant="ghost" disabled={busyId === inv.id} title={`Revoke the invite for ${inv.email}`}
-              onClick={() => void runAction(inv.id, () => workspacesAPI.revokeInvite(workspace.id, inv.id), 'Could not revoke the invite. Please try again.')}>
+              onClick={() => void runAction(inv.id, () => workspacesAPI.revokeInvite(workspace.id, inv.id), refreshInvites, 'Could not revoke the invite. Please try again.')}>
               {busyId === inv.id ? 'Revoking…' : 'Revoke'}
             </Btn>
           </div>

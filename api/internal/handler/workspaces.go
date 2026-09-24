@@ -118,21 +118,8 @@ func (h *WorkspaceHandler) Delete(w http.ResponseWriter, r *http.Request) {
 // AddMember handles POST /v1/workspaces/{id}/members — grants another account
 // access to the workspace. Owner-only. The member is named by email.
 func (h *WorkspaceHandler) AddMember(w http.ResponseWriter, r *http.Request) {
-	principal, ok := middleware.PrincipalFromContext(r.Context())
-	if !ok || principal.UserID == "" {
-		respondError(w, http.StatusUnauthorized, "UNAUTHORIZED", "user identity could not be resolved")
-		return
-	}
-	workspaceID := chi.URLParam(r, "id")
-
-	owner, err := h.store.IsOwner(r.Context(), workspaceID, principal.UserID)
-	if err != nil {
-		respondError(w, http.StatusInternalServerError, "INTERNAL", "could not verify ownership")
-		return
-	}
-	if !owner {
-		// 404, not 403 — never reveal that a workspace the caller can't manage exists.
-		respondError(w, http.StatusNotFound, "WORKSPACE_NOT_FOUND", "workspace not found")
+	_, workspaceID, ok := requireOwner(w, r, h.store)
+	if !ok {
 		return
 	}
 
@@ -169,25 +156,12 @@ func (h *WorkspaceHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 // RemoveMember handles DELETE /v1/workspaces/{id}/members/{userId} — revokes an
 // account's access. Owner-only; the owner cannot be removed.
 func (h *WorkspaceHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
-	principal, ok := middleware.PrincipalFromContext(r.Context())
-	if !ok || principal.UserID == "" {
-		respondError(w, http.StatusUnauthorized, "UNAUTHORIZED", "user identity could not be resolved")
-		return
-	}
-	workspaceID := chi.URLParam(r, "id")
-	memberID := chi.URLParam(r, "userId")
-
-	owner, err := h.store.IsOwner(r.Context(), workspaceID, principal.UserID)
-	if err != nil {
-		respondError(w, http.StatusInternalServerError, "INTERNAL", "could not verify ownership")
-		return
-	}
-	if !owner {
-		respondError(w, http.StatusNotFound, "WORKSPACE_NOT_FOUND", "workspace not found")
+	_, workspaceID, ok := requireOwner(w, r, h.store)
+	if !ok {
 		return
 	}
 
-	if err := h.store.RemoveMember(r.Context(), workspaceID, memberID); err != nil {
+	if err := h.store.RemoveMember(r.Context(), workspaceID, chi.URLParam(r, "userId")); err != nil {
 		if errors.Is(err, workspace.ErrCannotRemoveOwner) {
 			respondError(w, http.StatusBadRequest, "CANNOT_REMOVE_OWNER", "the workspace owner cannot be removed")
 			return

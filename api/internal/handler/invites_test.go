@@ -13,23 +13,11 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/tracium/api/extension"
-	"github.com/tracium/api/internal/auth"
 	"github.com/tracium/api/internal/middleware"
 	"github.com/tracium/api/internal/model"
 	"github.com/tracium/api/internal/workspace"
 	"github.com/tracium/api/testing/mocks"
 )
-
-// stubUsers resolves accounts by id from a fixed map.
-type stubUsers map[string]string // id -> email
-
-func (s stubUsers) ByID(_ context.Context, id string) (*model.User, error) {
-	email, ok := s[id]
-	if !ok {
-		return nil, auth.ErrUserNotFound
-	}
-	return &model.User{ID: id, Email: email}, nil
-}
 
 // stubEntitlements answers every check with a fixed decision or error.
 type stubEntitlements struct {
@@ -50,9 +38,8 @@ type inviteFixture struct {
 // (b@example.com) and user-c (c@example.com) exist.
 func newInviteFixture(ent extension.Entitlements) inviteFixture {
 	owners := &mocks.MockWorkspaceStore{Workspaces: []model.Workspace{mocks.NewTestWorkspace("ws-1", "user-a")}}
-	invites := &mocks.MockInviteStore{}
-	users := stubUsers{"user-a": "a@example.com", "user-b": "b@example.com", "user-c": "c@example.com"}
-	return inviteFixture{h: NewInviteHandler(invites, owners, users, ent), invites: invites}
+	invites := &mocks.MockInviteStore{UserEmails: map[string]string{"user-a": "a@example.com", "user-b": "b@example.com", "user-c": "c@example.com"}}
+	return inviteFixture{h: NewInviteHandler(invites, owners, ent), invites: invites}
 }
 
 // serve runs handler as userID (or unauthenticated when userID is empty) with

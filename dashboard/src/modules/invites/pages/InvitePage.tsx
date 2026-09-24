@@ -1,6 +1,7 @@
 import type { AuthAppearance } from '../../../extensions';
 import { useEffect, useState } from 'react';
 import { AuthShell, AuthButton } from '../../auth/components';
+import { formatDate } from '../../../common';
 import { previewInvite, acceptInvite, InviteError, type InvitePreview } from '../api';
 import styles from '../../auth/pages/LoginPage.module.css';
 
@@ -29,10 +30,6 @@ function loadError(err: unknown): string {
     if (err.status === 429) return 'Too many attempts. Wait a minute and try again.';
   }
   return 'We couldn’t load this invite. Try again in a moment.';
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 /**

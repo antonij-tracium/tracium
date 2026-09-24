@@ -23,6 +23,8 @@ type MockInviteStore struct {
 	Invites map[string]*MockInvite
 	// MemberEmails marks "workspaceID/email" pairs that are already members.
 	MemberEmails map[string]bool
+	// UserEmails maps user id to account email, for AcceptInvite's email check.
+	UserEmails map[string]string
 	// Joined records "workspaceID/userID" memberships created by AcceptInvite.
 	Joined []string
 
@@ -93,7 +95,7 @@ func (m *MockInviteStore) PreviewInvite(_ context.Context, tokenHash string) (*m
 }
 
 // AcceptInvite joins the user to the invite's workspace and closes the invite.
-func (m *MockInviteStore) AcceptInvite(_ context.Context, tokenHash, userID, email string) (string, error) {
+func (m *MockInviteStore) AcceptInvite(_ context.Context, tokenHash, userID string) (string, error) {
 	m.init()
 	inv, ok := m.Invites[tokenHash]
 	if !ok {
@@ -102,7 +104,7 @@ func (m *MockInviteStore) AcceptInvite(_ context.Context, tokenHash, userID, ema
 	if inv.Closed || !inv.Invite.ExpiresAt.After(time.Now()) {
 		return "", workspace.ErrInviteClosed
 	}
-	if !strings.EqualFold(inv.Invite.Email, email) {
+	if email, ok := m.UserEmails[userID]; !ok || !strings.EqualFold(inv.Invite.Email, email) {
 		return "", workspace.ErrInviteEmailMismatch
 	}
 	inv.Closed = true
