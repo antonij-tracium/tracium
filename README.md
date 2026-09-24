@@ -17,7 +17,7 @@ OTLP can send to Tracium with no code changes.
 Requires Docker with Compose v2.
 
 ```bash
-git clone https://github.com/tracium/tracium
+git clone https://github.com/antonij-tracium/tracium
 cd tracium
 cp .env.example .env
 # Fill in JWT_SECRET, CLICKHOUSE_PASSWORD, and POSTGRES_PASSWORD in .env.
@@ -131,9 +131,17 @@ single-use link (`/invite/<token>`, valid for 7 days) to share, and the invitee
 accepts it after signing in or signing up with the invited address. Owners can
 list and revoke open invites and remove members from the same screen.
 
-Profile/password editing, workspace editing, and retention
-controls in the UI are unavailable; the UI labels these limitations. Configure
-retention in the deployment.
+Signed-in users change their password under **Settings → Account** (or
+`POST /v1/auth/password`); there is no email-based reset, so an operator resets
+a forgotten password with the API image's CLI:
+
+```bash
+docker compose exec api ./reset-password --email you@example.com
+```
+
+It prints a generated password unless you pass `--password`. Profile editing,
+workspace editing, and retention controls in the UI are unavailable; the UI
+labels these limitations. Configure retention in the deployment.
 
 Existing installations must follow [the upgrade guide](deploy/docs/upgrading.md)
 before adopting workspace scoping. The migration preserves legacy aggregates and
