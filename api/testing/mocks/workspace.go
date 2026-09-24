@@ -11,8 +11,7 @@ import (
 // in handler unit tests. It never touches a real database.
 type MockWorkspaceStore struct {
 	Workspaces []model.Workspace
-	// Members lists each workspace's members, keyed by workspace id.
-	Members map[string][]model.WorkspaceMember
+	Members    map[string][]model.WorkspaceMember // keyed by workspace id
 
 	// Configurable errors — set these to simulate failures.
 	ListErr   error
@@ -20,8 +19,7 @@ type MockWorkspaceStore struct {
 	DeleteErr error
 
 	// AllowedIDsErr simulates an access-lookup failure.
-	AllowedIDsErr error
-	// ListMembersErr simulates a member-listing failure.
+	AllowedIDsErr  error
 	ListMembersErr error
 
 	// Call counters — inspect these in tests.
@@ -105,7 +103,6 @@ func (m *MockWorkspaceStore) AddMember(_ context.Context, _, _, _ string) error 
 // RemoveMember is a no-op in the mock.
 func (m *MockWorkspaceStore) RemoveMember(_ context.Context, _, _ string) error { return nil }
 
-// ListMembers returns Members for the workspace, or ListMembersErr.
 func (m *MockWorkspaceStore) ListMembers(_ context.Context, workspaceID string) ([]model.WorkspaceMember, error) {
 	if m.ListMembersErr != nil {
 		return nil, m.ListMembersErr

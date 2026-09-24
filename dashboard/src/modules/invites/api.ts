@@ -37,12 +37,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-/** Describes an invite. Needs no session, so it works before sign-in. */
 export function previewInvite(token: string): Promise<InvitePreview> {
   return request<InvitePreview>(`/v1/invites/${encodeURIComponent(token)}`);
 }
 
-/** Joins the signed-in account to the invite's workspace. */
 export function acceptInvite(token: string, sessionToken: string): Promise<{ workspace_id: string }> {
   return request(`/v1/invites/${encodeURIComponent(token)}/accept`, {
     method: 'POST',

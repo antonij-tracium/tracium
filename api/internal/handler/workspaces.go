@@ -176,8 +176,7 @@ func (h *WorkspaceHandler) RemoveMember(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// ListMembers handles GET /v1/workspaces/{id}/members — the workspace's members
-// with their emails. Open to any member of the workspace.
+// ListMembers handles GET /v1/workspaces/{id}/members. Members-only.
 func (h *WorkspaceHandler) ListMembers(w http.ResponseWriter, r *http.Request) {
 	workspaceID := chi.URLParam(r, "id")
 	if _, ok := resolveWorkspaceScope(w, r, h.store, workspaceID); !ok {

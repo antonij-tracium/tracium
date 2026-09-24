@@ -15,8 +15,7 @@ import (
 	"github.com/tracium/api/internal/model"
 )
 
-// newTestStore opens a store on a throwaway schema of the TEST_POSTGRES_DSN
-// database, so it never collides with other packages' tests on the same DB.
+// newTestStore uses a throwaway schema so it can share TEST_POSTGRES_DSN with other packages.
 func newTestStore(t *testing.T) *PostgresStore {
 	t.Helper()
 	dsn := os.Getenv("TEST_POSTGRES_DSN")
@@ -76,7 +75,6 @@ func TestInviteLifecycle(t *testing.T) {
 	}
 	week := time.Now().Add(InviteTTL)
 
-	// The owner is already a member, so inviting them is refused.
 	if err := s.CreateInvite(ctx, newInvite("ws-1", "owner@example.com", owner, week), "h-owner"); !errors.Is(err, ErrAlreadyMember) {
 		t.Fatalf("invite owner: err = %v, want ErrAlreadyMember", err)
 	}
@@ -140,7 +138,6 @@ func TestInviteLifecycle(t *testing.T) {
 	if invites, _ := s.ListInvites(ctx, "ws-1"); len(invites) != 0 {
 		t.Errorf("accepted invite still listed: %+v", invites)
 	}
-	// Now a member, so inviting them again is refused.
 	if err := s.CreateInvite(ctx, newInvite("ws-1", "bob@example.com", owner, week), "h3"); !errors.Is(err, ErrAlreadyMember) {
 		t.Errorf("invite member: err = %v, want ErrAlreadyMember", err)
 	}

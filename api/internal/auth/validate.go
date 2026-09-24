@@ -44,8 +44,7 @@ func ValidateCredentials(email, password string) error {
 	return nil
 }
 
-// ValidateEmail enforces the format rules for an email address: a bare address
-// (no display name) within the RFC 5321 length limit.
+// ValidateEmail accepts a bare address within the RFC 5321 length limit.
 func ValidateEmail(email string) error {
 	if len(email) == 0 || len(email) > MaxEmailLen {
 		return ErrInvalidEmail

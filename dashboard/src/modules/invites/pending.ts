@@ -1,12 +1,9 @@
-// An invite link (/invite/<token>) may be opened while signed out. The token is
-// kept in localStorage — not sessionStorage — so it survives the detour through
-// sign-up, including a hosted email-confirmation link that opens in a new tab.
-// It is cleared once the invite is accepted or dismissed.
+// localStorage, not sessionStorage, so the invite survives an email-confirmation
+// link opened in a new tab.
 export const INVITE_KEY = 'tracium_invite';
 
 const INVITE_PATH = /^\/invite\/([^/]+)\/?$/;
 
-/** The invite token in an /invite/<token> pathname, or null. */
 export function inviteTokenFromPath(pathname: string): string | null {
   const match = INVITE_PATH.exec(pathname);
   if (!match) return null;
@@ -17,10 +14,6 @@ export function inviteTokenFromPath(pathname: string): string | null {
   }
 }
 
-/**
- * The invite to resolve on this load: one in the current URL (which is
- * remembered for after sign-in), else one remembered from an earlier visit.
- */
 export function readPendingInvite(): string | null {
   const fromPath = inviteTokenFromPath(window.location.pathname);
   try {

@@ -26,9 +26,7 @@ function RequireAuthRedirect() {
 export interface AppProps { extensions?: DashboardExtensions }
 export default function App({ extensions = EMPTY_EXTENSIONS }: AppProps = {}) {
   const [token, setToken] = useState<string | null>(readInitialToken);
-  // An invite link opened in this browser, possibly before signing in. While
-  // one is pending, a signed-in visitor sees the invite page instead of the
-  // dashboard until they accept or dismiss it.
+  // A pending invite replaces the dashboard until it's accepted or dismissed.
   const [inviteToken, setInviteToken] = useState<string | null>(readPendingInvite);
 
   const leaveInvite = () => {
@@ -38,7 +36,6 @@ export default function App({ extensions = EMPTY_EXTENSIONS }: AppProps = {}) {
   };
 
   const handleInviteAccepted = (workspaceId: string) => {
-    // Open the dashboard on the workspace just joined.
     localStorage.setItem('tracium_ws', workspaceId);
     localStorage.setItem('tracium_view', 'overview');
     leaveInvite();
@@ -84,7 +81,6 @@ export default function App({ extensions = EMPTY_EXTENSIONS }: AppProps = {}) {
           onAccepted={handleInviteAccepted}
           onDismiss={leaveInvite}
           onSignOut={() => {
-            // Keep the invite pending so it resumes after signing back in.
             handleLogout();
             window.history.replaceState(null, '', `/invite/${encodeURIComponent(inviteToken)}`);
           }}

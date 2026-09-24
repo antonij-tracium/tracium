@@ -9,27 +9,20 @@ import (
 	"github.com/tracium/api/internal/workspace"
 )
 
-// MockInvite is one invite held by MockInviteStore, keyed by its token hash.
+// MockInvite is one invite held by MockInviteStore.
 type MockInvite struct {
 	Invite        model.WorkspaceInvite
 	WorkspaceName string
 	Closed        bool
 }
 
-// MockInviteStore is an in-memory implementation of workspace.InviteStore for
-// handler unit tests. It never touches a real database.
+// MockInviteStore is an in-memory workspace.InviteStore for handler tests.
 type MockInviteStore struct {
-	// Invites maps token hash to invite.
-	Invites map[string]*MockInvite
-	// MemberEmails marks "workspaceID/email" pairs that are already members.
-	MemberEmails map[string]bool
-	// UserEmails maps user id to account email, for AcceptInvite's email check.
-	UserEmails map[string]string
-	// Joined records "workspaceID/userID" memberships created by AcceptInvite.
-	Joined []string
-
-	// CreateErr simulates a create failure.
-	CreateErr error
+	Invites      map[string]*MockInvite // keyed by token hash
+	MemberEmails map[string]bool        // "workspaceID/email" pairs already in the workspace
+	UserEmails   map[string]string      // user id -> account email
+	Joined       []string               // "workspaceID/userID" added by AcceptInvite
+	CreateErr    error
 }
 
 func (m *MockInviteStore) init() {
@@ -38,7 +31,6 @@ func (m *MockInviteStore) init() {
 	}
 }
 
-// CreateInvite stores the invite, closing any open one for the same email.
 func (m *MockInviteStore) CreateInvite(_ context.Context, inv *model.WorkspaceInvite, tokenHash string) error {
 	m.init()
 	if m.CreateErr != nil {
@@ -57,7 +49,6 @@ func (m *MockInviteStore) CreateInvite(_ context.Context, inv *model.WorkspaceIn
 	return nil
 }
 
-// ListInvites returns the workspace's open invites.
 func (m *MockInviteStore) ListInvites(_ context.Context, workspaceID string) ([]model.WorkspaceInvite, error) {
 	m.init()
 	var out []model.WorkspaceInvite
@@ -69,7 +60,6 @@ func (m *MockInviteStore) ListInvites(_ context.Context, workspaceID string) ([]
 	return out, nil
 }
 
-// RevokeInvite closes an open invite in the workspace.
 func (m *MockInviteStore) RevokeInvite(_ context.Context, workspaceID, inviteID string) error {
 	m.init()
 	for _, inv := range m.Invites {
@@ -81,7 +71,6 @@ func (m *MockInviteStore) RevokeInvite(_ context.Context, workspaceID, inviteID 
 	return workspace.ErrInviteNotFound
 }
 
-// PreviewInvite describes the invite behind a token hash.
 func (m *MockInviteStore) PreviewInvite(_ context.Context, tokenHash string) (*model.InvitePreview, error) {
 	m.init()
 	inv, ok := m.Invites[tokenHash]
@@ -94,7 +83,6 @@ func (m *MockInviteStore) PreviewInvite(_ context.Context, tokenHash string) (*m
 	return &model.InvitePreview{WorkspaceName: inv.WorkspaceName, Email: inv.Invite.Email, ExpiresAt: inv.Invite.ExpiresAt}, nil
 }
 
-// AcceptInvite joins the user to the invite's workspace and closes the invite.
 func (m *MockInviteStore) AcceptInvite(_ context.Context, tokenHash, userID string) (string, error) {
 	m.init()
 	inv, ok := m.Invites[tokenHash]

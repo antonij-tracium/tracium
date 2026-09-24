@@ -8,13 +8,9 @@ import styles from '../../auth/pages/LoginPage.module.css';
 interface InvitePageProps {
   token: string;
   appearance?: AuthAppearance;
-  /** The signed-in session, or null when the visitor is signed out. */
   session: { token: string; email: string } | null;
-  /** Called with the joined workspace's id once the invite is accepted. */
   onAccepted?: (workspaceId: string) => void;
-  /** Leaves the invite without accepting it. */
   onDismiss?: () => void;
-  /** Signs out, so the invitee can sign back in with the invited address. */
   onSignOut?: () => void;
 }
 
@@ -32,12 +28,6 @@ function loadError(err: unknown): string {
   return 'We couldn’t load this invite. Try again in a moment.';
 }
 
-/**
- * Landing page for an invite link (/invite/<token>). Signed out, it describes
- * the invite and sends the visitor to sign in or create an account with the
- * invited address; the token is remembered meanwhile (see pending.ts). Signed
- * in, it accepts the invite for the current account.
- */
 export default function InvitePage({ token, appearance, session, onAccepted, onDismiss, onSignOut }: InvitePageProps) {
   const [load, setLoad] = useState<Load>({ state: 'loading' });
   const [accepting, setAccepting] = useState(false);

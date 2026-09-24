@@ -53,8 +53,7 @@ func newRouter(cfg Config, repo query.Repository, wsStore workspace.Store, invit
 		}
 		r.Post(version.Route(version.V1, "/auth/register"), authHandler.Register)
 		r.Post(version.Route(version.V1, "/auth/login"), authHandler.Login)
-		// Invite preview is session-less (the invitee may not have an account yet),
-		// so it shares the auth limiter to blunt token guessing.
+		// Session-less, so it shares the auth limiter.
 		r.Get(version.Route(version.V1, "/invites/{token}"), inviteHandler.Preview)
 	})
 
@@ -92,8 +91,6 @@ func newRouter(cfg Config, repo query.Repository, wsStore workspace.Store, invit
 		r.Delete(version.Route(version.V1, "/workspaces/{id}/members/{userId}"), workspaceHandler.RemoveMember)
 		r.Get(version.Route(version.V1, "/workspaces/{id}/members"), workspaceHandler.ListMembers)
 
-		// Invites — owners invite an email address and share the returned link;
-		// the invitee accepts it while signed in to that address.
 		r.Get(version.Route(version.V1, "/workspaces/{id}/invites"), inviteHandler.List)
 		r.Post(version.Route(version.V1, "/workspaces/{id}/invites"), inviteHandler.Create)
 		r.Delete(version.Route(version.V1, "/workspaces/{id}/invites/{inviteId}"), inviteHandler.Revoke)

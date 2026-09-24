@@ -12,8 +12,6 @@ interface AuthShellProps {
   active?: 'signin' | 'signup';
   title: string;
   subtitle: string;
-  /** Omit to render the card without the footnote (e.g. the invite page, which
-   * carries its own actions). */
   footnote?: { text: string; linkText: string; to: string };
   children: ReactNode;
 }

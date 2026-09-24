@@ -17,14 +17,10 @@ import (
 	"github.com/tracium/api/internal/workspace"
 )
 
-// InviteFeature is the entitlement consulted, per workspace, before an owner may
-// create an invite. The default provider allows it; a hosted provider can use it
-// to enforce seat limits.
+// InviteFeature is the entitlement checked before creating an invite.
 const InviteFeature = "workspaces.invite"
 
-// InviteHandler manages workspace invitations. Owners create, list and revoke
-// invites for a workspace; the holder of an invite link previews it without a
-// session and accepts it while signed in to the invited account.
+// InviteHandler manages workspace invitations.
 type InviteHandler struct {
 	invites      workspace.InviteStore
 	owners       OwnerCheck
@@ -32,18 +28,14 @@ type InviteHandler struct {
 	now          func() time.Time
 }
 
-// NewInviteHandler constructs an InviteHandler. entitlements may be nil, in
-// which case invite creation is not gated.
+// NewInviteHandler constructs an InviteHandler. A nil entitlements allows all invites.
 func NewInviteHandler(invites workspace.InviteStore, owners OwnerCheck, entitlements extension.Entitlements) *InviteHandler {
 	return &InviteHandler{invites: invites, owners: owners, entitlements: entitlements, now: time.Now}
 }
 
-// maxInviteBody caps invite request bodies; they carry a single email address.
 const maxInviteBody = 4 << 10 // 4 KiB
 
-// Create handles POST /v1/workspaces/{id}/invites — invites an email address to
-// the workspace as a member. Owner-only. The link token is in the response
-// exactly once; the owner shares the link with the invitee.
+// Create handles POST /v1/workspaces/{id}/invites. Owner-only.
 func (h *InviteHandler) Create(w http.ResponseWriter, r *http.Request) {
 	userID, workspaceID, ok := requireOwner(w, r, h.owners)
 	if !ok {
@@ -104,8 +96,7 @@ func (h *InviteHandler) Create(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusCreated, model.CreatedInvite{WorkspaceInvite: inv, Token: token})
 }
 
-// List handles GET /v1/workspaces/{id}/invites — the workspace's open invites.
-// Owner-only.
+// List handles GET /v1/workspaces/{id}/invites. Owner-only.
 func (h *InviteHandler) List(w http.ResponseWriter, r *http.Request) {
 	_, workspaceID, ok := requireOwner(w, r, h.owners)
 	if !ok {
@@ -122,8 +113,7 @@ func (h *InviteHandler) List(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, invites)
 }
 
-// Revoke handles DELETE /v1/workspaces/{id}/invites/{inviteId} — closes an open
-// invite so its link stops working. Owner-only.
+// Revoke handles DELETE /v1/workspaces/{id}/invites/{inviteId}. Owner-only.
 func (h *InviteHandler) Revoke(w http.ResponseWriter, r *http.Request) {
 	_, workspaceID, ok := requireOwner(w, r, h.owners)
 	if !ok {
@@ -140,9 +130,7 @@ func (h *InviteHandler) Revoke(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// Preview handles GET /v1/invites/{token} — describes an invite to the holder of
-// its link, who may not be signed in yet. Session-less, so it is mounted behind
-// the auth-endpoint rate limiter.
+// Preview handles GET /v1/invites/{token}. It needs no session.
 func (h *InviteHandler) Preview(w http.ResponseWriter, r *http.Request) {
 	token := chi.URLParam(r, "token")
 	if !workspace.LooksLikeInviteToken(token) {
@@ -157,8 +145,7 @@ func (h *InviteHandler) Preview(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, preview)
 }
 
-// Accept handles POST /v1/invites/{token}/accept — joins the signed-in account to
-// the invite's workspace. The account's email must be the invited address.
+// Accept handles POST /v1/invites/{token}/accept.
 func (h *InviteHandler) Accept(w http.ResponseWriter, r *http.Request) {
 	principal, ok := middleware.PrincipalFromContext(r.Context())
 	if !ok || principal.UserID == "" {
@@ -181,7 +168,6 @@ func (h *InviteHandler) Accept(w http.ResponseWriter, r *http.Request) {
 	}{workspaceID})
 }
 
-// respondInviteError maps the invite store's sentinel errors to responses.
 func respondInviteError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, workspace.ErrInviteNotFound):

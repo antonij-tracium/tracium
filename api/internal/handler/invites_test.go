@@ -19,7 +19,6 @@ import (
 	"github.com/tracium/api/testing/mocks"
 )
 
-// stubEntitlements answers every check with a fixed decision or error.
 type stubEntitlements struct {
 	allowed bool
 	err     error
@@ -34,16 +33,14 @@ type inviteFixture struct {
 	invites *mocks.MockInviteStore
 }
 
-// newInviteFixture builds a handler where user-a owns ws-1, and user-b
-// (b@example.com) and user-c (c@example.com) exist.
+// newInviteFixture: user-a owns ws-1; user-b and user-c are other accounts.
 func newInviteFixture(ent extension.Entitlements) inviteFixture {
 	owners := &mocks.MockWorkspaceStore{Workspaces: []model.Workspace{mocks.NewTestWorkspace("ws-1", "user-a")}}
 	invites := &mocks.MockInviteStore{UserEmails: map[string]string{"user-a": "a@example.com", "user-b": "b@example.com", "user-c": "c@example.com"}}
 	return inviteFixture{h: NewInviteHandler(invites, owners, ent), invites: invites}
 }
 
-// serve runs handler as userID (or unauthenticated when userID is empty) with
-// the given chi URL params.
+// serve runs handler as userID, or without auth when userID is empty.
 func serve(handler http.HandlerFunc, method, body, userID string, params map[string]string) *httptest.ResponseRecorder {
 	req := httptest.NewRequest(method, "/", strings.NewReader(body))
 	rctx := chi.NewRouteContext()
@@ -70,7 +67,6 @@ func errorCode(t *testing.T, rr *httptest.ResponseRecorder) string {
 	return body.Code
 }
 
-// createInvite has user-a invite email to ws-1 and returns the plaintext token.
 func (f inviteFixture) createInvite(t *testing.T, email string) string {
 	t.Helper()
 	rr := serve(f.h.Create, http.MethodPost, `{"email":"`+email+`"}`, "user-a", map[string]string{"id": "ws-1"})
@@ -269,7 +265,6 @@ func TestInviteAcceptExpired(t *testing.T) {
 func TestInviteAcceptRequiresSession(t *testing.T) {
 	f := newInviteFixture(nil)
 
-	// No Authorization header: the auth middleware must refuse before the handler.
 	req := httptest.NewRequest(http.MethodPost, "/", nil)
 	rr := httptest.NewRecorder()
 	middleware.Auth(stubAuthenticator{userID: "user-b"})(http.HandlerFunc(f.h.Accept)).ServeHTTP(rr, req)

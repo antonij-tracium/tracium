@@ -15,56 +15,35 @@ import (
 	"github.com/tracium/api/internal/model"
 )
 
-// InviteTTL is how long an invite link stays valid after it is created.
+// InviteTTL is how long an invite link stays valid.
 const InviteTTL = 7 * 24 * time.Hour
 
-// inviteTokenPrefix marks invite links' tokens so they are recognisable, and
-// distinct from ingest keys (trc_) if one is pasted in the wrong place.
-const inviteTokenPrefix = "trci_"
-
-// inviteSecretBytes is the entropy behind each invite token (256 bits).
-const inviteSecretBytes = 32
-
-var (
-	// ErrInviteNotFound is returned when no invite matches a token or id.
-	ErrInviteNotFound = errors.New("invite not found")
-	// ErrInviteClosed is returned when an invite exists but no longer admits
-	// anyone: it was accepted, revoked, or has expired.
-	ErrInviteClosed = errors.New("invite is no longer valid")
-	// ErrInviteEmailMismatch is returned when the accepting account's email is
-	// not the address the invite was issued to.
-	ErrInviteEmailMismatch = errors.New("invite was issued to a different email")
-	// ErrAlreadyMember is returned when inviting an email whose account is
-	// already a member of the workspace.
-	ErrAlreadyMember = errors.New("already a member")
+const (
+	inviteTokenPrefix = "trci_"
+	inviteSecretBytes = 32
 )
 
-// InviteStore persists workspace invitations. Tokens cross this boundary only as
-// hashes (see HashInviteToken); the plaintext never reaches the database.
+var (
+	ErrInviteNotFound = errors.New("invite not found")
+	// ErrInviteClosed means the invite was accepted, revoked, or has expired.
+	ErrInviteClosed        = errors.New("invite is no longer valid")
+	ErrInviteEmailMismatch = errors.New("invite was issued to a different email")
+	ErrAlreadyMember       = errors.New("already a member")
+)
+
+// InviteStore persists workspace invitations, keyed by token hash.
 type InviteStore interface {
-	// CreateInvite stores an open invite. Any existing open invite for the same
-	// workspace and email is revoked in the same transaction, so only the newest
-	// link works. It fills inv's CreatedAt, and returns ErrAlreadyMember when an
-	// account with that email already belongs to the workspace.
+	// CreateInvite revokes any open invite for the same email, then stores inv.
 	CreateInvite(ctx context.Context, inv *model.WorkspaceInvite, tokenHash string) error
-	// ListInvites returns the workspace's open, unexpired invites.
 	ListInvites(ctx context.Context, workspaceID string) ([]model.WorkspaceInvite, error)
-	// RevokeInvite closes an open invite in the workspace, or returns
-	// ErrInviteNotFound.
 	RevokeInvite(ctx context.Context, workspaceID, inviteID string) error
-	// PreviewInvite describes the invite behind a token hash. It returns
-	// ErrInviteNotFound for an unknown token and ErrInviteClosed for one that
-	// can no longer be accepted.
 	PreviewInvite(ctx context.Context, tokenHash string) (*model.InvitePreview, error)
-	// AcceptInvite adds the account to the invite's workspace as a member and
-	// closes the invite, atomically. The account's email must be the invited
-	// address, or it returns ErrInviteEmailMismatch. Returns the joined
-	// workspace's id.
+	// AcceptInvite joins userID to the workspace if their email matches, and
+	// returns the workspace id.
 	AcceptInvite(ctx context.Context, tokenHash, userID string) (string, error)
 }
 
-// NewInviteToken mints a fresh invite token and its storable hash. An RNG
-// failure is surfaced — a guessable link must never be issued.
+// NewInviteToken returns a random invite token and its hash.
 func NewInviteToken() (token, hash string, err error) {
 	buf := make([]byte, inviteSecretBytes)
 	if _, err := rand.Read(buf); err != nil {
@@ -74,21 +53,19 @@ func NewInviteToken() (token, hash string, err error) {
 	return token, HashInviteToken(token), nil
 }
 
-// HashInviteToken derives the stored lookup hash for an invite token. A plain
-// SHA-256 is enough because the token is already high-entropy.
+// HashInviteToken returns the stored hash of an invite token.
 func HashInviteToken(token string) string {
 	sum := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(sum[:])
 }
 
-// LooksLikeInviteToken reports whether a string is shaped like an invite token,
-// so malformed input can be rejected before touching the database.
+// LooksLikeInviteToken reports whether token has an invite token's shape.
 func LooksLikeInviteToken(token string) bool {
 	return strings.HasPrefix(token, inviteTokenPrefix) &&
 		len(token) == len(inviteTokenPrefix)+hex.EncodedLen(inviteSecretBytes)
 }
 
-// ListMembers returns the workspace's members with their emails, oldest first.
+// ListMembers returns the workspace's members, oldest first.
 func (s *PostgresStore) ListMembers(ctx context.Context, workspaceID string) ([]model.WorkspaceMember, error) {
 	rows, err := s.pool.Query(ctx,
 		`SELECT m.user_id, u.email, m.role, m.created_at
@@ -112,7 +89,7 @@ func (s *PostgresStore) ListMembers(ctx context.Context, workspaceID string) ([]
 	return members, rows.Err()
 }
 
-// CreateInvite stores an open invite, replacing any open one for the same email.
+// CreateInvite implements InviteStore.
 func (s *PostgresStore) CreateInvite(ctx context.Context, inv *model.WorkspaceInvite, tokenHash string) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -152,7 +129,7 @@ func (s *PostgresStore) CreateInvite(ctx context.Context, inv *model.WorkspaceIn
 	return nil
 }
 
-// ListInvites returns the workspace's open, unexpired invites, newest first.
+// ListInvites returns the workspace's open invites, newest first.
 func (s *PostgresStore) ListInvites(ctx context.Context, workspaceID string) ([]model.WorkspaceInvite, error) {
 	rows, err := s.pool.Query(ctx,
 		`SELECT id, workspace_id, email, role, invited_by, created_at, expires_at
@@ -175,7 +152,7 @@ func (s *PostgresStore) ListInvites(ctx context.Context, workspaceID string) ([]
 	return invites, rows.Err()
 }
 
-// RevokeInvite closes an open invite belonging to the workspace.
+// RevokeInvite implements InviteStore.
 func (s *PostgresStore) RevokeInvite(ctx context.Context, workspaceID, inviteID string) error {
 	tag, err := s.pool.Exec(ctx,
 		`UPDATE workspace_invites SET revoked_at = NOW()
@@ -190,7 +167,7 @@ func (s *PostgresStore) RevokeInvite(ctx context.Context, workspaceID, inviteID 
 	return nil
 }
 
-// PreviewInvite describes the invite behind a token hash.
+// PreviewInvite implements InviteStore.
 func (s *PostgresStore) PreviewInvite(ctx context.Context, tokenHash string) (*model.InvitePreview, error) {
 	var (
 		p                            model.InvitePreview
@@ -216,10 +193,7 @@ func (s *PostgresStore) PreviewInvite(ctx context.Context, tokenHash string) (*m
 	return &p, nil
 }
 
-// AcceptInvite joins the account to the invite's workspace and closes the
-// invite. The invite row is locked for the transaction so two concurrent accepts
-// of the same link cannot both succeed, and the account's email is checked in
-// the same statement.
+// AcceptInvite locks the invite row so a link can't be accepted twice.
 func (s *PostgresStore) AcceptInvite(ctx context.Context, tokenHash, userID string) (string, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {

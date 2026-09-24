@@ -14,7 +14,6 @@ export function relativeTime(ms: number): string {
   return `${Math.floor(diff / 86_400_000)}d ago`;
 }
 
-/** A calendar date in the viewer's locale, e.g. "Oct 1, 2026". */
 export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }

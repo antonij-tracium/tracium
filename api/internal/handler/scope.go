@@ -54,16 +54,13 @@ func resolveWorkspaceScope(w http.ResponseWriter, r *http.Request, access Worksp
 	return allowed, true
 }
 
-// OwnerCheck reports whether a user owns a workspace. Satisfied by the workspace
-// store.
+// OwnerCheck reports whether a user owns a workspace.
 type OwnerCheck interface {
 	IsOwner(ctx context.Context, workspaceID, userID string) (bool, error)
 }
 
-// requireOwner resolves the caller and checks they own the {id} workspace, for
-// routes that manage a workspace. It answers 404 to non-owners — never reveal
-// that a workspace the caller can't manage exists. On any failure it writes the
-// HTTP error and returns ok=false.
+// requireOwner checks the caller owns the {id} workspace, answering 404 (not
+// 403) otherwise so its existence isn't revealed.
 func requireOwner(w http.ResponseWriter, r *http.Request, owners OwnerCheck) (userID, workspaceID string, ok bool) {
 	principal, ok := middleware.PrincipalFromContext(r.Context())
 	if !ok || principal.UserID == "" {
