@@ -424,6 +424,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/auth/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change the signed-in user's password
+         * @description Verifies the current password and replaces it. Requires a login token. There is no email-based reset in the OSS build; operators reset a forgotten password with the API image's `reset-password` CLI.
+         */
+        post: operations["changePassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces": {
         parameters: {
             query?: never;
@@ -581,6 +601,19 @@ export interface components {
             email: string;
             /** Format: password */
             password: string;
+        };
+        ConfirmationRequired: {
+            /** @description Always true; the account must confirm its email before signing in. */
+            confirmation_required: boolean;
+        };
+        ChangePasswordRequest: {
+            /** Format: password */
+            current_password: string;
+            /**
+             * Format: password
+             * @description 8–72 bytes (bcrypt's input limit).
+             */
+            new_password: string;
         };
         Token: {
             /** @description Bearer token to send as the Authorization: Bearer header. */
@@ -1842,7 +1875,16 @@ export interface operations {
                     "application/json": components["schemas"]["Token"];
                 };
             };
-            /** @description An account with that email already exists. */
+            /** @description Account created, but the deployment requires email confirmation before sign-in; no token is issued. The self-hosted build never returns this. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfirmationRequired"];
+                };
+            };
+            /** @description An account with that email already exists (`EMAIL_TAKEN`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1875,7 +1917,56 @@ export interface operations {
                     "application/json": components["schemas"]["Token"];
                 };
             };
-            /** @description Invalid credentials. */
+            /** @description Invalid credentials (`INVALID_CREDENTIALS`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The account has not confirmed its email address (`EMAIL_UNVERIFIED`). Only returned by deployments that require confirmation. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    changePassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangePasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description Password changed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing fields (`MISSING_FIELDS`) or a new password outside 8–72 bytes (`INVALID_PASSWORD_FORMAT`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Missing or invalid bearer token, or the current password is incorrect (`INVALID_CURRENT_PASSWORD`). */
             401: {
                 headers: {
                     [name: string]: unknown;
