@@ -5,7 +5,7 @@
 Please report security issues **privately** — do not open a public issue.
 
 Use GitHub's private vulnerability reporting ("Report a vulnerability" under the
-repo's Security tab), or email the maintainers at **security@tracium.ai**.
+repo's Security tab), or email the maintainers at **antonij@tracium.ai**.
 
 We aim to acknowledge within 3 business days and to ship a fix or mitigation for
 confirmed issues before any public disclosure.
