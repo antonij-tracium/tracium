@@ -123,7 +123,15 @@ verifies each one and rejects anything unknown or revoked
 ([securing the collector](deploy/docs/collector-auth.md)). A key is bound to one
 workspace and is the source of truth for where its telemetry lands: the collector
 stamps the key's workspace onto every span, so senders don't set a workspace
-attribute at all. Profile/password editing, workspace editing, and retention
+attribute at all.
+
+Workspace owners invite teammates by email from **Settings → Members** (or
+`POST /v1/workspaces/{id}/invites`). Tracium doesn't send email: the owner gets a
+single-use link (`/invite/<token>`, valid for 7 days) to share, and the invitee
+accepts it after signing in or signing up with the invited address. Owners can
+list and revoke open invites and remove members from the same screen.
+
+Profile/password editing, workspace editing, and retention
 controls in the UI are unavailable; the UI labels these limitations. Configure
 retention in the deployment.
 

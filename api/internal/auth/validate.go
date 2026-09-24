@@ -31,6 +31,22 @@ var ErrPasswordTooLong = errors.New("Password is too long")
 // bad input never reaches bcrypt (which would 500 on an over-long password) or
 // creates an account with an unusable identifier.
 func ValidateCredentials(email, password string) error {
+	if err := ValidateEmail(email); err != nil {
+		return err
+	}
+
+	if len(password) < MinPasswordLen {
+		return ErrPasswordTooShort
+	}
+	if len(password) > MaxPasswordLen {
+		return ErrPasswordTooLong
+	}
+	return nil
+}
+
+// ValidateEmail enforces the format rules for an email address: a bare address
+// (no display name) within the RFC 5321 length limit.
+func ValidateEmail(email string) error {
 	if len(email) == 0 || len(email) > MaxEmailLen {
 		return ErrInvalidEmail
 	}
@@ -39,13 +55,6 @@ func ValidateCredentials(email, password string) error {
 	addr, err := mail.ParseAddress(email)
 	if err != nil || addr.Address != email {
 		return ErrInvalidEmail
-	}
-
-	if len(password) < MinPasswordLen {
-		return ErrPasswordTooShort
-	}
-	if len(password) > MaxPasswordLen {
-		return ErrPasswordTooLong
 	}
 	return nil
 }

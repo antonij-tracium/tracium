@@ -117,7 +117,7 @@ func New(ctx context.Context, cfg Config, opts Options) (*Application, error) {
 		authenticator = &middleware.NoopAuthenticator{}
 	}
 	health := []handler.DependencyCheck{{Name: "clickhouse", Check: repo.Ping}, {Name: "postgres", Check: users.Ping}}
-	return &Application{cfg: cfg, Handler: newRouter(cfg, repo, workspaces, users, authenticator, service, apiKeyService, health, opts), close: func() { apiKeys.Close(); workspaces.Close(); users.Close(); repo.Close() }}, nil
+	return &Application{cfg: cfg, Handler: newRouter(cfg, repo, workspaces, workspaces, users, authenticator, service, apiKeyService, health, opts), close: func() { apiKeys.Close(); workspaces.Close(); users.Close(); repo.Close() }}, nil
 }
 
 func validateOptions(opts Options) error {

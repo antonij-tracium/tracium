@@ -475,7 +475,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List members
+         * @description Every account with access to the workspace, with its email and role, oldest first. Requires membership of the workspace.
+         */
+        get: operations["listWorkspaceMembers"];
         put?: never;
         /**
          * Add a member
@@ -503,6 +507,90 @@ export interface paths {
          * @description Revokes an account's access. Owner only; the owner cannot be removed.
          */
         delete: operations["removeWorkspaceMember"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{id}/invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List open invites
+         * @description The workspace's open invites (not accepted, revoked, or expired), newest first. Link tokens are never returned here. Owner only.
+         */
+        get: operations["listWorkspaceInvites"];
+        put?: never;
+        /**
+         * Invite an email address
+         * @description Invites an email address to join the workspace as a member, whether or not an account with that email exists yet. Returns a single-use link token exactly once; only its hash is stored. The owner shares the link with the invitee, who accepts it while signed in to that email (see acceptInvite). The invite expires after 7 days. Inviting an address that already has an open invite revokes the old one, so only the newest link works. Owner only. Consults the `workspaces.invite` entitlement for the workspace; the default provider allows it.
+         */
+        post: operations["createWorkspaceInvite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{id}/invites/{inviteId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke an invite
+         * @description Closes an open invite so its link stops working. Owner only.
+         */
+        delete: operations["revokeWorkspaceInvite"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/invites/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview an invite
+         * @description Describes the invite behind a link token so its holder can decide whether to join and which account to use. No session required; the endpoint shares the register/login per-IP rate limit.
+         */
+        get: operations["previewInvite"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/invites/{token}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept an invite
+         * @description Adds the signed-in account to the invite's workspace as a member and closes the invite. The account's email must be the invited address.
+         */
+        post: operations["acceptInvite"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -617,6 +705,57 @@ export interface components {
              * @enum {string}
              */
             role: "owner" | "member";
+        };
+        WorkspaceMember: {
+            user_id: string;
+            /** Format: email */
+            email: string;
+            /** @enum {string} */
+            role: "owner" | "member";
+            /** Format: date-time */
+            joined_at: string;
+        };
+        InviteInput: {
+            /**
+             * Format: email
+             * @description The address to invite. Stored lowercased.
+             */
+            email: string;
+        };
+        WorkspaceInvite: {
+            /** Format: uuid */
+            id: string;
+            workspace_id: string;
+            /** Format: email */
+            email: string;
+            /** @enum {string} */
+            role: "member";
+            /** @description The id of the account that created the invite. */
+            invited_by: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            expires_at: string;
+        };
+        WorkspaceInviteCreated: components["schemas"]["WorkspaceInvite"] & {
+            /** @description The single-use link token (e.g. "trci_..."). Returned only here, only once; it is stored hashed. The dashboard's invite link is `/invite/<token>`. */
+            token: string;
+        };
+        InvitePreview: {
+            workspace_name: string;
+            /** @description The inviting account's email, or empty if it no longer exists. */
+            invited_by_email: string;
+            /**
+             * Format: email
+             * @description The invited address; accept while signed in to it.
+             */
+            email: string;
+            /** Format: date-time */
+            expires_at: string;
+        };
+        InviteAccepted: {
+            /** @description The workspace the account just joined. */
+            workspace_id: string;
         };
         APIKey: {
             /** Format: uuid */
@@ -1959,6 +2098,37 @@ export interface operations {
             };
         };
     };
+    listWorkspaceMembers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The workspace's members. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceMember"][];
+                };
+            };
+            /** @description The caller is not a member of the workspace. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     addWorkspaceMember: {
         parameters: {
             query?: never;
@@ -2022,6 +2192,227 @@ export interface operations {
             };
             /** @description Workspace not owned by the caller, or member not found. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listWorkspaceInvites: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The workspace's open invites. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceInvite"][];
+                };
+            };
+            /** @description Workspace not owned by the caller. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    createWorkspaceInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InviteInput"];
+            };
+        };
+        responses: {
+            /** @description The created invite, including the one-time link token. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceInviteCreated"];
+                };
+            };
+            /** @description `MISSING_FIELDS` or `INVALID_EMAIL`. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `FEATURE_UNAVAILABLE`: the entitlements provider denied `workspaces.invite`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Workspace not owned by the caller. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `ALREADY_MEMBER`: an account with that email already belongs to the workspace. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The entitlements provider could not be reached. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    revokeWorkspaceInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                inviteId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Revoked. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Workspace not owned by the caller, or no open invite with that id. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    previewInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The invite. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitePreview"];
+                };
+            };
+            /** @description `INVITE_NOT_FOUND`: no invite with that token. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `INVITE_EXPIRED`: the invite was accepted, revoked, or has expired. */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    acceptInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Joined. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteAccepted"];
+                };
+            };
+            /** @description `INVITE_EMAIL_MISMATCH`: the signed-in account is not the invited email. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `INVITE_NOT_FOUND`: no invite with that token. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `INVITE_EXPIRED`: the invite was accepted, revoked, or has expired. */
+            410: {
                 headers: {
                     [name: string]: unknown;
                 };

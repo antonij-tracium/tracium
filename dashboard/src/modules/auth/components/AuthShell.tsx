@@ -12,7 +12,9 @@ interface AuthShellProps {
   active?: 'signin' | 'signup';
   title: string;
   subtitle: string;
-  footnote: { text: string; linkText: string; to: string };
+  /** Omit to render the card without the footnote (e.g. the invite page, which
+   * carries its own actions). */
+  footnote?: { text: string; linkText: string; to: string };
   children: ReactNode;
 }
 
@@ -63,14 +65,18 @@ export function AuthShell({ active, title, subtitle, footnote, children, appeara
 
             {children}
 
-            <div className={styles.divider} />
+            {footnote && (
+              <>
+                <div className={styles.divider} />
 
-            <p className={styles.footnote}>
-              {footnote.text}{' '}
-              <Link to={footnote.to} className={styles.footlink}>
-                {footnote.linkText}
-              </Link>
-            </p>
+                <p className={styles.footnote}>
+                  {footnote.text}{' '}
+                  <Link to={footnote.to} className={styles.footlink}>
+                    {footnote.linkText}
+                  </Link>
+                </p>
+              </>
+            )}
           </div>
         </div>
 

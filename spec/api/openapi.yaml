@@ -774,6 +774,34 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
 
   /v1/workspaces/{id}/members:
+    get:
+      operationId: listWorkspaceMembers
+      summary: List members
+      description: >
+        Every account with access to the workspace, with its email and role,
+        oldest first. Requires membership of the workspace.
+      tags: [Workspaces]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The workspace's members.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WorkspaceMember"
+        "403":
+          description: The caller is not a member of the workspace.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     post:
       operationId: addWorkspaceMember
       summary: Add a member
@@ -831,6 +859,201 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: Workspace not owned by the caller, or member not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/workspaces/{id}/invites:
+    get:
+      operationId: listWorkspaceInvites
+      summary: List open invites
+      description: >
+        The workspace's open invites (not accepted, revoked, or expired), newest
+        first. Link tokens are never returned here. Owner only.
+      tags: [Workspaces]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The workspace's open invites.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WorkspaceInvite"
+        "404":
+          description: Workspace not owned by the caller.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createWorkspaceInvite
+      summary: Invite an email address
+      description: >
+        Invites an email address to join the workspace as a member, whether or
+        not an account with that email exists yet. Returns a single-use link
+        token exactly once; only its hash is stored. The owner shares the link
+        with the invitee, who accepts it while signed in to that email (see
+        acceptInvite). The invite expires after 7 days. Inviting an address that
+        already has an open invite revokes the old one, so only the newest link
+        works. Owner only. Consults the `workspaces.invite` entitlement for the
+        workspace; the default provider allows it.
+      tags: [Workspaces]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteInput"
+      responses:
+        "201":
+          description: The created invite, including the one-time link token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceInviteCreated"
+        "400":
+          description: "`MISSING_FIELDS` or `INVALID_EMAIL`."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "`FEATURE_UNAVAILABLE`: the entitlements provider denied `workspaces.invite`."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Workspace not owned by the caller.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: "`ALREADY_MEMBER`: an account with that email already belongs to the workspace."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: The entitlements provider could not be reached.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/workspaces/{id}/invites/{inviteId}:
+    delete:
+      operationId: revokeWorkspaceInvite
+      summary: Revoke an invite
+      description: Closes an open invite so its link stops working. Owner only.
+      tags: [Workspaces]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: inviteId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Revoked.
+        "404":
+          description: Workspace not owned by the caller, or no open invite with that id.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/invites/{token}:
+    get:
+      operationId: previewInvite
+      summary: Preview an invite
+      description: >
+        Describes the invite behind a link token so its holder can decide
+        whether to join and which account to use. No session required; the
+        endpoint shares the register/login per-IP rate limit.
+      tags: [Workspaces]
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The invite.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitePreview"
+        "404":
+          description: "`INVITE_NOT_FOUND`: no invite with that token."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "410":
+          description: "`INVITE_EXPIRED`: the invite was accepted, revoked, or has expired."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/invites/{token}/accept:
+    post:
+      operationId: acceptInvite
+      summary: Accept an invite
+      description: >
+        Adds the signed-in account to the invite's workspace as a member and
+        closes the invite. The account's email must be the invited address.
+      tags: [Workspaces]
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Joined.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InviteAccepted"
+        "403":
+          description: "`INVITE_EMAIL_MISMATCH`: the signed-in account is not the invited email."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "`INVITE_NOT_FOUND`: no invite with that token."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "410":
+          description: "`INVITE_EXPIRED`: the invite was accepted, revoked, or has expired."
           content:
             application/json:
               schema:
@@ -1082,6 +1305,88 @@ components:
           type: string
           enum: [owner, member]
           default: member
+    WorkspaceMember:
+      type: object
+      required: [user_id, email, role, joined_at]
+      properties:
+        user_id:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [owner, member]
+        joined_at:
+          type: string
+          format: date-time
+    InviteInput:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          description: The address to invite. Stored lowercased.
+    WorkspaceInvite:
+      type: object
+      required: [id, workspace_id, email, role, invited_by, created_at, expires_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        workspace_id:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [member]
+        invited_by:
+          type: string
+          description: The id of the account that created the invite.
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+    WorkspaceInviteCreated:
+      allOf:
+        - $ref: "#/components/schemas/WorkspaceInvite"
+        - type: object
+          required: [token]
+          properties:
+            token:
+              type: string
+              description: >
+                The single-use link token (e.g. "trci_..."). Returned only here,
+                only once; it is stored hashed. The dashboard's invite link is
+                `/invite/<token>`.
+    InvitePreview:
+      type: object
+      required: [workspace_name, invited_by_email, email, expires_at]
+      properties:
+        workspace_name:
+          type: string
+        invited_by_email:
+          type: string
+          description: The inviting account's email, or empty if it no longer exists.
+        email:
+          type: string
+          format: email
+          description: The invited address; accept while signed in to it.
+        expires_at:
+          type: string
+          format: date-time
+    InviteAccepted:
+      type: object
+      required: [workspace_id]
+      properties:
+        workspace_id:
+          type: string
+          description: The workspace the account just joined.
     APIKey:
       type: object
       required: [id, workspace_id, created_by, name, prefix, created_at]

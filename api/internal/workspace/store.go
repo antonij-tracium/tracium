@@ -41,6 +41,8 @@ type Store interface {
 	// RemoveMember revokes a user's access. Removing the owner is refused with
 	// ErrCannotRemoveOwner.
 	RemoveMember(ctx context.Context, workspaceID, userID string) error
+	// ListMembers returns the workspace's members with their account emails.
+	ListMembers(ctx context.Context, workspaceID string) ([]model.WorkspaceMember, error)
 }
 
 // ErrNotFound is the sentinel error returned when a workspace does not exist for

@@ -201,3 +201,22 @@ func (h *WorkspaceHandler) RemoveMember(w http.ResponseWriter, r *http.Request) 
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// ListMembers handles GET /v1/workspaces/{id}/members — the workspace's members
+// with their emails. Open to any member of the workspace.
+func (h *WorkspaceHandler) ListMembers(w http.ResponseWriter, r *http.Request) {
+	workspaceID := chi.URLParam(r, "id")
+	if _, ok := resolveWorkspaceScope(w, r, h.store, workspaceID); !ok {
+		return
+	}
+
+	members, err := h.store.ListMembers(r.Context(), workspaceID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "INTERNAL", "could not fetch members")
+		return
+	}
+	if members == nil {
+		members = []model.WorkspaceMember{}
+	}
+	respondJSON(w, http.StatusOK, members)
+}
