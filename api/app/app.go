@@ -50,9 +50,10 @@ type Options struct {
 	Invites extension.InviteNotifier
 }
 type Application struct {
-	Handler http.Handler
-	cfg     Config
-	close   func()
+	Handler  http.Handler
+	cfg      Config
+	sessions extension.Sessions
+	close    func()
 }
 
 func LoadConfig() (Config, error) {
@@ -120,7 +121,7 @@ func New(ctx context.Context, cfg Config, opts Options) (*Application, error) {
 		authenticator = &middleware.NoopAuthenticator{}
 	}
 	health := []handler.DependencyCheck{{Name: "clickhouse", Check: repo.Ping}, {Name: "postgres", Check: users.Ping}}
-	return &Application{cfg: cfg, Handler: newRouter(cfg, repo, workspaces, workspaces, users, authenticator, service, apiKeyService, health, opts), close: func() { apiKeys.Close(); workspaces.Close(); users.Close(); repo.Close() }}, nil
+	return &Application{cfg: cfg, sessions: service, Handler: newRouter(cfg, repo, workspaces, workspaces, users, authenticator, service, apiKeyService, health, opts), close: func() { apiKeys.Close(); workspaces.Close(); users.Close(); repo.Close() }}, nil
 }
 
 func validateOptions(opts Options) error {
@@ -140,6 +141,11 @@ func validateOptions(opts Options) error {
 	}
 	return nil
 }
+
+// Sessions lets an embedding application sign in an account it authenticated
+// itself. Bind it to extension handlers after New; they serve no requests
+// before Run.
+func (a *Application) Sessions() extension.Sessions { return a.sessions }
 
 func (a *Application) Close() {
 	if a.close != nil {

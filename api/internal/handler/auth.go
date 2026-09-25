@@ -115,6 +115,8 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	case errors.Is(err, auth.ErrInvalidCurrentPassword):
 		respondError(w, http.StatusUnauthorized, "INVALID_CURRENT_PASSWORD", "Current password is incorrect")
+	case errors.Is(err, auth.ErrNoPassword):
+		respondError(w, http.StatusConflict, "NO_PASSWORD", "This account doesn't have a password yet. Sign out and use password reset to set one.")
 	case errors.Is(err, auth.ErrPasswordTooShort), errors.Is(err, auth.ErrPasswordTooLong):
 		respondError(w, http.StatusBadRequest, "INVALID_PASSWORD_FORMAT", err.Error())
 	default:

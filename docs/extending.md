@@ -24,6 +24,13 @@ closed. Extension handlers must separately check ownership of billing accounts o
 other extension resources. Neither global JWT roles nor billing roles replace
 workspace access checks. Core data endpoints retain their existing access rules.
 
+An application that authenticates users itself (an external identity provider,
+say) signs them in with `Application.Sessions().Issue(ctx, userID)` after `New`.
+It returns the token password login returns and still runs
+`AccountLifecycle.EnsureCanLogin`. Accounts it creates without a password store
+an empty `password_hash`, which never matches; change-password answers
+`409 NO_PASSWORD` for them.
+
 `Mailer.Send` accepts a stable message ID. A durable implementation should queue
 and deduplicate delivery. The default mailer returns `ErrMailDisabled`, never false
 success. Default entitlements permit core trace/metric reads and deny unknown
@@ -48,7 +55,12 @@ const extensions: DashboardExtensions = {
 ```
 
 `authAppearance` can override the login/signup tagline and footer while preserving
-shared authentication behavior.
+shared authentication behavior. Its `signInOptions` component renders above the
+login and signup forms (for external sign-in buttons) and supplies its own
+divider, for example the exported `AuthDivider`. An `authRoutes` page that
+completes such a sign-in stores the token under `TOKEN_KEY` and the address under
+`EMAIL_KEY`, then reloads. Bind that token to a sign-in this browser started
+(an HttpOnly cookie, say); never accept one from the URL.
 
 Pages use `/extensions/{name}` deep links, including login redirects and browser
 history. They receive the active workspace and a navigation callback. Set
