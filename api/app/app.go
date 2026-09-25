@@ -45,6 +45,9 @@ type Options struct {
 	// service does), registration requires email confirmation and login is gated
 	// on it. When nil, registration and login run without a verification step.
 	Accounts extension.AccountLifecycle
+	// Invites is an optional hook called after a workspace invite is created, so
+	// the hosted service can email the link. When nil, no notification is sent.
+	Invites extension.InviteNotifier
 }
 type Application struct {
 	Handler http.Handler

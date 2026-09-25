@@ -30,11 +30,14 @@ type InviteStore interface {
 	// CreateInvite revokes any open invite for the same email, then stores inv.
 	CreateInvite(ctx context.Context, inv *model.WorkspaceInvite, tokenHash string) error
 	ListInvites(ctx context.Context, workspaceID string) ([]model.WorkspaceInvite, error)
+	// HasOpenInvite reports whether email has an open, unexpired invite to the workspace.
+	HasOpenInvite(ctx context.Context, workspaceID, email string) (bool, error)
 	RevokeInvite(ctx context.Context, workspaceID, inviteID string) error
 	PreviewInvite(ctx context.Context, tokenHash string) (*model.InvitePreview, error)
 	// AcceptInvite joins userID to the workspace if their email matches, and
-	// returns the workspace id.
-	AcceptInvite(ctx context.Context, tokenHash, userID string) (string, error)
+	// returns the workspace id. A non-nil allow runs before the member is added,
+	// and its error aborts the accept and is returned unchanged.
+	AcceptInvite(ctx context.Context, tokenHash, userID string, allow func(ctx context.Context, workspaceID string) error) (string, error)
 }
 
 // ListMembers returns the workspace's members, oldest first.
@@ -124,6 +127,20 @@ func (s *PostgresStore) ListInvites(ctx context.Context, workspaceID string) ([]
 	return invites, rows.Err()
 }
 
+// HasOpenInvite implements InviteStore.
+func (s *PostgresStore) HasOpenInvite(ctx context.Context, workspaceID, email string) (bool, error) {
+	var open bool
+	err := s.pool.QueryRow(ctx,
+		`SELECT EXISTS (
+		   SELECT 1 FROM workspace_invites
+		    WHERE workspace_id = $1 AND email = $2 AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at > NOW())`,
+		workspaceID, email).Scan(&open)
+	if err != nil {
+		return false, fmt.Errorf("workspace store: check open invite: %w", err)
+	}
+	return open, nil
+}
+
 // RevokeInvite implements InviteStore.
 func (s *PostgresStore) RevokeInvite(ctx context.Context, workspaceID, inviteID string) error {
 	tag, err := s.pool.Exec(ctx,
@@ -166,7 +183,7 @@ func (s *PostgresStore) PreviewInvite(ctx context.Context, tokenHash string) (*m
 }
 
 // AcceptInvite locks the invite row so a link can't be accepted twice.
-func (s *PostgresStore) AcceptInvite(ctx context.Context, tokenHash, userID string) (string, error) {
+func (s *PostgresStore) AcceptInvite(ctx context.Context, tokenHash, userID string, allow func(ctx context.Context, workspaceID string) error) (string, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return "", fmt.Errorf("workspace store: begin: %w", err)
@@ -197,6 +214,11 @@ func (s *PostgresStore) AcceptInvite(ctx context.Context, tokenHash, userID stri
 	}
 	if !emailMatches {
 		return "", ErrInviteEmailMismatch
+	}
+	if allow != nil {
+		if err := allow(ctx, workspaceID); err != nil {
+			return "", err
+		}
 	}
 
 	if _, err := tx.Exec(ctx,

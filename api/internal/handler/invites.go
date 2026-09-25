@@ -1,8 +1,10 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -18,19 +20,18 @@ import (
 	"github.com/tracium/api/internal/workspace"
 )
 
-// InviteFeature is the entitlement checked before creating an invite.
-const InviteFeature = "workspaces.invite"
-
 // InviteHandler manages workspace invitations.
 type InviteHandler struct {
 	invites      workspace.InviteStore
 	owners       OwnerCheck
 	entitlements extension.Entitlements
+	notifier     extension.InviteNotifier
 }
 
-// NewInviteHandler constructs an InviteHandler. A nil entitlements allows all invites.
-func NewInviteHandler(invites workspace.InviteStore, owners OwnerCheck, entitlements extension.Entitlements) *InviteHandler {
-	return &InviteHandler{invites: invites, owners: owners, entitlements: entitlements}
+// NewInviteHandler constructs an InviteHandler. A nil entitlements allows all
+// invites, and a nil notifier sends nothing.
+func NewInviteHandler(invites workspace.InviteStore, owners OwnerCheck, entitlements extension.Entitlements, notifier extension.InviteNotifier) *InviteHandler {
+	return &InviteHandler{invites: invites, owners: owners, entitlements: entitlements, notifier: notifier}
 }
 
 const maxInviteBody = 4 << 10 // 4 KiB
@@ -60,14 +61,16 @@ func (h *InviteHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if h.entitlements != nil {
-		decision, err := h.entitlements.Check(r.Context(), extension.Subject{UserID: userID, WorkspaceID: workspaceID}, InviteFeature)
-		if err != nil {
-			respondError(w, http.StatusServiceUnavailable, "UNAVAILABLE", "could not check entitlements")
-			return
-		}
-		if !decision.Allowed {
-			respondError(w, http.StatusForbidden, "FEATURE_UNAVAILABLE", "inviting members is not available for this workspace")
+	// Replacing an open invite's link takes no new seat, so only new invitations
+	// are checked. That keeps "New link" working in a full workspace.
+	replacing, err := h.invites.HasOpenInvite(r.Context(), workspaceID, email)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "INTERNAL", "could not create invite")
+		return
+	}
+	if !replacing {
+		if denial := checkMemberEntitlement(r.Context(), h.entitlements, extension.Subject{UserID: userID, WorkspaceID: workspaceID}, InviteFeature); denial != nil {
+			denial.respond(w)
 			return
 		}
 	}
@@ -93,7 +96,34 @@ func (h *InviteHandler) Create(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusInternalServerError, "INTERNAL", "could not create invite")
 		return
 	}
-	respondJSON(w, http.StatusCreated, model.CreatedInvite{WorkspaceInvite: inv, Token: token})
+	respondJSON(w, http.StatusCreated, model.CreatedInvite{WorkspaceInvite: inv, Token: token, EmailSent: h.notify(r.Context(), inv, token)})
+}
+
+// notify hands a new invite to the notifier and reports whether it was sent. A
+// failure is logged, not returned: the invite exists and the owner can still
+// share the link.
+func (h *InviteHandler) notify(ctx context.Context, inv model.WorkspaceInvite, token string) bool {
+	if h.notifier == nil {
+		return false
+	}
+	preview, err := h.invites.PreviewInvite(ctx, tokens.Hash(token))
+	if err != nil {
+		log.Printf("invite %s: load details for notification: %v", inv.ID, err)
+		return false
+	}
+	if err := h.notifier.InviteCreated(ctx, extension.Invite{
+		ID:             inv.ID,
+		WorkspaceID:    inv.WorkspaceID,
+		WorkspaceName:  preview.WorkspaceName,
+		Email:          inv.Email,
+		InvitedByEmail: preview.InvitedByEmail,
+		Token:          token,
+		ExpiresAt:      inv.ExpiresAt,
+	}); err != nil {
+		log.Printf("invite %s: notify: %v", inv.ID, err)
+		return false
+	}
+	return true
 }
 
 // List handles GET /v1/workspaces/{id}/invites. Owner-only.
@@ -158,7 +188,15 @@ func (h *InviteHandler) Accept(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	workspaceID, err := h.invites.AcceptInvite(r.Context(), tokens.Hash(token), principal.UserID)
+	// The seat check runs inside the accept transaction, once the invite is known
+	// to be open and addressed to this account.
+	allow := func(ctx context.Context, workspaceID string) error {
+		if denial := checkMemberEntitlement(ctx, h.entitlements, extension.Subject{UserID: principal.UserID, WorkspaceID: workspaceID}, MemberAddFeature); denial != nil {
+			return denial
+		}
+		return nil
+	}
+	workspaceID, err := h.invites.AcceptInvite(r.Context(), tokens.Hash(token), principal.UserID, allow)
 	if err != nil {
 		respondInviteError(w, err)
 		return
@@ -169,7 +207,10 @@ func (h *InviteHandler) Accept(w http.ResponseWriter, r *http.Request) {
 }
 
 func respondInviteError(w http.ResponseWriter, err error) {
+	var denial *entitlementDenial
 	switch {
+	case errors.As(err, &denial):
+		denial.respond(w)
 	case errors.Is(err, workspace.ErrInviteNotFound):
 		respondError(w, http.StatusNotFound, "INVITE_NOT_FOUND", "invite not found")
 	case errors.Is(err, workspace.ErrInviteClosed):

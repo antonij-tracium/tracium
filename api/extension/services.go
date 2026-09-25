@@ -7,6 +7,7 @@ import (
 	"github.com/tracium/api/internal/middleware"
 	"github.com/tracium/api/internal/model"
 	"net/http"
+	"time"
 )
 
 type Principal = model.Principal
@@ -73,6 +74,25 @@ type AccountLifecycle interface {
 	EnsureCanLogin(context.Context, Account) error
 }
 
+// Invite describes a newly created workspace invite passed to InviteNotifier.
+// Token is the plaintext link token; the dashboard accepts it at /invite/<token>.
+type Invite struct {
+	ID             string
+	WorkspaceID    string
+	WorkspaceName  string
+	Email          string
+	InvitedByEmail string
+	Token          string
+	ExpiresAt      time.Time
+}
+
+// InviteNotifier lets an embedding application deliver invites, for example by
+// email. The standalone application leaves it unset and the owner shares the
+// link by hand. A returned error is logged and does not fail the invite.
+type InviteNotifier interface {
+	InviteCreated(context.Context, Invite) error
+}
+
 type Subject struct {
 	UserID      string
 	WorkspaceID string
@@ -92,7 +112,7 @@ type CoreEntitlements struct{}
 // supplies its own provider via app.Options.
 func (CoreEntitlements) Check(_ context.Context, _ Subject, feature string) (Decision, error) {
 	switch feature {
-	case "traces.read", "metrics.read", "telemetry.read", "workspaces.create", "workspaces.invite":
+	case "traces.read", "metrics.read", "telemetry.read", "workspaces.create", "workspaces.invite", "workspaces.members.add":
 		return Decision{Allowed: true}, nil
 	default:
 		return Decision{}, nil

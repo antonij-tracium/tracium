@@ -820,7 +820,9 @@ function MembersView({ workspace, account }: MembersViewProps) {
 
     {created && <div role="status" style={{ padding: '14px 16px', margin: '4px 0 8px', borderRadius: 8, border: '1px solid color-mix(in srgb, var(--accent) 35%, transparent)', background: 'color-mix(in srgb, var(--accent) 8%, transparent)' }}>
       <p style={{ fontSize: 13, margin: '0 0 10px', lineHeight: 1.55 }}>
-        Send this link to <strong>{created.email}</strong>. They need to sign in or sign up with that address to accept it. The link is shown only once.
+        {created.email_sent
+          ? <>We emailed an invite to <strong>{created.email}</strong>. You can also send them this link. They need to sign in or sign up with that address to accept it. The link is shown only once.</>
+          : <>Send this link to <strong>{created.email}</strong>. They need to sign in or sign up with that address to accept it. The link is shown only once.</>}
       </p>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px 16px', flexWrap: 'wrap' }}>
         <code style={{ flex: '1 1 280px', minWidth: 0, overflowWrap: 'anywhere', fontSize: 12, fontFamily: 'var(--font-mono)' }}>{inviteLink(created.token)}</code>

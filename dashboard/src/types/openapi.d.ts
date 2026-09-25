@@ -503,7 +503,7 @@ export interface paths {
         put?: never;
         /**
          * Add a member
-         * @description Grants another account access to the workspace, named by email. Owner only. The member can then read the workspace's telemetry.
+         * @description Grants another account access to the workspace, named by email. Owner only. The member can then read the workspace's telemetry. Consults the `workspaces.members.add` entitlement for the workspace; the default provider allows it.
          */
         post: operations["addWorkspaceMember"];
         delete?: never;
@@ -547,7 +547,7 @@ export interface paths {
         put?: never;
         /**
          * Invite an email address
-         * @description Invites an email address to join the workspace as a member, whether or not an account with that email exists yet. Returns a single-use link token exactly once; only its hash is stored. The owner shares the link with the invitee, who accepts it while signed in to that email (see acceptInvite). The invite expires after 7 days. Inviting an address that already has an open invite revokes the old one, so only the newest link works. Owner only. Consults the `workspaces.invite` entitlement for the workspace; the default provider allows it.
+         * @description Invites an email address to join the workspace as a member, whether or not an account with that email exists yet. Returns a single-use link token exactly once; only its hash is stored. The owner shares the link with the invitee, who accepts it while signed in to that email (see acceptInvite). The invite expires after 7 days. Inviting an address that already has an open invite revokes the old one, so only the newest link works. Owner only. Consults the `workspaces.invite` entitlement for the workspace, except when replacing an open invite's link; the default provider allows it. When the deployment delivers invites itself (for example by email), `email_sent` is true; the link token is returned either way.
          */
         post: operations["createWorkspaceInvite"];
         delete?: never;
@@ -607,7 +607,7 @@ export interface paths {
         put?: never;
         /**
          * Accept an invite
-         * @description Adds the signed-in account to the invite's workspace as a member and closes the invite. The account's email must be the invited address.
+         * @description Adds the signed-in account to the invite's workspace as a member and closes the invite. The account's email must be the invited address. Consults the `workspaces.members.add` entitlement for the workspace before joining; the default provider allows it.
          */
         post: operations["acceptInvite"];
         delete?: never;
@@ -771,6 +771,8 @@ export interface components {
             expires_at: string;
         };
         WorkspaceInviteCreated: components["schemas"]["WorkspaceInvite"] & {
+            /** @description Whether the deployment delivered the invite to the invitee itself. False when no invite notifier is configured or delivery failed; the owner then shares the link by hand. */
+            email_sent: boolean;
             /** @description The single-use link token (e.g. "trci_..."). Returned only here, only once; it is stored hashed. The dashboard's invite link is `/invite/<token>`. */
             token: string;
         };
@@ -2242,8 +2244,26 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description `MEMBER_LIMIT_REACHED`: the workspace has reached its member limit. `FEATURE_UNAVAILABLE`: the entitlements provider denied `workspaces.members.add`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Workspace not owned by the caller, or no account with that email. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `UNAVAILABLE`: the entitlements provider could not be reached. */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2356,7 +2376,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description `FEATURE_UNAVAILABLE`: the entitlements provider denied `workspaces.invite`. */
+            /** @description `MEMBER_LIMIT_REACHED`: the workspace has reached its member limit. `FEATURE_UNAVAILABLE`: the entitlements provider denied `workspaces.invite`. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2484,7 +2504,7 @@ export interface operations {
                     "application/json": components["schemas"]["InviteAccepted"];
                 };
             };
-            /** @description `INVITE_EMAIL_MISMATCH`: the signed-in account is not the invited email. */
+            /** @description `INVITE_EMAIL_MISMATCH`: the signed-in account is not the invited email. `MEMBER_LIMIT_REACHED`: the workspace has reached its member limit. `FEATURE_UNAVAILABLE`: the entitlements provider denied `workspaces.members.add`. */
             403: {
                 headers: {
                     [name: string]: unknown;

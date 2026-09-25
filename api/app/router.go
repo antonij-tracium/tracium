@@ -17,9 +17,9 @@ import (
 
 func newRouter(cfg Config, repo query.Repository, wsStore workspace.Store, inviteStore workspace.InviteStore, userStore *auth.UserStore, authenticator middleware.Authenticator, authService *auth.Service, apiKeyService *apikey.Service, healthChecks []handler.DependencyCheck, opts Options) http.Handler {
 	authHandler := handler.NewAuthHandler(authService)
-	workspaceHandler := handler.NewWorkspaceHandler(wsStore, userStore)
+	workspaceHandler := handler.NewWorkspaceHandler(wsStore, userStore, opts.Entitlements)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService, wsStore)
-	inviteHandler := handler.NewInviteHandler(inviteStore, wsStore, opts.Entitlements)
+	inviteHandler := handler.NewInviteHandler(inviteStore, wsStore, opts.Entitlements, opts.Invites)
 	services := extension.Services{Mail: opts.Mail, Entitlements: opts.Entitlements, Workspaces: wsStore}
 	// ── Handlers ─────────────────────────────────────────────────────────────
 

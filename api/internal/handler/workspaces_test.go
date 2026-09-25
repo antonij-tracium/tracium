@@ -63,7 +63,7 @@ func TestWorkspaceDelete(t *testing.T) {
 	store := &mocks.MockWorkspaceStore{
 		Workspaces: []model.Workspace{mocks.NewTestWorkspace("ws-1", "user-a")},
 	}
-	h := NewWorkspaceHandler(store, stubUserLookup{})
+	h := NewWorkspaceHandler(store, stubUserLookup{}, nil)
 
 	rr := serve(h.Delete, http.MethodDelete, "", "user-a", map[string]string{"id": "ws-1"})
 
@@ -79,7 +79,7 @@ func TestWorkspaceDeleteOtherUsersWorkspace(t *testing.T) {
 	store := &mocks.MockWorkspaceStore{
 		Workspaces: []model.Workspace{mocks.NewTestWorkspace("ws-1", "user-a")},
 	}
-	h := NewWorkspaceHandler(store, stubUserLookup{})
+	h := NewWorkspaceHandler(store, stubUserLookup{}, nil)
 
 	rr := serve(h.Delete, http.MethodDelete, "", "user-b", map[string]string{"id": "ws-1"})
 

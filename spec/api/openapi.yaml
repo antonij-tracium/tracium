@@ -859,7 +859,9 @@ paths:
       summary: Add a member
       description: >
         Grants another account access to the workspace, named by email. Owner
-        only. The member can then read the workspace's telemetry.
+        only. The member can then read the workspace's telemetry. Consults the
+        `workspaces.members.add` entitlement for the workspace; the default
+        provider allows it.
       tags: [Workspaces]
       parameters:
         - name: id
@@ -876,6 +878,21 @@ paths:
       responses:
         "204":
           description: Member added (idempotent).
+        "403":
+          description: >
+            `MEMBER_LIMIT_REACHED`: the workspace has reached its member limit.
+            `FEATURE_UNAVAILABLE`: the entitlements provider denied
+            `workspaces.members.add`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: "`UNAVAILABLE`: the entitlements provider could not be reached."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: Workspace not owned by the caller, or no account with that email.
           content:
@@ -956,7 +973,10 @@ paths:
         acceptInvite). The invite expires after 7 days. Inviting an address that
         already has an open invite revokes the old one, so only the newest link
         works. Owner only. Consults the `workspaces.invite` entitlement for the
-        workspace; the default provider allows it.
+        workspace, except when replacing an open invite's link; the default
+        provider allows it. When the deployment delivers
+        invites itself (for example by email), `email_sent` is true; the link
+        token is returned either way.
       tags: [Workspaces]
       parameters:
         - name: id
@@ -984,7 +1004,10 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "403":
-          description: "`FEATURE_UNAVAILABLE`: the entitlements provider denied `workspaces.invite`."
+          description: >
+            `MEMBER_LIMIT_REACHED`: the workspace has reached its member limit.
+            `FEATURE_UNAVAILABLE`: the entitlements provider denied
+            `workspaces.invite`.
           content:
             application/json:
               schema:
@@ -1078,6 +1101,8 @@ paths:
       description: >
         Adds the signed-in account to the invite's workspace as a member and
         closes the invite. The account's email must be the invited address.
+        Consults the `workspaces.members.add` entitlement for the workspace
+        before joining; the default provider allows it.
       tags: [Workspaces]
       parameters:
         - name: token
@@ -1093,7 +1118,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/InviteAccepted"
         "403":
-          description: "`INVITE_EMAIL_MISMATCH`: the signed-in account is not the invited email."
+          description: >
+            `INVITE_EMAIL_MISMATCH`: the signed-in account is not the invited
+            email. `MEMBER_LIMIT_REACHED`: the workspace has reached its member
+            limit. `FEATURE_UNAVAILABLE`: the entitlements provider denied
+            `workspaces.members.add`.
           content:
             application/json:
               schema:
@@ -1428,8 +1457,14 @@ components:
       allOf:
         - $ref: "#/components/schemas/WorkspaceInvite"
         - type: object
-          required: [token]
+          required: [token, email_sent]
           properties:
+            email_sent:
+              type: boolean
+              description: >
+                Whether the deployment delivered the invite to the invitee
+                itself. False when no invite notifier is configured or delivery
+                failed; the owner then shares the link by hand.
             token:
               type: string
               description: >

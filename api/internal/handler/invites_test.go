@@ -18,16 +18,31 @@ import (
 
 type stubEntitlements struct {
 	allowed bool
+	limit   *int64
 	err     error
 }
 
 func (s stubEntitlements) Check(context.Context, extension.Subject, string) (extension.Decision, error) {
-	return extension.Decision{Allowed: s.allowed}, s.err
+	return extension.Decision{Allowed: s.allowed, Limit: s.limit}, s.err
+}
+
+func limit(n int64) *int64 { return &n }
+
+// stubNotifier records the invite it was handed and returns err.
+type stubNotifier struct {
+	err  error
+	sent *extension.Invite
+}
+
+func (s *stubNotifier) InviteCreated(_ context.Context, inv extension.Invite) error {
+	s.sent = &inv
+	return s.err
 }
 
 // stubInvites records what the handler passes in and returns err from every call.
 type stubInvites struct {
 	err     error
+	open    bool
 	created *model.WorkspaceInvite
 	hash    string
 	userID  string
@@ -42,22 +57,34 @@ func (s *stubInvites) ListInvites(context.Context, string) ([]model.WorkspaceInv
 	return nil, s.err
 }
 
+func (s *stubInvites) HasOpenInvite(context.Context, string, string) (bool, error) {
+	return s.open, nil
+}
+
 func (s *stubInvites) RevokeInvite(context.Context, string, string) error { return s.err }
 
 func (s *stubInvites) PreviewInvite(_ context.Context, hash string) (*model.InvitePreview, error) {
 	s.hash = hash
-	return &model.InvitePreview{Email: "b@example.com"}, s.err
+	return &model.InvitePreview{WorkspaceName: "Prod", InvitedByEmail: "a@example.com", Email: "b@example.com"}, s.err
 }
 
-func (s *stubInvites) AcceptInvite(_ context.Context, hash, userID string) (string, error) {
+func (s *stubInvites) AcceptInvite(ctx context.Context, hash, userID string, allow func(context.Context, string) error) (string, error) {
 	s.hash, s.userID = hash, userID
-	return "ws-1", s.err
+	if s.err != nil {
+		return "", s.err
+	}
+	if allow != nil {
+		if err := allow(ctx, "ws-1"); err != nil {
+			return "", err
+		}
+	}
+	return "ws-1", nil
 }
 
 // newInviteHandler: user-a owns ws-1.
 func newInviteHandler(invites *stubInvites, ent extension.Entitlements) *InviteHandler {
 	owners := &mocks.MockWorkspaceStore{Workspaces: []model.Workspace{mocks.NewTestWorkspace("ws-1", "user-a")}}
-	return NewInviteHandler(invites, owners, ent)
+	return NewInviteHandler(invites, owners, ent, nil)
 }
 
 var validToken = workspace.InviteTokenPrefix + strings.Repeat("a", 64)
@@ -99,6 +126,7 @@ func TestInviteCreateRejections(t *testing.T) {
 		{"invalid email", nil, nil, "user-a", `{"email":"Bob <b@example.com>"}`, http.StatusBadRequest, "INVALID_EMAIL"},
 		{"bad json", nil, nil, "user-a", `{`, http.StatusBadRequest, "BAD_REQUEST"},
 		{"entitlement denied", stubEntitlements{allowed: false}, nil, "user-a", `{"email":"x@example.com"}`, http.StatusForbidden, "FEATURE_UNAVAILABLE"},
+		{"member limit reached", stubEntitlements{limit: limit(3)}, nil, "user-a", `{"email":"x@example.com"}`, http.StatusForbidden, "MEMBER_LIMIT_REACHED"},
 		{"entitlement error", stubEntitlements{err: errors.New("down")}, nil, "user-a", `{"email":"x@example.com"}`, http.StatusServiceUnavailable, "UNAVAILABLE"},
 		{"already member", nil, workspace.ErrAlreadyMember, "user-a", `{"email":"x@example.com"}`, http.StatusConflict, "ALREADY_MEMBER"},
 	}
@@ -113,6 +141,82 @@ func TestInviteCreateRejections(t *testing.T) {
 				t.Error("store was called")
 			}
 		})
+	}
+}
+
+func TestInviteReplacementSkipsSeatCheck(t *testing.T) {
+	invites := &stubInvites{open: true}
+	rr := serve(newInviteHandler(invites, stubEntitlements{limit: limit(3)}).Create, http.MethodPost, `{"email":"b@example.com"}`, "user-a", map[string]string{"id": "ws-1"})
+	if rr.Code != http.StatusCreated || invites.created == nil {
+		t.Fatalf("new link for an open invite: status = %d, body = %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestInviteCreateNotifies(t *testing.T) {
+	owners := &mocks.MockWorkspaceStore{Workspaces: []model.Workspace{mocks.NewTestWorkspace("ws-1", "user-a")}}
+	for _, tt := range []struct {
+		name string
+		err  error
+		sent bool
+	}{
+		{"delivered", nil, true},
+		{"notifier failure keeps the invite", errors.New("smtp down"), false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			notifier := &stubNotifier{err: tt.err}
+			h := NewInviteHandler(&stubInvites{}, owners, nil, notifier)
+			rr := serve(h.Create, http.MethodPost, `{"email":"b@example.com"}`, "user-a", map[string]string{"id": "ws-1"})
+			var created model.CreatedInvite
+			if rr.Code != http.StatusCreated || json.Unmarshal(rr.Body.Bytes(), &created) != nil {
+				t.Fatalf("status = %d, body = %s", rr.Code, rr.Body.String())
+			}
+			if created.EmailSent != tt.sent {
+				t.Errorf("email_sent = %v, want %v", created.EmailSent, tt.sent)
+			}
+			got := notifier.sent
+			if got == nil || got.Token != created.Token || got.Email != "b@example.com" || got.WorkspaceName != "Prod" || got.InvitedByEmail != "a@example.com" || got.ID != created.ID {
+				t.Errorf("notifier got %+v", got)
+			}
+		})
+	}
+
+	rr := serve(newInviteHandler(&stubInvites{}, nil).Create, http.MethodPost, `{"email":"b@example.com"}`, "user-a", map[string]string{"id": "ws-1"})
+	if !strings.Contains(rr.Body.String(), `"email_sent":false`) {
+		t.Errorf("without a notifier: body = %s", rr.Body.String())
+	}
+}
+
+func TestInviteAcceptChecksSeats(t *testing.T) {
+	link := map[string]string{"token": validToken}
+	tests := []struct {
+		name   string
+		ent    stubEntitlements
+		status int
+		code   string
+	}{
+		{"full", stubEntitlements{limit: limit(3)}, http.StatusForbidden, "MEMBER_LIMIT_REACHED"},
+		{"not entitled", stubEntitlements{}, http.StatusForbidden, "FEATURE_UNAVAILABLE"},
+		{"provider down", stubEntitlements{err: errors.New("down")}, http.StatusServiceUnavailable, "UNAVAILABLE"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rr := serve(newInviteHandler(&stubInvites{}, tt.ent).Accept, http.MethodPost, "", "user-b", link)
+			if rr.Code != tt.status || errorCode(t, rr) != tt.code {
+				t.Fatalf("got %d %s, want %d %s", rr.Code, rr.Body.String(), tt.status, tt.code)
+			}
+		})
+	}
+	if rr := serve(newInviteHandler(&stubInvites{}, stubEntitlements{allowed: true}).Accept, http.MethodPost, "", "user-b", link); rr.Code != http.StatusOK {
+		t.Errorf("allowed: status = %d, want 200", rr.Code)
+	}
+}
+
+func TestAddMemberChecksSeats(t *testing.T) {
+	store := &mocks.MockWorkspaceStore{Workspaces: []model.Workspace{mocks.NewTestWorkspace("ws-1", "user-a")}}
+	h := NewWorkspaceHandler(store, stubUserLookup{}, stubEntitlements{limit: limit(3)})
+	rr := serve(h.AddMember, http.MethodPost, `{"email":"b@example.com"}`, "user-a", map[string]string{"id": "ws-1"})
+	if rr.Code != http.StatusForbidden || errorCode(t, rr) != "MEMBER_LIMIT_REACHED" || !strings.Contains(rr.Body.String(), "limit of 3 members") {
+		t.Fatalf("got %d %s", rr.Code, rr.Body.String())
 	}
 }
 
@@ -187,7 +291,7 @@ func TestWorkspaceListMembers(t *testing.T) {
 			"ws-1": {{UserID: "user-a", Email: "a@example.com", Role: workspace.RoleOwner}},
 		},
 	}
-	h := NewWorkspaceHandler(store, stubUserLookup{})
+	h := NewWorkspaceHandler(store, stubUserLookup{}, nil)
 
 	rr := serve(h.ListMembers, http.MethodGet, "", "user-a", map[string]string{"id": "ws-1"})
 	var members []model.WorkspaceMember

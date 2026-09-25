@@ -94,6 +94,12 @@ func TestInviteLifecycle(t *testing.T) {
 	if _, err := s.PreviewInvite(ctx, "h1"); !errors.Is(err, ErrInviteClosed) {
 		t.Errorf("old link preview: err = %v, want ErrInviteClosed", err)
 	}
+	if open, err := s.HasOpenInvite(ctx, "ws-1", "bob@example.com"); err != nil || !open {
+		t.Errorf("open invite: %v, %v", open, err)
+	}
+	if open, err := s.HasOpenInvite(ctx, "ws-1", "nobody@example.com"); err != nil || open {
+		t.Errorf("no invite: %v, %v", open, err)
+	}
 	invites, err := s.ListInvites(ctx, "ws-1")
 	if err != nil || len(invites) != 1 || invites[0].ID != second.ID {
 		t.Fatalf("list = %+v, %v; want only the second invite", invites, err)
@@ -110,17 +116,25 @@ func TestInviteLifecycle(t *testing.T) {
 		t.Errorf("unknown preview: err = %v, want ErrInviteNotFound", err)
 	}
 
-	if _, err := s.AcceptInvite(ctx, "h2", other); !errors.Is(err, ErrInviteEmailMismatch) {
+	if _, err := s.AcceptInvite(ctx, "h2", other, nil); !errors.Is(err, ErrInviteEmailMismatch) {
 		t.Fatalf("wrong account: err = %v, want ErrInviteEmailMismatch", err)
 	}
-	if _, err := s.AcceptInvite(ctx, "h2", uuid.NewString()); !errors.Is(err, ErrInviteEmailMismatch) {
+	if _, err := s.AcceptInvite(ctx, "h2", uuid.NewString(), nil); !errors.Is(err, ErrInviteEmailMismatch) {
 		t.Fatalf("unknown account: err = %v, want ErrInviteEmailMismatch", err)
 	}
-	ws, err := s.AcceptInvite(ctx, "h2", invitee)
+	full := errors.New("workspace full")
+	var checked string
+	if _, err := s.AcceptInvite(ctx, "h2", invitee, func(_ context.Context, ws string) error { checked = ws; return full }); !errors.Is(err, full) || checked != "ws-1" {
+		t.Fatalf("denied accept: err = %v, checked %q", err, checked)
+	}
+	if ids, _ := s.AllowedIDs(ctx, invitee); len(ids) != 0 {
+		t.Fatalf("denied accept still joined: %v", ids)
+	}
+	ws, err := s.AcceptInvite(ctx, "h2", invitee, func(context.Context, string) error { return nil })
 	if err != nil || ws != "ws-1" {
 		t.Fatalf("accept = %q, %v", ws, err)
 	}
-	if _, err := s.AcceptInvite(ctx, "h2", invitee); !errors.Is(err, ErrInviteClosed) {
+	if _, err := s.AcceptInvite(ctx, "h2", invitee, nil); !errors.Is(err, ErrInviteClosed) {
 		t.Errorf("reuse: err = %v, want ErrInviteClosed", err)
 	}
 
@@ -168,7 +182,7 @@ func TestInviteRevokeExpireAndCascade(t *testing.T) {
 	if err := s.RevokeInvite(ctx, "ws-1", inv.ID); !errors.Is(err, ErrInviteNotFound) {
 		t.Errorf("second revoke: err = %v, want ErrInviteNotFound", err)
 	}
-	if _, err := s.AcceptInvite(ctx, "h1", bob); !errors.Is(err, ErrInviteClosed) {
+	if _, err := s.AcceptInvite(ctx, "h1", bob, nil); !errors.Is(err, ErrInviteClosed) {
 		t.Errorf("accept revoked: err = %v, want ErrInviteClosed", err)
 	}
 
@@ -179,7 +193,7 @@ func TestInviteRevokeExpireAndCascade(t *testing.T) {
 	if invites, _ := s.ListInvites(ctx, "ws-1"); len(invites) != 0 {
 		t.Errorf("expired invite listed: %+v", invites)
 	}
-	if _, err := s.AcceptInvite(ctx, "h2", bob); !errors.Is(err, ErrInviteClosed) {
+	if _, err := s.AcceptInvite(ctx, "h2", bob, nil); !errors.Is(err, ErrInviteClosed) {
 		t.Errorf("accept expired: err = %v, want ErrInviteClosed", err)
 	}
 
