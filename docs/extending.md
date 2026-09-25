@@ -62,6 +62,14 @@ completes such a sign-in stores the token under `TOKEN_KEY` and the address unde
 `EMAIL_KEY`, then reloads. Bind that token to a sign-in this browser started
 (an HttpOnly cookie, say); never accept one from the URL.
 
+`signupFields` renders a component inside the signup form, above the submit
+button (for example a CAPTCHA widget). It receives `onChange(fields)` and
+`attempt`, which increments after each failed submission so single-use values
+can be refreshed. The reported values are sent as `extensions` in the
+`POST /v1/auth/register` body. The core API ignores them, so the embedding
+application must check them itself, for example in middleware wrapping
+`Application.Handler`.
+
 Pages use `/extensions/{name}` deep links, including login redirects and browser
 history. They receive the active workspace and a navigation callback. Set
 `requiresWorkspace: true` for workspace-dependent pages. Account-level pages can

@@ -45,7 +45,7 @@ export async function publicRequest(path: string, init: RequestInit, failureLabe
   return response;
 }
 
-function postCredentials(path: string, req: LoginRequest, failureLabel: string): Promise<Response> {
+function postCredentials(path: string, req: LoginRequest | RegisterRequest, failureLabel: string): Promise<Response> {
   return publicRequest(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -58,7 +58,12 @@ export async function loginUser(req: LoginRequest): Promise<LoginResponse> {
   return response.json() as Promise<LoginResponse>;
 }
 
-export async function registerUser(req: LoginRequest): Promise<RegisterResult> {
+/** extensions carries values from DashboardExtensions.signupFields; the core ignores them. */
+export interface RegisterRequest extends LoginRequest {
+  extensions?: Record<string, string>;
+}
+
+export async function registerUser(req: RegisterRequest): Promise<RegisterResult> {
   const response = await postCredentials('/v1/auth/register', req, 'Sign up failed');
   // 202 Accepted: the account was created but must confirm its email before it
   // can sign in, so no token is issued. 201 Created: a token was returned.

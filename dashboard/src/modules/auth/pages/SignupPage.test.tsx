@@ -32,4 +32,26 @@ describe('SignupPage',()=>{
   submit('ada@example.com','sufficiently-long-pass');
   await waitFor(()=>expect(onLogin).toHaveBeenCalledWith('jwt-123','ada@example.com'));
  });
+
+ it('sends only credentials when no extension adds signup fields',async()=>{
+  const register=vi.spyOn(api,'registerUser').mockResolvedValue({token:'jwt-123',confirmationRequired:false});
+  render(<MemoryRouter><SignupPage onLogin={vi.fn()}/></MemoryRouter>);
+  submit('ada@example.com','sufficiently-long-pass');
+  await waitFor(()=>expect(register).toHaveBeenCalledWith({email:'ada@example.com',password:'sufficiently-long-pass'}));
+ });
+
+ it('renders extension signup fields, sends their values and bumps attempt on failure',async()=>{
+  const register=vi.spyOn(api,'registerUser').mockRejectedValue(new api.AuthError('Verification failed',403));
+  const seen:number[]=[];
+  function Fields({onChange,attempt}:{onChange:(f:Record<string,string>)=>void;attempt:number}){
+   seen.push(attempt);
+   return <button type="button" onClick={()=>onChange({token:'t-'+attempt})}>solve</button>;
+  }
+  render(<MemoryRouter><SignupPage onLogin={vi.fn()} fields={Fields}/></MemoryRouter>);
+  fireEvent.click(screen.getByText('solve'));
+  submit('ada@example.com','sufficiently-long-pass');
+  await waitFor(()=>expect(screen.getByText('Verification failed')).toBeTruthy());
+  expect(register).toHaveBeenCalledWith({email:'ada@example.com',password:'sufficiently-long-pass',extensions:{token:'t-0'}});
+  expect(seen[seen.length-1]).toBe(1);
+ });
 });

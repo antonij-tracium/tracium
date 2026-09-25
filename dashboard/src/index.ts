@@ -10,4 +10,4 @@ export { TOKEN_KEY, EMAIL_KEY, REDIRECT_KEY, readAccount, storeSession } from '.
 export { readPendingInvite } from './modules/invites/pending';
 export { AuthShell, AuthDivider } from './modules/auth/components';
 export type { Workspace } from './modules/shell/interfaces';
-export type { DashboardExtensions, ExtensionPage, ExtensionPageProps, SettingsSection, AuthAppearance, AuthRoute } from './extensions';
+export type { DashboardExtensions, ExtensionPage, ExtensionPageProps, SettingsSection, AuthAppearance, AuthRoute, SignupFieldsProps } from './extensions';
