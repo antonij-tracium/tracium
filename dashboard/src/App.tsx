@@ -4,7 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { QueryProvider } from './common/providers/QueryProvider';
 import { APIProvider } from './common/providers/APIProvider';
 import { Dashboard } from './modules/shell';
-import { LoginPage, SignupPage, TOKEN_KEY, EMAIL_KEY, REDIRECT_KEY, readInitialToken } from './modules/auth';
+import { LoginPage, SignupPage, TOKEN_KEY, EMAIL_KEY, REDIRECT_KEY, readInitialToken, storeSession } from './modules/auth';
 import { InvitePage, readPendingInvite, clearPendingInvite } from './modules/invites';
 
 /**
@@ -42,8 +42,7 @@ export default function App({ extensions = EMPTY_EXTENSIONS }: AppProps = {}) {
   };
 
   const handleLogin = (newToken: string, email: string) => {
-    localStorage.setItem(TOKEN_KEY, newToken);
-    localStorage.setItem(EMAIL_KEY, email);
+    storeSession(newToken, email);
     setToken(newToken);
   };
 

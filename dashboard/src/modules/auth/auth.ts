@@ -5,6 +5,13 @@ export const EMAIL_KEY = 'tracium_email';
 // initial-view resolution).
 export const REDIRECT_KEY = 'tracium_redirect';
 
+// storeSession persists a new session the way every sign-in path must: the token
+// and its matching email together (see readInitialToken).
+export function storeSession(token: string, email: string): void {
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(EMAIL_KEY, email);
+}
+
 export function readInitialToken(): string | null {
   // Deliberately does NOT accept a token from the URL (e.g. /?token=...).
   // Doing so let a crafted link silently replace the current session with an
