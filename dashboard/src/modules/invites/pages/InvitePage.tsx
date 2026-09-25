@@ -1,0 +1,142 @@
+import type { AuthAppearance } from '../../../extensions';
+import { useEffect, useState } from 'react';
+import { AuthShell, AuthButton } from '../../auth/components';
+import { formatDate } from '../../../common';
+import { AuthError } from '../../auth/api';
+import { APIError, WorkspacesAPI } from '../../../common/api';
+import { previewInvite, type InvitePreview } from '../api';
+import styles from '../../auth/pages/LoginPage.module.css';
+
+interface InvitePageProps {
+  token: string;
+  appearance?: AuthAppearance;
+  session: { token: string; email: string } | null;
+  onAccepted?: (workspaceId: string) => void;
+  onDismiss?: () => void;
+  onSignOut?: () => void;
+}
+
+type Load =
+  | { state: 'loading' }
+  | { state: 'ready'; invite: InvitePreview }
+  | { state: 'error'; message: string };
+
+function statusOf(err: unknown): number {
+  return err instanceof AuthError || err instanceof APIError ? err.status : 0;
+}
+
+function loadError(err: unknown): string {
+  switch (statusOf(err)) {
+    case 404: return 'This invite link isn’t valid. Ask the workspace owner for a new one.';
+    case 410: return 'This invite has expired or was already used. Ask the workspace owner for a new one.';
+    case 429: return 'Too many attempts. Wait a minute and try again.';
+    default: return 'We couldn’t load this invite. Try again in a moment.';
+  }
+}
+
+export default function InvitePage({ token, appearance, session, onAccepted, onDismiss, onSignOut }: InvitePageProps) {
+  const [load, setLoad] = useState<Load>({ state: 'loading' });
+  const [accepting, setAccepting] = useState(false);
+  const [acceptError, setAcceptError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoad({ state: 'loading' });
+    previewInvite(token).then(
+      invite => { if (!cancelled) setLoad({ state: 'ready', invite }); },
+      err => { if (!cancelled) setLoad({ state: 'error', message: loadError(err) }); },
+    );
+    return () => { cancelled = true; };
+  }, [token]);
+
+  const accept = async () => {
+    if (!session || accepting) return;
+    setAccepting(true);
+    setAcceptError(null);
+    try {
+      const api = new WorkspacesAPI({ baseUrl: import.meta.env.VITE_API_URL || window.location.origin, apiKey: session.token });
+      const { workspace_id } = await api.acceptInvite(token);
+      onAccepted?.(workspace_id);
+    } catch (err) {
+      const status = statusOf(err);
+      if (status === 403) {
+        setAcceptError('This invite was sent to a different email address. Sign in with that address to accept it.');
+      } else if (status === 404 || status === 410) {
+        setAcceptError(loadError(err));
+      } else {
+        setAcceptError('We couldn’t accept this invite. Try again in a moment.');
+      }
+    } finally {
+      setAccepting(false);
+    }
+  };
+
+  const dismiss = onDismiss && (
+    <AuthButton variant="secondary" onClick={onDismiss}>{session ? 'Go to dashboard' : 'Dismiss'}</AuthButton>
+  );
+
+  if (load.state === 'loading') {
+    return (
+      <AuthShell appearance={appearance} title="Workspace invite" subtitle="Loading invite…">
+        <div role="status" className={styles.noticeMuted}>Checking your invite link…</div>
+      </AuthShell>
+    );
+  }
+
+  if (load.state === 'error') {
+    return (
+      <AuthShell appearance={appearance} title="Workspace invite" subtitle="This invite can’t be used.">
+        <div className={styles.form}>
+          <div role="alert" className={styles.errorBanner}>{load.message}</div>
+          {dismiss}
+        </div>
+      </AuthShell>
+    );
+  }
+
+  const { invite } = load;
+  const invitedBy = invite.invited_by_email || 'A workspace owner';
+  const subtitle = `${invitedBy} invited ${invite.email} to join this workspace.`;
+  const wrongAccount = session && session.email.toLowerCase() !== invite.email.toLowerCase();
+
+  return (
+    <AuthShell appearance={appearance} title={`Join ${invite.workspace_name}`} subtitle={subtitle}>
+      <div className={styles.form}>
+        {!session && (
+          <>
+            <div className={styles.notice}>
+              <p>Sign in or create an account with <strong>{invite.email}</strong> to accept. You’ll come back here afterwards.</p>
+              <p className={styles.noticeMuted}>This invite expires on {formatDate(invite.expires_at)}.</p>
+            </div>
+            <AuthButton href="/login">Sign in</AuthButton>
+            <AuthButton href="/signup" variant="secondary">Create account</AuthButton>
+          </>
+        )}
+
+        {session && wrongAccount && (
+          <>
+            <div role="alert" className={styles.errorBanner}>
+              You’re signed in as <strong>{session.email}</strong>, but this invite is for <strong>{invite.email}</strong>. Sign out and sign in with that address to accept.
+            </div>
+            {onSignOut && <AuthButton onClick={onSignOut}>Sign out</AuthButton>}
+            {dismiss}
+          </>
+        )}
+
+        {session && !wrongAccount && (
+          <>
+            <div className={styles.notice}>
+              <p>You’ll join <strong>{invite.workspace_name}</strong> as a member and see its traces, usage and API keys.</p>
+              <p className={styles.noticeMuted}>This invite expires on {formatDate(invite.expires_at)}.</p>
+            </div>
+            {acceptError && <div role="alert" className={styles.errorBanner}>{acceptError}</div>}
+            <button type="button" className={styles.submit} disabled={accepting} onClick={accept}>
+              {accepting ? 'Joining…' : 'Accept invite'}
+            </button>
+            {dismiss}
+          </>
+        )}
+      </div>
+    </AuthShell>
+  );
+}

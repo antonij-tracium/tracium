@@ -4,13 +4,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import SettingsPage from './SettingsPage';
 import type { Workspace } from '../../shell/interfaces';
 import { APIError } from '../../../common/api';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // AccountView's password-change field reads usersAPI from context; the
 // 'workspace setup' tests exercise workspace setup, not the API client, so a
 // mock is enough there. The 'change password' tests below override it per case.
 const changePassword = vi.fn();
+const workspacesAPI = {
+  members: vi.fn(), invites: vi.fn(), invite: vi.fn(), revokeInvite: vi.fn(), removeMember: vi.fn(),
+};
 vi.mock('../../../common/providers/APIProvider', () => ({
-  useAPIClient: () => ({ usersAPI: { changePassword } }),
+  useAPIClient: () => ({ usersAPI: { changePassword }, workspacesAPI }),
 }));
 
 const workspace: Workspace = {
@@ -146,5 +150,72 @@ describe('change password', () => {
     fireEvent.change(screen.getByLabelText('Confirm new password'), { target: { value: 'new-password' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save password' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Current password is incorrect');
+  });
+});
+
+describe('members', () => {
+  const owner = { user_id: 'u-1', email: 'owner@acme.dev', role: 'owner', joined_at: '2026-09-01T00:00:00Z' };
+  const bob = { user_id: 'u-2', email: 'bob@acme.dev', role: 'member', joined_at: '2026-09-02T00:00:00Z' };
+  const pending = { id: 'inv-1', workspace_id: workspace.id, email: 'carol@acme.dev', role: 'member', invited_by: 'u-1', created_at: '2026-09-20T00:00:00Z', expires_at: '2026-09-27T00:00:00Z' };
+
+  beforeEach(() => {
+    Object.values(workspacesAPI).forEach(fn => fn.mockReset());
+    workspacesAPI.members.mockResolvedValue([owner, bob]);
+    workspacesAPI.invites.mockResolvedValue([pending]);
+  });
+
+  function openMembers(ws: Workspace = workspace, email = 'owner@acme.dev') {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}>
+      <SettingsPage workspace={ws} account={{ email, name: 'Owner', initials: 'OW' }} />
+    </QueryClientProvider>);
+    fireEvent.click(screen.getByRole('button', { name: 'Members' }));
+  }
+
+  it('lists members and pending invites for the owner', async () => {
+    openMembers();
+    const members = await screen.findByRole('list', { name: 'Members' });
+    expect(members).toHaveTextContent('owner@acme.dev');
+    expect(members).toHaveTextContent('You');
+    expect(members).toHaveTextContent('bob@acme.dev');
+    expect(screen.getByRole('button', { name: 'Remove' })).toHaveAttribute('title', 'Remove bob@acme.dev');
+    expect(await screen.findByRole('list', { name: 'Pending invites' })).toHaveTextContent('carol@acme.dev');
+    expect(workspacesAPI.members).toHaveBeenCalledWith(workspace.id);
+  });
+
+  it('creates an invite link and shows it once', async () => {
+    workspacesAPI.invite.mockResolvedValue({ ...pending, email: 'dave@acme.dev', token: 'trci_tok' });
+    openMembers();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Invite email' }), { target: { value: ' dave@acme.dev ' } });
+    fireEvent.click(screen.getByRole('button', { name: /Create invite link/ }));
+    await waitFor(() => expect(workspacesAPI.invite).toHaveBeenCalledWith(workspace.id, 'dave@acme.dev'));
+    expect(await screen.findByText(`${window.location.origin}/invite/trci_tok`)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Copy invite link' }));
+    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith(`${window.location.origin}/invite/trci_tok`));
+  });
+
+  it('shows why an invite was refused', async () => {
+    workspacesAPI.invite.mockRejectedValue(new APIError('that account is already a member of this workspace', 409, 'ALREADY_MEMBER'));
+    openMembers();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Invite email' }), { target: { value: 'bob@acme.dev' } });
+    fireEvent.click(screen.getByRole('button', { name: /Create invite link/ }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('already a member');
+  });
+
+  it('revokes a pending invite', async () => {
+    workspacesAPI.revokeInvite.mockResolvedValue(undefined);
+    openMembers();
+    await screen.findByRole('list', { name: 'Pending invites' });
+    fireEvent.click(screen.getByRole('button', { name: 'Revoke' }));
+    await waitFor(() => expect(workspacesAPI.revokeInvite).toHaveBeenCalledWith(workspace.id, 'inv-1'));
+  });
+
+  it('is read-only for a member', async () => {
+    openMembers({ ...workspace, role: 'member' }, 'bob@acme.dev');
+    expect(await screen.findByRole('list', { name: 'Members' })).toHaveTextContent('owner@acme.dev');
+    expect(screen.getByText(/Only the workspace owner can invite or remove members/)).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'Invite email' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Remove' })).toBeNull();
+    expect(workspacesAPI.invites).not.toHaveBeenCalled();
   });
 });

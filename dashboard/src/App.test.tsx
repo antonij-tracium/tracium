@@ -23,3 +23,29 @@ describe('App logged-out routing', () => {
     expect(screen.getByText('Custom auth route')).toBeTruthy();
   });
 });
+
+describe('App invite links', () => {
+  const token = 'trci_' + 'b'.repeat(64);
+  beforeEach(() => {
+    localStorage.clear();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify({
+      workspace_name: 'Acme', invited_by_email: 'owner@acme.dev', email: 'bob@acme.dev', expires_at: '2026-10-01T00:00:00Z',
+    }), { status: 200 }))));
+  });
+
+  it('shows the invite to a signed-out visitor', async () => {
+    window.history.pushState({}, '', `/invite/${token}`);
+    render(<App />);
+    expect(await screen.findByRole('heading', { name: 'Join Acme' })).toBeTruthy();
+    expect(localStorage.getItem('tracium_invite')).toBe(token);
+  });
+
+  it('resumes a remembered invite after sign-in instead of opening the dashboard', async () => {
+    localStorage.setItem('tracium_invite', token);
+    localStorage.setItem('tracium_token', 'jwt');
+    localStorage.setItem('tracium_email', 'bob@acme.dev');
+    window.history.pushState({}, '', '/');
+    render(<App />);
+    expect(await screen.findByRole('button', { name: 'Accept invite' })).toBeTruthy();
+  });
+});

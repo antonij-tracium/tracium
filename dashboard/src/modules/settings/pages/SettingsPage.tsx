@@ -15,11 +15,14 @@ import {
   IconCheck,
   IconCopy,
   IconPlus,
+  IconUsers,
+  formatDate,
   useMaxWidth,
   BREAKPOINTS,
 } from '../../../common';
 import { useAPIClient } from '../../../common/providers/APIProvider';
-import { APIError } from '../../../common/api';
+import { APIError, inviteLink, type CreatedInvite, type WorkspaceMember } from '../../../common/api';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 // ---------------------------------------------------------------------------
 // Exported page props
@@ -97,6 +100,7 @@ interface TabDef {
 const SET_TABS: TabDef[] = [
   { id: 'account',       label: 'Account',        icon: <IconUser size={14} /> },
   { id: 'workspace',     label: 'Workspace',      icon: <IconBuilding size={14} /> },
+  { id: 'members',       label: 'Members',        icon: <IconUsers size={14} /> },
   { id: 'danger',        label: 'Danger zone',    icon: <IconTrash size={14} /> },
 ];
 
@@ -330,7 +334,7 @@ function TabRail({ sections, tab, setTab, horizontal = false, demo = false }: Ta
         <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 500, padding: '0 10px 10px' }}>Settings</div>
       )}
       <nav style={{ display: 'flex', flexDirection: horizontal ? 'row' : 'column', gap: horizontal ? 4 : 1 }}>
-        {[...SET_TABS.filter(t => demo || t.id !== "danger"), ...sections.map(t => ({...t, icon: t.icon ?? null, count: undefined}))].map(t => {
+        {[...SET_TABS.filter(t => demo ? t.id !== 'members' : t.id !== 'danger'), ...sections.map(t => ({...t, icon: t.icon ?? null, count: undefined}))].map(t => {
           const active = t.id === tab;
           const danger = t.id === 'danger';
           const count = t.count;
@@ -725,6 +729,151 @@ function WorkspaceView({ ws, demo = false, justCreated = false, onOpenOverview, 
 }
 
 // ---------------------------------------------------------------------------
+// VIEW: Members
+// ---------------------------------------------------------------------------
+
+function errorMessage(err: unknown, fallback: string): string {
+  return err instanceof APIError ? err.message : fallback;
+}
+
+interface MembersViewProps {
+  workspace: Workspace;
+  account: Account | null;
+}
+
+function MembersView({ workspace, account }: MembersViewProps) {
+  const { workspacesAPI } = useAPIClient();
+  const queryClient = useQueryClient();
+  const isOwner = workspace.role.toLowerCase() === 'owner';
+  const membersKey = ['workspace-members', workspace.id];
+  const invitesKey = ['workspace-invites', workspace.id];
+
+  const members = useQuery({ queryKey: membersKey, queryFn: () => workspacesAPI.members(workspace.id) });
+  const invites = useQuery({ queryKey: invitesKey, queryFn: () => workspacesAPI.invites(workspace.id), enabled: isOwner });
+
+  const [email, setEmail] = useState('');
+  const [inviting, setInviting] = useState(false);
+  const [inviteError, setInviteError] = useState('');
+  const [created, setCreated] = useState<CreatedInvite | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState('');
+
+  const refreshInvites = () => void queryClient.invalidateQueries({ queryKey: invitesKey });
+  const refreshMembers = () => {
+    void queryClient.invalidateQueries({ queryKey: membersKey });
+    // The workspace switcher shows each workspace's member count.
+    void queryClient.invalidateQueries({ queryKey: ['workspaces'] });
+  };
+
+  const sendInvite = async (address: string) => {
+    setInviting(true);
+    setInviteError('');
+    setActionError('');
+    try {
+      const invite = await workspacesAPI.invite(workspace.id, address.trim());
+      setCreated(invite);
+      setEmail('');
+      refreshInvites();
+    } catch (err) {
+      setInviteError(errorMessage(err, 'Could not create the invite. Please try again.'));
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const runAction = async (id: string, action: () => Promise<void>, onDone: () => void, fallback: string) => {
+    setBusyId(id);
+    setActionError('');
+    try {
+      await action();
+      onDone();
+    } catch (err) {
+      setActionError(errorMessage(err, fallback));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const divider = '1px solid color-mix(in srgb, var(--border) 50%, transparent)';
+  const row: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px 24px', flexWrap: 'wrap', padding: '14px 0', borderBottom: divider };
+  const meta: React.CSSProperties = { fontSize: 12, color: 'var(--muted)' };
+  const self = account?.email.toLowerCase();
+
+  return <div>
+    <SectionHead
+      first
+      title="Members"
+      hint={isOwner
+        ? `Everyone who can see ${workspace.name}’s traces, usage and API keys. Invite people by email and share the link with them.`
+        : `Everyone who can see ${workspace.name}’s traces, usage and API keys. Only the workspace owner can invite or remove members.`}
+    />
+
+    {isOwner && <form onSubmit={e => { e.preventDefault(); if (email.trim()) void sendInvite(email); }} aria-busy={inviting}>
+      <fieldset disabled={inviting} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
+        <Field label="Invite by email" hint="They’ll join as a member. The link works once and expires after 7 days." last
+          right={<Btn variant="primary" type="submit" disabled={inviting || !email.trim()}><IconPlus size={13} />{inviting ? 'Creating…' : 'Create invite link'}</Btn>}>
+          <Input label="Invite email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="teammate@example.com" />
+        </Field>
+      </fieldset>
+      {inviteError && <p role="alert" style={{ color: 'var(--error)', fontSize: 13, margin: '0 0 12px' }}>{inviteError}</p>}
+    </form>}
+
+    {created && <div role="status" style={{ padding: '14px 16px', margin: '4px 0 8px', borderRadius: 8, border: '1px solid color-mix(in srgb, var(--accent) 35%, transparent)', background: 'color-mix(in srgb, var(--accent) 8%, transparent)' }}>
+      <p style={{ fontSize: 13, margin: '0 0 10px', lineHeight: 1.55 }}>
+        Send this link to <strong>{created.email}</strong>. They need to sign in or sign up with that address to accept it. The link is shown only once.
+      </p>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px 16px', flexWrap: 'wrap' }}>
+        <code style={{ flex: '1 1 280px', minWidth: 0, overflowWrap: 'anywhere', fontSize: 12, fontFamily: 'var(--font-mono)' }}>{inviteLink(created.token)}</code>
+        <CopyButton value={inviteLink(created.token)} label="Copy invite link" />
+      </div>
+      <div style={{ marginTop: 4 }}><Btn variant="ghost" onClick={() => setCreated(null)}>Done</Btn></div>
+    </div>}
+
+    {actionError && <p role="alert" style={{ color: 'var(--error)', fontSize: 13 }}>{actionError}</p>}
+
+    <SectionHead title="People" />
+    {members.isLoading && <p style={meta}>Loading members…</p>}
+    {members.isError && <p role="alert" style={{ color: 'var(--error)', fontSize: 13 }}>{errorMessage(members.error, 'Could not load members.')}</p>}
+    {members.data && <ul aria-label="Members" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+      {members.data.map((m: WorkspaceMember) => {
+        const you = m.email.toLowerCase() === self;
+        return <li key={m.user_id} style={row}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 500, overflowWrap: 'anywhere' }}>{m.email}{you && <span style={{ ...meta, marginLeft: 8 }}>You</span>}</div>
+            <div style={meta}>{m.role === 'owner' ? 'Owner' : 'Member'} · joined {formatDate(m.joined_at)}</div>
+          </div>
+          {isOwner && m.role !== 'owner' && <Btn variant="ghost" disabled={busyId === m.user_id} title={`Remove ${m.email}`}
+            onClick={() => { if (window.confirm(`Remove ${m.email} from ${workspace.name}? They’ll lose access immediately.`)) void runAction(m.user_id, () => workspacesAPI.removeMember(workspace.id, m.user_id), refreshMembers, 'Could not remove the member. Please try again.'); }}>
+            {busyId === m.user_id ? 'Removing…' : 'Remove'}
+          </Btn>}
+        </li>;
+      })}
+    </ul>}
+
+    {isOwner && <>
+      <SectionHead title="Pending invites" hint="Invite links aren’t stored, so they can’t be copied again. Create a new link to replace a lost one." />
+      {invites.isError && <p role="alert" style={{ color: 'var(--error)', fontSize: 13 }}>{errorMessage(invites.error, 'Could not load invites.')}</p>}
+      {invites.data && invites.data.length === 0 && <p style={meta}>No pending invites.</p>}
+      {invites.data && invites.data.length > 0 && <ul aria-label="Pending invites" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+        {invites.data.map(inv => <li key={inv.id} style={row}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 500, overflowWrap: 'anywhere' }}>{inv.email}</div>
+            <div style={meta}>Invited {formatDate(inv.created_at)} · expires {formatDate(inv.expires_at)}</div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Btn disabled={inviting || busyId === inv.id} title={`Create a new link for ${inv.email}`} onClick={() => void sendInvite(inv.email)}>New link</Btn>
+            <Btn variant="ghost" disabled={busyId === inv.id} title={`Revoke the invite for ${inv.email}`}
+              onClick={() => void runAction(inv.id, () => workspacesAPI.revokeInvite(workspace.id, inv.id), refreshInvites, 'Could not revoke the invite. Please try again.')}>
+              {busyId === inv.id ? 'Revoking…' : 'Revoke'}
+            </Btn>
+          </div>
+        </li>)}
+      </ul>}
+    </>}
+  </div>;
+}
+
+// ---------------------------------------------------------------------------
 // VIEW: Danger Zone
 // ---------------------------------------------------------------------------
 
@@ -856,6 +1005,9 @@ export default function SettingsPage({
           <WorkspaceView key={ws.id} ws={ws} demo={demo} justCreated={createdId === ws.id} onOpenOverview={onOpenOverview} onOpenApiKeys={onOpenApiKeys} />
           {!demo && createWorkspace && <div style={{ marginTop: 24 }}><Btn onClick={() => { setCreatedId(null); setCreating(true); }}>{ws.id ? 'Create another workspace' : 'Create workspace'}</Btn></div>}
         </>,
+    members:   workspace
+      ? <MembersView key={workspace.id} workspace={workspace} account={account} />
+      : <SectionHead first title="Members" hint="Create a workspace to invite people to it." />,
     danger:    <DangerView />,
   };
 

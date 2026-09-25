@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/go-chi/chi/v5"
+
 	"github.com/tracium/api/internal/middleware"
 )
 
@@ -50,4 +52,30 @@ func resolveWorkspaceScope(w http.ResponseWriter, r *http.Request, access Worksp
 		return nil, false
 	}
 	return allowed, true
+}
+
+// OwnerCheck reports whether a user owns a workspace.
+type OwnerCheck interface {
+	IsOwner(ctx context.Context, workspaceID, userID string) (bool, error)
+}
+
+// requireOwner checks the caller owns the {id} workspace, answering 404 (not
+// 403) otherwise so its existence isn't revealed.
+func requireOwner(w http.ResponseWriter, r *http.Request, owners OwnerCheck) (userID, workspaceID string, ok bool) {
+	principal, ok := middleware.PrincipalFromContext(r.Context())
+	if !ok || principal.UserID == "" {
+		respondError(w, http.StatusUnauthorized, "UNAUTHORIZED", "user identity could not be resolved")
+		return "", "", false
+	}
+	workspaceID = chi.URLParam(r, "id")
+	owner, err := owners.IsOwner(r.Context(), workspaceID, principal.UserID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "INTERNAL", "could not verify ownership")
+		return "", "", false
+	}
+	if !owner {
+		respondError(w, http.StatusNotFound, "WORKSPACE_NOT_FOUND", "workspace not found")
+		return "", "", false
+	}
+	return principal.UserID, workspaceID, true
 }

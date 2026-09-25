@@ -123,9 +123,17 @@ verifies each one and rejects anything unknown or revoked
 ([securing the collector](deploy/docs/collector-auth.md)). A key is bound to one
 workspace and is the source of truth for where its telemetry lands: the collector
 stamps the key's workspace onto every span, so senders don't set a workspace
-attribute at all. Signed-in users change their password under **Settings →
-Account** (or `POST /v1/auth/password`); there is no email-based reset, so an
-operator resets a forgotten password with the API image's CLI:
+attribute at all.
+
+Workspace owners invite teammates by email from **Settings → Members** (or
+`POST /v1/workspaces/{id}/invites`). Tracium doesn't send email: the owner gets a
+single-use link (`/invite/<token>`, valid for 7 days) to share, and the invitee
+accepts it after signing in or signing up with the invited address. Owners can
+list and revoke open invites and remove members from the same screen.
+
+Signed-in users change their password under **Settings → Account** (or
+`POST /v1/auth/password`); there is no email-based reset, so an operator resets
+a forgotten password with the API image's CLI:
 
 ```bash
 docker compose exec api ./reset-password --email you@example.com

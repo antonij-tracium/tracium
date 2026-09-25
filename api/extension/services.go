@@ -92,7 +92,7 @@ type CoreEntitlements struct{}
 // supplies its own provider via app.Options.
 func (CoreEntitlements) Check(_ context.Context, _ Subject, feature string) (Decision, error) {
 	switch feature {
-	case "traces.read", "metrics.read", "telemetry.read", "workspaces.create":
+	case "traces.read", "metrics.read", "telemetry.read", "workspaces.create", "workspaces.invite":
 		return Decision{Allowed: true}, nil
 	default:
 		return Decision{}, nil

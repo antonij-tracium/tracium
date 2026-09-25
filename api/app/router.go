@@ -15,10 +15,11 @@ import (
 	"time"
 )
 
-func newRouter(cfg Config, repo query.Repository, wsStore workspace.Store, userStore *auth.UserStore, authenticator middleware.Authenticator, authService *auth.Service, apiKeyService *apikey.Service, healthChecks []handler.DependencyCheck, opts Options) http.Handler {
+func newRouter(cfg Config, repo query.Repository, wsStore workspace.Store, inviteStore workspace.InviteStore, userStore *auth.UserStore, authenticator middleware.Authenticator, authService *auth.Service, apiKeyService *apikey.Service, healthChecks []handler.DependencyCheck, opts Options) http.Handler {
 	authHandler := handler.NewAuthHandler(authService)
 	workspaceHandler := handler.NewWorkspaceHandler(wsStore, userStore)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService, wsStore)
+	inviteHandler := handler.NewInviteHandler(inviteStore, wsStore, opts.Entitlements)
 	services := extension.Services{Mail: opts.Mail, Entitlements: opts.Entitlements, Workspaces: wsStore}
 	// ── Handlers ─────────────────────────────────────────────────────────────
 
@@ -52,6 +53,8 @@ func newRouter(cfg Config, repo query.Repository, wsStore workspace.Store, userS
 		}
 		r.Post(version.Route(version.V1, "/auth/register"), authHandler.Register)
 		r.Post(version.Route(version.V1, "/auth/login"), authHandler.Login)
+		// Session-less, so it shares the auth limiter.
+		r.Get(version.Route(version.V1, "/invites/{token}"), inviteHandler.Preview)
 	})
 
 	// Ingest key verification is called by the collector's authenticator, not a
@@ -86,6 +89,12 @@ func newRouter(cfg Config, repo query.Repository, wsStore workspace.Store, userS
 		r.Delete(version.Route(version.V1, "/workspaces/{id}"), workspaceHandler.Delete)
 		r.Post(version.Route(version.V1, "/workspaces/{id}/members"), workspaceHandler.AddMember)
 		r.Delete(version.Route(version.V1, "/workspaces/{id}/members/{userId}"), workspaceHandler.RemoveMember)
+		r.Get(version.Route(version.V1, "/workspaces/{id}/members"), workspaceHandler.ListMembers)
+
+		r.Get(version.Route(version.V1, "/workspaces/{id}/invites"), inviteHandler.List)
+		r.Post(version.Route(version.V1, "/workspaces/{id}/invites"), inviteHandler.Create)
+		r.Delete(version.Route(version.V1, "/workspaces/{id}/invites/{inviteId}"), inviteHandler.Revoke)
+		r.Post(version.Route(version.V1, "/invites/{token}/accept"), inviteHandler.Accept)
 
 		// Ingest key management — a key is bound to one workspace, so the routes
 		// nest under it and are gated on membership. The secret is returned only
