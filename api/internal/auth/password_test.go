@@ -14,3 +14,13 @@ func TestHashPasswordRoundTrip(t *testing.T) {
 		t.Fatal("checkPassword: expected mismatch")
 	}
 }
+
+// Accounts created for an external identity provider store an empty hash; no
+// password, including the empty one, may match it.
+func TestEmptyHashNeverMatches(t *testing.T) {
+	for _, pw := range []string{"", "correcthorse"} {
+		if checkPassword("", pw) {
+			t.Fatalf("empty hash matched %q", pw)
+		}
+	}
+}

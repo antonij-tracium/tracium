@@ -2114,6 +2114,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description The account has no password (`NO_PASSWORD`), for example one an embedding application created for an external identity provider. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
         };
     };
     listWorkspaces: {

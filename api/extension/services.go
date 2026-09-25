@@ -73,6 +73,16 @@ type AccountLifecycle interface {
 	EnsureCanLogin(context.Context, Account) error
 }
 
+// Sessions issues session tokens for accounts an embedding application has
+// authenticated by its own means (for example an external identity provider).
+// Obtain it from app.Application.Sessions after assembly.
+type Sessions interface {
+	// Issue returns the same session token a password login returns for the
+	// account. The AccountLifecycle's EnsureCanLogin gate applies, so it can
+	// return ErrEmailUnverified.
+	Issue(ctx context.Context, userID string) (string, error)
+}
+
 type Subject struct {
 	UserID      string
 	WorkspaceID string

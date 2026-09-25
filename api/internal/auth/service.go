@@ -18,6 +18,11 @@ var ErrInvalidCredentials = errors.New("invalid credentials")
 // does not match the account's stored hash.
 var ErrInvalidCurrentPassword = errors.New("current password is incorrect")
 
+// ErrNoPassword is returned by ChangePassword for an account that has no
+// password, such as one an embedding application created for an external
+// identity provider. It can only get one through that application's reset flow.
+var ErrNoPassword = errors.New("account has no password")
+
 // Service ties account storage and token issuance together.
 type Service struct {
 	users     *UserStore
@@ -105,6 +110,22 @@ func (s *Service) Login(ctx context.Context, email, password string) (string, er
 	return s.tokens.Issue(user.ID, user.TenantID, user.Role)
 }
 
+// Issue signs a session token for an existing account without checking a
+// password. It implements extension.Sessions for embedding applications that
+// authenticate users themselves, and applies the same lifecycle gate as Login.
+func (s *Service) Issue(ctx context.Context, userID string) (string, error) {
+	user, err := s.users.ByID(ctx, userID)
+	if err != nil {
+		return "", err
+	}
+	if s.lifecycle != nil {
+		if err := s.lifecycle.EnsureCanLogin(ctx, account(*user)); err != nil {
+			return "", err
+		}
+	}
+	return s.tokens.Issue(user.ID, user.TenantID, user.Role)
+}
+
 // ChangePassword updates a signed-in user's password after verifying their
 // current one. Unlike the CLI reset-password tool (for operators without
 // access to the old password) and the hosted email-reset flow, this is the
@@ -113,6 +134,9 @@ func (s *Service) ChangePassword(ctx context.Context, userID, currentPassword, n
 	user, err := s.users.ByID(ctx, userID)
 	if err != nil {
 		return err
+	}
+	if user.PasswordHash == "" {
+		return ErrNoPassword
 	}
 	if !checkPassword(user.PasswordHash, currentPassword) {
 		return ErrInvalidCurrentPassword
@@ -126,6 +150,8 @@ func (s *Service) ChangePassword(ctx context.Context, userID, currentPassword, n
 	}
 	return s.users.UpdatePasswordHash(ctx, user.ID, hash)
 }
+
+var _ extension.Sessions = (*Service)(nil)
 
 func account(u model.User) extension.Account {
 	return extension.Account{ID: u.ID, Email: u.Email, TenantID: u.TenantID, Role: u.Role}

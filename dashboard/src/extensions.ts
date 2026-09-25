@@ -25,6 +25,9 @@ export interface AuthAppearance {
   footer?: string;
   /** Shows a "Forgot password?" link on the login page pointing here when set. */
   forgotPasswordHref?: string;
+  /** Rendered above the email form on the login and signup pages, e.g. external
+   * sign-in buttons. It may render nothing, so it supplies its own divider. */
+  signInOptions?: ComponentType<{ mode: 'signin' | 'signup' }>;
 }
 export interface AuthRoute { path: string; element: ReactNode }
 export interface DashboardExtensions {

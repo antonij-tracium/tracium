@@ -54,6 +54,7 @@ export default function LoginPage({ onLogin, appearance }: LoginPageProps) {
     }
   };
 
+  const SignInOptions = appearance?.signInOptions;
   return (
     <AuthShell appearance={appearance}
       active="signin"
@@ -61,6 +62,7 @@ export default function LoginPage({ onLogin, appearance }: LoginPageProps) {
       subtitle="Sign in to your Tracium workspace."
       footnote={{ text: 'New to Tracium?', linkText: 'Create an account', to: '/signup' }}
     >
+      {SignInOptions ? <SignInOptions mode="signin" /> : null}
       <form onSubmit={handleSubmit} className={styles.form}>
         <div className={styles.field}>
           <label className={styles.label} htmlFor="email">
