@@ -38,6 +38,8 @@ func main() {
 		yes      = flag.Bool("yes", false, "do not prompt for confirmation")
 	)
 	flag.Parse()
+	// Match how registration and login store and look up emails.
+	*email = strings.ToLower(strings.TrimSpace(*email))
 
 	if *email == "" {
 		fmt.Fprintln(os.Stderr, "✘ --email is required")
