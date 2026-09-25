@@ -27,10 +27,20 @@ export interface AuthAppearance {
   forgotPasswordHref?: string;
 }
 export interface AuthRoute { path: string; element: ReactNode }
+/** Props for extra content an embedding application renders inside the signup form. */
+export interface SignupFieldsProps {
+  /** Reports values to send with the registration request, under `extensions` in its JSON body. */
+  onChange: (fields: Record<string, string>) => void;
+  /** Increments after every failed submission, so single-use values can be refreshed. */
+  attempt: number;
+}
 export interface DashboardExtensions {
   authAppearance?: AuthAppearance;
   /** Extra routes rendered alongside /login and /signup for logged-out visitors. */
   authRoutes?: readonly AuthRoute[];
+  /** Rendered inside the signup form above the submit button (e.g. a CAPTCHA widget).
+   * The core API ignores the values; the embedding application checks them. */
+  signupFields?: ComponentType<SignupFieldsProps>;
   pages?: readonly ExtensionPage[];
   settingsSections?: readonly SettingsSection[];
   /** Wraps the authenticated application; render children once onboarding completes. */

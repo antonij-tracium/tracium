@@ -58,7 +58,7 @@ export default function App({ extensions = EMPTY_EXTENSIONS }: AppProps = {}) {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage appearance={extensions.authAppearance} onLogin={handleLogin} />} />
-          <Route path="/signup" element={<SignupPage appearance={extensions.authAppearance} onLogin={handleLogin} />} />
+          <Route path="/signup" element={<SignupPage appearance={extensions.authAppearance} fields={extensions.signupFields} onLogin={handleLogin} />} />
           {inviteToken && (
             <Route path="/invite/:token" element={<InvitePage token={inviteToken} appearance={extensions.authAppearance} session={null} onDismiss={leaveInvite} />} />
           )}
