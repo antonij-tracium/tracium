@@ -25,8 +25,10 @@ export interface AuthAppearance {
   footer?: string;
   /** Shows a "Forgot password?" link on the login page pointing here when set. */
   forgotPasswordHref?: string;
+  /** Rendered inside the signup form above the submit button (e.g. a CAPTCHA widget).
+   * The core API ignores the values; the embedding application checks them. */
+  signupFields?: ComponentType<SignupFieldsProps>;
 }
-export interface AuthRoute { path: string; element: ReactNode }
 /** Props for extra content an embedding application renders inside the signup form. */
 export interface SignupFieldsProps {
   /** Reports values to send with the registration request, under `extensions` in its JSON body. */
@@ -34,13 +36,11 @@ export interface SignupFieldsProps {
   /** Increments after every failed submission, so single-use values can be refreshed. */
   attempt: number;
 }
+export interface AuthRoute { path: string; element: ReactNode }
 export interface DashboardExtensions {
   authAppearance?: AuthAppearance;
   /** Extra routes rendered alongside /login and /signup for logged-out visitors. */
   authRoutes?: readonly AuthRoute[];
-  /** Rendered inside the signup form above the submit button (e.g. a CAPTCHA widget).
-   * The core API ignores the values; the embedding application checks them. */
-  signupFields?: ComponentType<SignupFieldsProps>;
   pages?: readonly ExtensionPage[];
   settingsSections?: readonly SettingsSection[];
   /** Wraps the authenticated application; render children once onboarding completes. */

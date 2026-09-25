@@ -1,17 +1,16 @@
-import type { AuthAppearance, SignupFieldsProps } from '../../../extensions';
-import { ComponentType, FormEvent, useState } from 'react';
+import type { AuthAppearance } from '../../../extensions';
+import { FormEvent, useState } from 'react';
 import { AuthShell } from '../components';
 import { registerUser, AuthError } from '../api';
 import styles from './LoginPage.module.css';
 
 interface SignupPageProps {
   appearance?: AuthAppearance;
-  /** Extension-supplied form content; its values are sent under `extensions`. */
-  fields?: ComponentType<SignupFieldsProps>;
   onLogin: (token: string, email: string) => void;
 }
 
-export default function SignupPage({ onLogin, appearance, fields: Fields }: SignupPageProps) {
+export default function SignupPage({ onLogin, appearance }: SignupPageProps) {
+  const Fields = appearance?.signupFields;
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   // Set once the account is created but still needs email confirmation; holds

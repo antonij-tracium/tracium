@@ -50,7 +50,7 @@ const extensions: DashboardExtensions = {
 `authAppearance` can override the login/signup tagline and footer while preserving
 shared authentication behavior.
 
-`signupFields` renders a component inside the signup form, above the submit
+`authAppearance.signupFields` renders a component inside the signup form, above the submit
 button (for example a CAPTCHA widget). It receives `onChange(fields)` and
 `attempt`, which increments after each failed submission so single-use values
 can be refreshed. The reported values are sent as `extensions` in the
