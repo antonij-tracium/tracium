@@ -47,7 +47,7 @@ describe('SignupPage',()=>{
    seen.push(attempt);
    return <button type="button" onClick={()=>onChange({token:'t-'+attempt})}>solve</button>;
   }
-  render(<MemoryRouter><SignupPage onLogin={vi.fn()} fields={Fields}/></MemoryRouter>);
+  render(<MemoryRouter><SignupPage onLogin={vi.fn()} appearance={{signupFields:Fields}}/></MemoryRouter>);
   fireEvent.click(screen.getByText('solve'));
   submit('ada@example.com','sufficiently-long-pass');
   await waitFor(()=>expect(screen.getByText('Verification failed')).toBeTruthy());
