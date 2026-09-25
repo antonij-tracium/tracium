@@ -3,6 +3,7 @@ package apikey
 import (
 	"context"
 	"errors"
+	tokens "github.com/tracium/api/internal/token"
 	"strings"
 
 	"github.com/google/uuid"
@@ -77,10 +78,10 @@ func (s *Service) Revoke(ctx context.Context, id, workspaceID string) error {
 // sender and decide where its spans land.
 func (s *Service) Verify(ctx context.Context, token string) (string, error) {
 	token = strings.TrimSpace(token)
-	if !looksLikeToken(token) {
+	if !tokens.Valid(tokenPrefix, token) {
 		return "", ErrInvalidKey
 	}
-	key, err := s.store.FindActiveByHash(ctx, hashToken(token))
+	key, err := s.store.FindActiveByHash(ctx, tokens.Hash(token))
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			return "", ErrInvalidKey

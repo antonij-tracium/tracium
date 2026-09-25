@@ -2,12 +2,8 @@ package workspace
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -18,10 +14,8 @@ import (
 // InviteTTL is how long an invite link stays valid.
 const InviteTTL = 7 * 24 * time.Hour
 
-const (
-	inviteTokenPrefix = "trci_"
-	inviteSecretBytes = 32
-)
+// InviteTokenPrefix marks invite link tokens.
+const InviteTokenPrefix = "trci_"
 
 var (
 	ErrInviteNotFound = errors.New("invite not found")
@@ -41,28 +35,6 @@ type InviteStore interface {
 	// AcceptInvite joins userID to the workspace if their email matches, and
 	// returns the workspace id.
 	AcceptInvite(ctx context.Context, tokenHash, userID string) (string, error)
-}
-
-// NewInviteToken returns a random invite token and its hash.
-func NewInviteToken() (token, hash string, err error) {
-	buf := make([]byte, inviteSecretBytes)
-	if _, err := rand.Read(buf); err != nil {
-		return "", "", fmt.Errorf("workspace: read random: %w", err)
-	}
-	token = inviteTokenPrefix + hex.EncodeToString(buf)
-	return token, HashInviteToken(token), nil
-}
-
-// HashInviteToken returns the stored hash of an invite token.
-func HashInviteToken(token string) string {
-	sum := sha256.Sum256([]byte(token))
-	return hex.EncodeToString(sum[:])
-}
-
-// LooksLikeInviteToken reports whether token has an invite token's shape.
-func LooksLikeInviteToken(token string) bool {
-	return strings.HasPrefix(token, inviteTokenPrefix) &&
-		len(token) == len(inviteTokenPrefix)+hex.EncodedLen(inviteSecretBytes)
 }
 
 // ListMembers returns the workspace's members, oldest first.

@@ -5,16 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/go-chi/chi/v5"
-
 	"github.com/tracium/api/extension"
-	"github.com/tracium/api/internal/middleware"
 	"github.com/tracium/api/internal/model"
+	tokens "github.com/tracium/api/internal/token"
 	"github.com/tracium/api/internal/workspace"
 	"github.com/tracium/api/testing/mocks"
 )
@@ -28,61 +25,46 @@ func (s stubEntitlements) Check(context.Context, extension.Subject, string) (ext
 	return extension.Decision{Allowed: s.allowed}, s.err
 }
 
-type inviteFixture struct {
-	h       *InviteHandler
-	invites *mocks.MockInviteStore
+// stubInvites records what the handler passes in and returns err from every call.
+type stubInvites struct {
+	err     error
+	created *model.WorkspaceInvite
+	hash    string
+	userID  string
 }
 
-// newInviteFixture: user-a owns ws-1; user-b and user-c are other accounts.
-func newInviteFixture(ent extension.Entitlements) inviteFixture {
+func (s *stubInvites) CreateInvite(_ context.Context, inv *model.WorkspaceInvite, hash string) error {
+	s.created, s.hash = inv, hash
+	return s.err
+}
+
+func (s *stubInvites) ListInvites(context.Context, string) ([]model.WorkspaceInvite, error) {
+	return nil, s.err
+}
+
+func (s *stubInvites) RevokeInvite(context.Context, string, string) error { return s.err }
+
+func (s *stubInvites) PreviewInvite(_ context.Context, hash string) (*model.InvitePreview, error) {
+	s.hash = hash
+	return &model.InvitePreview{Email: "b@example.com"}, s.err
+}
+
+func (s *stubInvites) AcceptInvite(_ context.Context, hash, userID string) (string, error) {
+	s.hash, s.userID = hash, userID
+	return "ws-1", s.err
+}
+
+// newInviteHandler: user-a owns ws-1.
+func newInviteHandler(invites *stubInvites, ent extension.Entitlements) *InviteHandler {
 	owners := &mocks.MockWorkspaceStore{Workspaces: []model.Workspace{mocks.NewTestWorkspace("ws-1", "user-a")}}
-	invites := &mocks.MockInviteStore{UserEmails: map[string]string{"user-a": "a@example.com", "user-b": "b@example.com", "user-c": "c@example.com"}}
-	return inviteFixture{h: NewInviteHandler(invites, owners, ent), invites: invites}
+	return NewInviteHandler(invites, owners, ent)
 }
 
-// serve runs handler as userID, or without auth when userID is empty.
-func serve(handler http.HandlerFunc, method, body, userID string, params map[string]string) *httptest.ResponseRecorder {
-	req := httptest.NewRequest(method, "/", strings.NewReader(body))
-	rctx := chi.NewRouteContext()
-	for k, v := range params {
-		rctx.URLParams.Add(k, v)
-	}
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	rr := httptest.NewRecorder()
-	if userID == "" {
-		handler.ServeHTTP(rr, req)
-		return rr
-	}
-	req.Header.Set("Authorization", "Bearer test-token")
-	middleware.Auth(stubAuthenticator{userID: userID})(handler).ServeHTTP(rr, req)
-	return rr
-}
-
-func errorCode(t *testing.T, rr *httptest.ResponseRecorder) string {
-	t.Helper()
-	var body model.ErrorResponse
-	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
-		t.Fatalf("decode error body: %v (%s)", err, rr.Body.String())
-	}
-	return body.Code
-}
-
-func (f inviteFixture) createInvite(t *testing.T, email string) string {
-	t.Helper()
-	rr := serve(f.h.Create, http.MethodPost, `{"email":"`+email+`"}`, "user-a", map[string]string{"id": "ws-1"})
-	if rr.Code != http.StatusCreated {
-		t.Fatalf("create: status = %d, want 201 (%s)", rr.Code, rr.Body.String())
-	}
-	var created model.CreatedInvite
-	if err := json.Unmarshal(rr.Body.Bytes(), &created); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	return created.Token
-}
+var validToken = workspace.InviteTokenPrefix + strings.Repeat("a", 64)
 
 func TestInviteCreate(t *testing.T) {
-	f := newInviteFixture(nil)
-	rr := serve(f.h.Create, http.MethodPost, `{"email":"  New@Example.com "}`, "user-a", map[string]string{"id": "ws-1"})
+	invites := &stubInvites{}
+	rr := serve(newInviteHandler(invites, nil).Create, http.MethodPost, `{"email":"  New@Example.com "}`, "user-a", map[string]string{"id": "ws-1"})
 
 	if rr.Code != http.StatusCreated {
 		t.Fatalf("status = %d, want 201 (%s)", rr.Code, rr.Body.String())
@@ -91,17 +73,11 @@ func TestInviteCreate(t *testing.T) {
 	if err := json.Unmarshal(rr.Body.Bytes(), &created); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if !workspace.LooksLikeInviteToken(created.Token) {
-		t.Errorf("token = %q, not an invite token", created.Token)
+	if !tokens.Valid(workspace.InviteTokenPrefix, created.Token) || invites.hash != tokens.Hash(created.Token) {
+		t.Errorf("token %q not stored by its hash (got %q)", created.Token, invites.hash)
 	}
-	if created.Email != "new@example.com" {
-		t.Errorf("email = %q, want normalized new@example.com", created.Email)
-	}
-	if created.Role != workspace.RoleMember || created.InvitedBy != "user-a" || created.WorkspaceID != "ws-1" {
+	if created.Email != "new@example.com" || created.Role != workspace.RoleMember || created.InvitedBy != "user-a" || created.WorkspaceID != "ws-1" {
 		t.Errorf("unexpected invite: %+v", created.WorkspaceInvite)
-	}
-	if _, ok := f.invites.Invites[workspace.HashInviteToken(created.Token)]; !ok {
-		t.Error("store did not receive the token's hash")
 	}
 	if d := time.Until(created.ExpiresAt); d < workspace.InviteTTL-time.Minute || d > workspace.InviteTTL {
 		t.Errorf("expires in %v, want ~%v", d, workspace.InviteTTL)
@@ -110,166 +86,97 @@ func TestInviteCreate(t *testing.T) {
 
 func TestInviteCreateRejections(t *testing.T) {
 	tests := []struct {
-		name   string
-		ent    extension.Entitlements
-		user   string
-		body   string
-		status int
-		code   string
+		name     string
+		ent      extension.Entitlements
+		storeErr error
+		user     string
+		body     string
+		status   int
+		code     string
 	}{
-		{"non-owner", nil, "user-b", `{"email":"x@example.com"}`, http.StatusNotFound, "WORKSPACE_NOT_FOUND"},
-		{"missing email", nil, "user-a", `{}`, http.StatusBadRequest, "MISSING_FIELDS"},
-		{"invalid email", nil, "user-a", `{"email":"Bob <b@example.com>"}`, http.StatusBadRequest, "INVALID_EMAIL"},
-		{"bad json", nil, "user-a", `{`, http.StatusBadRequest, "BAD_REQUEST"},
-		{"entitlement denied", stubEntitlements{allowed: false}, "user-a", `{"email":"x@example.com"}`, http.StatusForbidden, "FEATURE_UNAVAILABLE"},
-		{"entitlement error", stubEntitlements{err: errors.New("down")}, "user-a", `{"email":"x@example.com"}`, http.StatusServiceUnavailable, "UNAVAILABLE"},
+		{"non-owner", nil, nil, "user-b", `{"email":"x@example.com"}`, http.StatusNotFound, "WORKSPACE_NOT_FOUND"},
+		{"missing email", nil, nil, "user-a", `{}`, http.StatusBadRequest, "MISSING_FIELDS"},
+		{"invalid email", nil, nil, "user-a", `{"email":"Bob <b@example.com>"}`, http.StatusBadRequest, "INVALID_EMAIL"},
+		{"bad json", nil, nil, "user-a", `{`, http.StatusBadRequest, "BAD_REQUEST"},
+		{"entitlement denied", stubEntitlements{allowed: false}, nil, "user-a", `{"email":"x@example.com"}`, http.StatusForbidden, "FEATURE_UNAVAILABLE"},
+		{"entitlement error", stubEntitlements{err: errors.New("down")}, nil, "user-a", `{"email":"x@example.com"}`, http.StatusServiceUnavailable, "UNAVAILABLE"},
+		{"already member", nil, workspace.ErrAlreadyMember, "user-a", `{"email":"x@example.com"}`, http.StatusConflict, "ALREADY_MEMBER"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			f := newInviteFixture(tt.ent)
-			rr := serve(f.h.Create, http.MethodPost, tt.body, tt.user, map[string]string{"id": "ws-1"})
-			if rr.Code != tt.status {
-				t.Fatalf("status = %d, want %d (%s)", rr.Code, tt.status, rr.Body.String())
+			invites := &stubInvites{err: tt.storeErr}
+			rr := serve(newInviteHandler(invites, tt.ent).Create, http.MethodPost, tt.body, tt.user, map[string]string{"id": "ws-1"})
+			if rr.Code != tt.status || errorCode(t, rr) != tt.code {
+				t.Fatalf("got %d %s, want %d %s", rr.Code, rr.Body.String(), tt.status, tt.code)
 			}
-			if code := errorCode(t, rr); code != tt.code {
-				t.Errorf("code = %q, want %q", code, tt.code)
-			}
-			if len(f.invites.Invites) != 0 {
-				t.Error("an invite was stored")
+			if tt.storeErr == nil && invites.created != nil {
+				t.Error("store was called")
 			}
 		})
 	}
 }
 
-func TestInviteCreateAlreadyMember(t *testing.T) {
-	f := newInviteFixture(nil)
-	f.invites.MemberEmails = map[string]bool{"ws-1/b@example.com": true}
-
-	rr := serve(f.h.Create, http.MethodPost, `{"email":"b@example.com"}`, "user-a", map[string]string{"id": "ws-1"})
-	if rr.Code != http.StatusConflict || errorCode(t, rr) != "ALREADY_MEMBER" {
-		t.Fatalf("status = %d (%s), want 409 ALREADY_MEMBER", rr.Code, rr.Body.String())
-	}
-}
-
-func TestInviteReinviteReplacesLink(t *testing.T) {
-	f := newInviteFixture(nil)
-	first := f.createInvite(t, "b@example.com")
-	second := f.createInvite(t, "b@example.com")
-
-	rr := serve(f.h.Preview, http.MethodGet, "", "", map[string]string{"token": first})
-	if rr.Code != http.StatusGone {
-		t.Errorf("old link: status = %d, want 410", rr.Code)
-	}
-	rr = serve(f.h.Preview, http.MethodGet, "", "", map[string]string{"token": second})
-	if rr.Code != http.StatusOK {
-		t.Errorf("new link: status = %d, want 200", rr.Code)
-	}
-}
-
 func TestInviteListAndRevoke(t *testing.T) {
-	f := newInviteFixture(nil)
-	token := f.createInvite(t, "b@example.com")
-	inviteID := f.invites.Invites[workspace.HashInviteToken(token)].Invite.ID
+	h := newInviteHandler(&stubInvites{}, nil)
+	ws := map[string]string{"id": "ws-1", "inviteId": "inv-1"}
 
-	if rr := serve(f.h.List, http.MethodGet, "", "user-b", map[string]string{"id": "ws-1"}); rr.Code != http.StatusNotFound {
+	if rr := serve(h.List, http.MethodGet, "", "user-b", ws); rr.Code != http.StatusNotFound {
 		t.Errorf("non-owner list: status = %d, want 404", rr.Code)
 	}
-	if rr := serve(f.h.Revoke, http.MethodDelete, "", "user-b", map[string]string{"id": "ws-1", "inviteId": inviteID}); rr.Code != http.StatusNotFound {
+	if rr := serve(h.Revoke, http.MethodDelete, "", "user-b", ws); rr.Code != http.StatusNotFound {
 		t.Errorf("non-owner revoke: status = %d, want 404", rr.Code)
 	}
-
-	rr := serve(f.h.List, http.MethodGet, "", "user-a", map[string]string{"id": "ws-1"})
-	var listed []model.WorkspaceInvite
-	if err := json.Unmarshal(rr.Body.Bytes(), &listed); err != nil || len(listed) != 1 || listed[0].ID != inviteID {
-		t.Fatalf("list = %s, want the one invite", rr.Body.String())
+	if rr := serve(h.List, http.MethodGet, "", "user-a", ws); strings.TrimSpace(rr.Body.String()) != "[]" {
+		t.Errorf("list = %s, want []", rr.Body.String())
+	}
+	if rr := serve(h.Revoke, http.MethodDelete, "", "user-a", ws); rr.Code != http.StatusNoContent {
+		t.Errorf("revoke: status = %d, want 204", rr.Code)
 	}
 
-	if rr := serve(f.h.Revoke, http.MethodDelete, "", "user-a", map[string]string{"id": "ws-1", "inviteId": inviteID}); rr.Code != http.StatusNoContent {
-		t.Fatalf("revoke: status = %d, want 204", rr.Code)
-	}
-	if rr := serve(f.h.Revoke, http.MethodDelete, "", "user-a", map[string]string{"id": "ws-1", "inviteId": inviteID}); rr.Code != http.StatusNotFound {
-		t.Errorf("second revoke: status = %d, want 404", rr.Code)
-	}
-	rr = serve(f.h.List, http.MethodGet, "", "user-a", map[string]string{"id": "ws-1"})
-	if strings.TrimSpace(rr.Body.String()) != "[]" {
-		t.Errorf("list after revoke = %s, want []", rr.Body.String())
-	}
-	if rr := serve(f.h.Accept, http.MethodPost, "", "user-b", map[string]string{"token": token}); rr.Code != http.StatusGone {
-		t.Errorf("accept revoked: status = %d, want 410", rr.Code)
+	h = newInviteHandler(&stubInvites{err: workspace.ErrInviteNotFound}, nil)
+	if rr := serve(h.Revoke, http.MethodDelete, "", "user-a", ws); rr.Code != http.StatusNotFound || errorCode(t, rr) != "INVITE_NOT_FOUND" {
+		t.Errorf("revoke missing: status = %d, want 404 INVITE_NOT_FOUND", rr.Code)
 	}
 }
 
-func TestInvitePreview(t *testing.T) {
-	f := newInviteFixture(nil)
-	token := f.createInvite(t, "b@example.com")
+func TestInvitePreviewAndAccept(t *testing.T) {
+	invites := &stubInvites{}
+	h := newInviteHandler(invites, nil)
+	link := map[string]string{"token": validToken}
 
-	rr := serve(f.h.Preview, http.MethodGet, "", "", map[string]string{"token": token})
-	if rr.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200", rr.Code)
+	if rr := serve(h.Preview, http.MethodGet, "", "", link); rr.Code != http.StatusOK || invites.hash != tokens.Hash(validToken) {
+		t.Errorf("preview: status = %d, hash = %q", rr.Code, invites.hash)
 	}
-	var p model.InvitePreview
-	if err := json.Unmarshal(rr.Body.Bytes(), &p); err != nil || p.Email != "b@example.com" {
-		t.Errorf("preview = %s", rr.Body.String())
+	rr := serve(h.Accept, http.MethodPost, "", "user-b", link)
+	if rr.Code != http.StatusOK || !strings.Contains(rr.Body.String(), `"workspace_id":"ws-1"`) || invites.userID != "user-b" {
+		t.Errorf("accept: status = %d, body = %s, user = %q", rr.Code, rr.Body.String(), invites.userID)
 	}
-
-	for _, bad := range []string{"garbage", "trci_" + strings.Repeat("0", 64)} {
-		rr := serve(f.h.Preview, http.MethodGet, "", "", map[string]string{"token": bad})
-		if rr.Code != http.StatusNotFound || errorCode(t, rr) != "INVITE_NOT_FOUND" {
-			t.Errorf("token %q: status = %d, want 404 INVITE_NOT_FOUND", bad, rr.Code)
+	if rr := serve(h.Accept, http.MethodPost, "", "", link); rr.Code != http.StatusUnauthorized {
+		t.Errorf("accept without session: status = %d, want 401", rr.Code)
+	}
+	for _, handler := range []http.HandlerFunc{h.Preview, h.Accept} {
+		if rr := serve(handler, http.MethodPost, "", "user-b", map[string]string{"token": "garbage"}); rr.Code != http.StatusNotFound {
+			t.Errorf("malformed token: status = %d, want 404", rr.Code)
 		}
 	}
 }
 
-func TestInviteAccept(t *testing.T) {
-	f := newInviteFixture(nil)
-	token := f.createInvite(t, "b@example.com")
-
-	rr := serve(f.h.Accept, http.MethodPost, "", "user-c", map[string]string{"token": token})
-	if rr.Code != http.StatusForbidden || errorCode(t, rr) != "INVITE_EMAIL_MISMATCH" {
-		t.Fatalf("wrong account: status = %d (%s), want 403 INVITE_EMAIL_MISMATCH", rr.Code, rr.Body.String())
+func TestInviteStoreErrors(t *testing.T) {
+	tests := []struct {
+		err    error
+		status int
+		code   string
+	}{
+		{workspace.ErrInviteNotFound, http.StatusNotFound, "INVITE_NOT_FOUND"},
+		{workspace.ErrInviteClosed, http.StatusGone, "INVITE_EXPIRED"},
+		{workspace.ErrInviteEmailMismatch, http.StatusForbidden, "INVITE_EMAIL_MISMATCH"},
+		{errors.New("db down"), http.StatusInternalServerError, "INTERNAL"},
 	}
-
-	rr = serve(f.h.Accept, http.MethodPost, "", "user-b", map[string]string{"token": token})
-	if rr.Code != http.StatusOK {
-		t.Fatalf("status = %d (%s), want 200", rr.Code, rr.Body.String())
-	}
-	var body struct {
-		WorkspaceID string `json:"workspace_id"`
-	}
-	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil || body.WorkspaceID != "ws-1" {
-		t.Errorf("body = %s, want workspace_id ws-1", rr.Body.String())
-	}
-	if len(f.invites.Joined) != 1 || f.invites.Joined[0] != "ws-1/user-b" {
-		t.Errorf("joined = %v, want [ws-1/user-b]", f.invites.Joined)
-	}
-
-	rr = serve(f.h.Accept, http.MethodPost, "", "user-b", map[string]string{"token": token})
-	if rr.Code != http.StatusGone || errorCode(t, rr) != "INVITE_EXPIRED" {
-		t.Errorf("reuse: status = %d, want 410 INVITE_EXPIRED", rr.Code)
-	}
-}
-
-func TestInviteAcceptExpired(t *testing.T) {
-	f := newInviteFixture(nil)
-	f.h.now = func() time.Time { return time.Now().Add(-workspace.InviteTTL - time.Hour) }
-	token := f.createInvite(t, "b@example.com")
-
-	if rr := serve(f.h.Accept, http.MethodPost, "", "user-b", map[string]string{"token": token}); rr.Code != http.StatusGone {
-		t.Errorf("status = %d, want 410", rr.Code)
-	}
-	if len(f.invites.Joined) != 0 {
-		t.Error("expired invite admitted a member")
-	}
-}
-
-func TestInviteAcceptRequiresSession(t *testing.T) {
-	f := newInviteFixture(nil)
-
-	req := httptest.NewRequest(http.MethodPost, "/", nil)
-	rr := httptest.NewRecorder()
-	middleware.Auth(stubAuthenticator{userID: "user-b"})(http.HandlerFunc(f.h.Accept)).ServeHTTP(rr, req)
-	if rr.Code != http.StatusUnauthorized {
-		t.Errorf("status = %d, want 401", rr.Code)
+	for _, tt := range tests {
+		rr := serve(newInviteHandler(&stubInvites{err: tt.err}, nil).Accept, http.MethodPost, "", "user-b", map[string]string{"token": validToken})
+		if rr.Code != tt.status || errorCode(t, rr) != tt.code {
+			t.Errorf("%v: got %d %s, want %d %s", tt.err, rr.Code, rr.Body.String(), tt.status, tt.code)
+		}
 	}
 }
 
@@ -287,9 +194,7 @@ func TestWorkspaceListMembers(t *testing.T) {
 	if rr.Code != http.StatusOK || json.Unmarshal(rr.Body.Bytes(), &members) != nil || len(members) != 1 || members[0].Email != "a@example.com" {
 		t.Fatalf("member: status = %d, body = %s", rr.Code, rr.Body.String())
 	}
-
-	rr = serve(h.ListMembers, http.MethodGet, "", "user-b", map[string]string{"id": "ws-1"})
-	if rr.Code != http.StatusForbidden {
+	if rr := serve(h.ListMembers, http.MethodGet, "", "user-b", map[string]string{"id": "ws-1"}); rr.Code != http.StatusForbidden {
 		t.Errorf("non-member: status = %d, want 403", rr.Code)
 	}
 }

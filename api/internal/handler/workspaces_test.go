@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
@@ -30,18 +31,32 @@ func (a stubAuthenticator) Authenticate(context.Context, string) (*model.Princip
 	return &model.Principal{UserID: a.userID, TenantID: "tenant-test", Role: "user"}, nil
 }
 
-// deleteWorkspace runs the Delete handler as the given user, carrying the {id}
-// path param the way chi would.
-func deleteWorkspace(h *WorkspaceHandler, id, userID string) *httptest.ResponseRecorder {
-	req := httptest.NewRequest(http.MethodDelete, "/v1/workspaces/"+id, nil)
-	req.Header.Set("Authorization", "Bearer test-token")
+// serve runs handler as userID, or without auth when userID is empty, with the
+// given chi URL params.
+func serve(handler http.HandlerFunc, method, body, userID string, params map[string]string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(method, "/", strings.NewReader(body))
 	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", id)
+	for k, v := range params {
+		rctx.URLParams.Add(k, v)
+	}
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-
 	rr := httptest.NewRecorder()
-	middleware.Auth(stubAuthenticator{userID: userID})(http.HandlerFunc(h.Delete)).ServeHTTP(rr, req)
+	if userID == "" {
+		handler.ServeHTTP(rr, req)
+		return rr
+	}
+	req.Header.Set("Authorization", "Bearer test-token")
+	middleware.Auth(stubAuthenticator{userID: userID})(handler).ServeHTTP(rr, req)
 	return rr
+}
+
+func errorCode(t *testing.T, rr *httptest.ResponseRecorder) string {
+	t.Helper()
+	var body model.ErrorResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode error body: %v (%s)", err, rr.Body.String())
+	}
+	return body.Code
 }
 
 func TestWorkspaceDelete(t *testing.T) {
@@ -50,7 +65,7 @@ func TestWorkspaceDelete(t *testing.T) {
 	}
 	h := NewWorkspaceHandler(store, stubUserLookup{})
 
-	rr := deleteWorkspace(h, "ws-1", "user-a")
+	rr := serve(h.Delete, http.MethodDelete, "", "user-a", map[string]string{"id": "ws-1"})
 
 	if rr.Code != http.StatusNoContent {
 		t.Fatalf("status = %d, want 204", rr.Code)
@@ -66,17 +81,13 @@ func TestWorkspaceDeleteOtherUsersWorkspace(t *testing.T) {
 	}
 	h := NewWorkspaceHandler(store, stubUserLookup{})
 
-	rr := deleteWorkspace(h, "ws-1", "user-b")
+	rr := serve(h.Delete, http.MethodDelete, "", "user-b", map[string]string{"id": "ws-1"})
 
 	if rr.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, want 404", rr.Code)
 	}
-	var body model.ErrorResponse
-	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if body.Code != "WORKSPACE_NOT_FOUND" {
-		t.Errorf("code = %q, want WORKSPACE_NOT_FOUND", body.Code)
+	if code := errorCode(t, rr); code != "WORKSPACE_NOT_FOUND" {
+		t.Errorf("code = %q, want WORKSPACE_NOT_FOUND", code)
 	}
 	if len(store.Workspaces) != 1 {
 		t.Errorf("owner's workspace was removed: %+v", store.Workspaces)

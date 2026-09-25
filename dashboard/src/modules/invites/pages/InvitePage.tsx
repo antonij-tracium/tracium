@@ -2,7 +2,9 @@ import type { AuthAppearance } from '../../../extensions';
 import { useEffect, useState } from 'react';
 import { AuthShell, AuthButton } from '../../auth/components';
 import { formatDate } from '../../../common';
-import { previewInvite, acceptInvite, InviteError, type InvitePreview } from '../api';
+import { AuthError } from '../../auth/api';
+import { APIError, WorkspacesAPI } from '../../../common/api';
+import { previewInvite, type InvitePreview } from '../api';
 import styles from '../../auth/pages/LoginPage.module.css';
 
 interface InvitePageProps {
@@ -19,13 +21,17 @@ type Load =
   | { state: 'ready'; invite: InvitePreview }
   | { state: 'error'; message: string };
 
+function statusOf(err: unknown): number {
+  return err instanceof AuthError || err instanceof APIError ? err.status : 0;
+}
+
 function loadError(err: unknown): string {
-  if (err instanceof InviteError) {
-    if (err.status === 404) return 'This invite link isn’t valid. Ask the workspace owner for a new one.';
-    if (err.status === 410) return 'This invite has expired or was already used. Ask the workspace owner for a new one.';
-    if (err.status === 429) return 'Too many attempts. Wait a minute and try again.';
+  switch (statusOf(err)) {
+    case 404: return 'This invite link isn’t valid. Ask the workspace owner for a new one.';
+    case 410: return 'This invite has expired or was already used. Ask the workspace owner for a new one.';
+    case 429: return 'Too many attempts. Wait a minute and try again.';
+    default: return 'We couldn’t load this invite. Try again in a moment.';
   }
-  return 'We couldn’t load this invite. Try again in a moment.';
 }
 
 export default function InvitePage({ token, appearance, session, onAccepted, onDismiss, onSignOut }: InvitePageProps) {
@@ -48,12 +54,14 @@ export default function InvitePage({ token, appearance, session, onAccepted, onD
     setAccepting(true);
     setAcceptError(null);
     try {
-      const { workspace_id } = await acceptInvite(token, session.token);
+      const api = new WorkspacesAPI({ baseUrl: import.meta.env.VITE_API_URL || window.location.origin, apiKey: session.token });
+      const { workspace_id } = await api.acceptInvite(token);
       onAccepted?.(workspace_id);
     } catch (err) {
-      if (err instanceof InviteError && err.status === 403) {
+      const status = statusOf(err);
+      if (status === 403) {
         setAcceptError('This invite was sent to a different email address. Sign in with that address to accept it.');
-      } else if (err instanceof InviteError && (err.status === 404 || err.status === 410)) {
+      } else if (status === 404 || status === 410) {
         setAcceptError(loadError(err));
       } else {
         setAcceptError('We couldn’t accept this invite. Try again in a moment.');

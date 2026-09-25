@@ -64,4 +64,8 @@ export class WorkspacesAPI extends BaseAPIClient {
   revokeInvite(id: string, inviteId: string): Promise<void> {
     return this.delete(`/workspaces/${id}/invites/${inviteId}`);
   }
+
+  acceptInvite(token: string): Promise<{ workspace_id: string }> {
+    return this.post(`/invites/${encodeURIComponent(token)}/accept`, {});
+  }
 }

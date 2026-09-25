@@ -14,6 +14,7 @@ import (
 	"github.com/tracium/api/internal/auth"
 	"github.com/tracium/api/internal/middleware"
 	"github.com/tracium/api/internal/model"
+	tokens "github.com/tracium/api/internal/token"
 	"github.com/tracium/api/internal/workspace"
 )
 
@@ -25,12 +26,11 @@ type InviteHandler struct {
 	invites      workspace.InviteStore
 	owners       OwnerCheck
 	entitlements extension.Entitlements
-	now          func() time.Time
 }
 
 // NewInviteHandler constructs an InviteHandler. A nil entitlements allows all invites.
 func NewInviteHandler(invites workspace.InviteStore, owners OwnerCheck, entitlements extension.Entitlements) *InviteHandler {
-	return &InviteHandler{invites: invites, owners: owners, entitlements: entitlements, now: time.Now}
+	return &InviteHandler{invites: invites, owners: owners, entitlements: entitlements}
 }
 
 const maxInviteBody = 4 << 10 // 4 KiB
@@ -72,7 +72,7 @@ func (h *InviteHandler) Create(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	token, hash, err := workspace.NewInviteToken()
+	token, err := tokens.New(workspace.InviteTokenPrefix)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "INTERNAL", "could not create invite")
 		return
@@ -83,9 +83,9 @@ func (h *InviteHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Email:       email,
 		Role:        workspace.RoleMember,
 		InvitedBy:   userID,
-		ExpiresAt:   h.now().Add(workspace.InviteTTL).UTC(),
+		ExpiresAt:   time.Now().Add(workspace.InviteTTL).UTC(),
 	}
-	if err := h.invites.CreateInvite(r.Context(), &inv, hash); err != nil {
+	if err := h.invites.CreateInvite(r.Context(), &inv, tokens.Hash(token)); err != nil {
 		if errors.Is(err, workspace.ErrAlreadyMember) {
 			respondError(w, http.StatusConflict, "ALREADY_MEMBER", "that account is already a member of this workspace")
 			return
@@ -133,11 +133,11 @@ func (h *InviteHandler) Revoke(w http.ResponseWriter, r *http.Request) {
 // Preview handles GET /v1/invites/{token}. It needs no session.
 func (h *InviteHandler) Preview(w http.ResponseWriter, r *http.Request) {
 	token := chi.URLParam(r, "token")
-	if !workspace.LooksLikeInviteToken(token) {
+	if !tokens.Valid(workspace.InviteTokenPrefix, token) {
 		respondError(w, http.StatusNotFound, "INVITE_NOT_FOUND", "invite not found")
 		return
 	}
-	preview, err := h.invites.PreviewInvite(r.Context(), workspace.HashInviteToken(token))
+	preview, err := h.invites.PreviewInvite(r.Context(), tokens.Hash(token))
 	if err != nil {
 		respondInviteError(w, err)
 		return
@@ -153,12 +153,12 @@ func (h *InviteHandler) Accept(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	token := chi.URLParam(r, "token")
-	if !workspace.LooksLikeInviteToken(token) {
+	if !tokens.Valid(workspace.InviteTokenPrefix, token) {
 		respondError(w, http.StatusNotFound, "INVITE_NOT_FOUND", "invite not found")
 		return
 	}
 
-	workspaceID, err := h.invites.AcceptInvite(r.Context(), workspace.HashInviteToken(token), principal.UserID)
+	workspaceID, err := h.invites.AcceptInvite(r.Context(), tokens.Hash(token), principal.UserID)
 	if err != nil {
 		respondInviteError(w, err)
 		return

@@ -26,13 +26,10 @@ export class AuthError extends Error {
   }
 }
 
-async function postCredentials(path: string, req: LoginRequest, failureLabel: string): Promise<Response> {
+/** Calls an endpoint that needs no session, throwing AuthError on failure. */
+export async function publicRequest(path: string, init: RequestInit, failureLabel: string): Promise<Response> {
   const base = import.meta.env.VITE_API_URL || window.location.origin;
-  const response = await fetch(`${base}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(req),
-  });
+  const response = await fetch(`${base}${path}`, init);
 
   if (!response.ok) {
     let message = `${failureLabel} (${response.status})`;
@@ -46,6 +43,14 @@ async function postCredentials(path: string, req: LoginRequest, failureLabel: st
   }
 
   return response;
+}
+
+function postCredentials(path: string, req: LoginRequest, failureLabel: string): Promise<Response> {
+  return publicRequest(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  }, failureLabel);
 }
 
 export async function loginUser(req: LoginRequest): Promise<LoginResponse> {
