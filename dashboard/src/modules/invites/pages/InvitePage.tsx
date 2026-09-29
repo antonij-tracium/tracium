@@ -59,7 +59,12 @@ export default function InvitePage({ token, appearance, session, onAccepted, onD
       onAccepted?.(workspace_id);
     } catch (err) {
       const status = statusOf(err);
-      if (status === 403) {
+      const code = err instanceof APIError ? err.code : undefined;
+      if (code === 'MEMBER_LIMIT_REACHED') {
+        setAcceptError('This workspace has reached its member limit. Ask the workspace owner to make room for you.');
+      } else if (code === 'FEATURE_UNAVAILABLE') {
+        setAcceptError('This workspace can’t add members right now. Ask the workspace owner for help.');
+      } else if (status === 403) {
         setAcceptError('This invite was sent to a different email address. Sign in with that address to accept it.');
       } else if (status === 404 || status === 410) {
         setAcceptError(loadError(err));

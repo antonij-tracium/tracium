@@ -38,6 +38,12 @@ type Store interface {
 	// AddMember grants a user access to a workspace with the given role. Adding a
 	// member who already exists is a no-op (their role is left unchanged).
 	AddMember(ctx context.Context, workspaceID, userID, role string) error
+	// GrantMember is AddMember for owner requests. Under the workspace lock it
+	// returns early for an existing member (no seat taken), otherwise runs allow,
+	// adds the member and closes their open invites. invited tells allow whether
+	// an open invite already holds this user's seat; allow's error aborts the add
+	// and is returned unchanged.
+	GrantMember(ctx context.Context, workspaceID, userID, role string, allow func(ctx context.Context, invited bool) error) error
 	// RemoveMember revokes a user's access. Removing the owner is refused with
 	// ErrCannotRemoveOwner.
 	RemoveMember(ctx context.Context, workspaceID, userID string) error
@@ -200,6 +206,55 @@ func (s *PostgresStore) AddMember(ctx context.Context, workspaceID, userID, role
 		workspaceID, userID, role)
 	if err != nil {
 		return fmt.Errorf("workspace store: add member: %w", err)
+	}
+	return nil
+}
+
+// GrantMember implements WorkspaceStore.
+func (s *PostgresStore) GrantMember(ctx context.Context, workspaceID, userID, role string, allow func(ctx context.Context, invited bool) error) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("workspace store: begin: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck // no-op after a successful Commit
+	if err := lockWorkspace(ctx, tx, workspaceID); err != nil {
+		return err
+	}
+
+	var member, invited bool
+	if err := tx.QueryRow(ctx,
+		`SELECT EXISTS (SELECT 1 FROM workspace_members WHERE workspace_id = $1 AND user_id = $2),
+		        EXISTS (SELECT 1 FROM workspace_invites i JOIN users u ON lower(u.email) = i.email
+		                 WHERE i.workspace_id = $1 AND u.id::text = $2
+		                   AND i.accepted_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > NOW())`,
+		workspaceID, userID).Scan(&member, &invited); err != nil {
+		return fmt.Errorf("workspace store: check member: %w", err)
+	}
+	if member {
+		return nil
+	}
+	if allow != nil {
+		if err := allow(ctx, invited); err != nil {
+			return err
+		}
+	}
+	if _, err := tx.Exec(ctx,
+		`INSERT INTO workspace_members (workspace_id, user_id, role) VALUES ($1, $2, $3)`,
+		workspaceID, userID, role); err != nil {
+		return fmt.Errorf("workspace store: add member: %w", err)
+	}
+	// The direct add fulfils any open invite, which would otherwise keep holding
+	// a second seat for the same person.
+	if _, err := tx.Exec(ctx,
+		`UPDATE workspace_invites i SET accepted_at = NOW(), accepted_by = $2
+		   FROM users u
+		  WHERE i.workspace_id = $1 AND u.id::text = $2 AND lower(u.email) = i.email
+		    AND i.accepted_at IS NULL AND i.revoked_at IS NULL`,
+		workspaceID, userID); err != nil {
+		return fmt.Errorf("workspace store: close invites: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("workspace store: commit: %w", err)
 	}
 	return nil
 }

@@ -184,7 +184,7 @@ describe('members', () => {
   });
 
   it('creates an invite link and shows it once', async () => {
-    workspacesAPI.invite.mockResolvedValue({ ...pending, email: 'dave@acme.dev', token: 'trci_tok' });
+    workspacesAPI.invite.mockResolvedValue({ ...pending, email: 'dave@acme.dev', token: 'trci_tok', email_sent: false });
     openMembers();
     fireEvent.change(screen.getByRole('textbox', { name: 'Invite email' }), { target: { value: ' dave@acme.dev ' } });
     fireEvent.click(screen.getByRole('button', { name: /Create invite link/ }));
@@ -192,6 +192,23 @@ describe('members', () => {
     expect(await screen.findByText(`${window.location.origin}/invite/trci_tok`)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Copy invite link' }));
     await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith(`${window.location.origin}/invite/trci_tok`));
+  });
+
+  it('says when the invite was emailed and still offers the link', async () => {
+    workspacesAPI.invite.mockResolvedValue({ ...pending, email: 'dave@acme.dev', token: 'trci_tok', email_sent: true });
+    openMembers();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Invite email' }), { target: { value: 'dave@acme.dev' } });
+    fireEvent.click(screen.getByRole('button', { name: /Create invite link/ }));
+    expect(await screen.findByText(/We emailed an invite to/)).toHaveTextContent('dave@acme.dev');
+    expect(screen.getByText(`${window.location.origin}/invite/trci_tok`)).toBeInTheDocument();
+  });
+
+  it('shows the member limit when the workspace is full', async () => {
+    workspacesAPI.invite.mockRejectedValue(new APIError('This workspace has reached its limit of 3 members.', 403, 'MEMBER_LIMIT_REACHED'));
+    openMembers();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Invite email' }), { target: { value: 'dave@acme.dev' } });
+    fireEvent.click(screen.getByRole('button', { name: /Create invite link/ }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('limit of 3 members');
   });
 
   it('shows why an invite was refused', async () => {

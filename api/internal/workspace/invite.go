@@ -28,13 +28,18 @@ var (
 // InviteStore persists workspace invitations, keyed by token hash.
 type InviteStore interface {
 	// CreateInvite revokes any open invite for the same email, then stores inv.
-	CreateInvite(ctx context.Context, inv *model.WorkspaceInvite, tokenHash string) error
+	// A non-nil allow runs, under the workspace lock, only when the email has no
+	// open invite (a new link for a pending invite takes no new seat); its error
+	// aborts the create and is returned unchanged.
+	CreateInvite(ctx context.Context, inv *model.WorkspaceInvite, tokenHash string, allow func(ctx context.Context) error) error
 	ListInvites(ctx context.Context, workspaceID string) ([]model.WorkspaceInvite, error)
 	RevokeInvite(ctx context.Context, workspaceID, inviteID string) error
 	PreviewInvite(ctx context.Context, tokenHash string) (*model.InvitePreview, error)
 	// AcceptInvite joins userID to the workspace if their email matches, and
-	// returns the workspace id.
-	AcceptInvite(ctx context.Context, tokenHash, userID string) (string, error)
+	// returns the workspace id. A non-nil allow runs under the workspace lock
+	// before a new member is added (not for someone already in), and its error
+	// aborts the accept and is returned unchanged.
+	AcceptInvite(ctx context.Context, tokenHash, userID string, allow func(ctx context.Context, workspaceID string) error) (string, error)
 }
 
 // ListMembers returns the workspace's members, oldest first.
@@ -61,24 +66,45 @@ func (s *PostgresStore) ListMembers(ctx context.Context, workspaceID string) ([]
 	return members, rows.Err()
 }
 
+// lockWorkspace takes the workspace row lock that serializes membership
+// changes, so a seat check and the write it guards see no concurrent change.
+// Every path locks the workspace before any invite row, so they cannot deadlock.
+func lockWorkspace(ctx context.Context, tx pgx.Tx, workspaceID string) error {
+	if _, err := tx.Exec(ctx, `SELECT 1 FROM workspaces WHERE id = $1 FOR UPDATE`, workspaceID); err != nil {
+		return fmt.Errorf("workspace store: lock workspace: %w", err)
+	}
+	return nil
+}
+
 // CreateInvite implements InviteStore.
-func (s *PostgresStore) CreateInvite(ctx context.Context, inv *model.WorkspaceInvite, tokenHash string) error {
+func (s *PostgresStore) CreateInvite(ctx context.Context, inv *model.WorkspaceInvite, tokenHash string, allow func(ctx context.Context) error) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("workspace store: begin: %w", err)
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck // no-op after a successful Commit
+	if err := lockWorkspace(ctx, tx, inv.WorkspaceID); err != nil {
+		return err
+	}
 
-	var member bool
+	var member, replacing bool
 	if err := tx.QueryRow(ctx,
 		`SELECT EXISTS (
 		   SELECT 1 FROM workspace_members m JOIN users u ON u.id::text = m.user_id
-		    WHERE m.workspace_id = $1 AND u.email = $2)`,
-		inv.WorkspaceID, inv.Email).Scan(&member); err != nil {
+		    WHERE m.workspace_id = $1 AND u.email = $2),
+		        EXISTS (
+		   SELECT 1 FROM workspace_invites
+		    WHERE workspace_id = $1 AND email = $2 AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at > NOW())`,
+		inv.WorkspaceID, inv.Email).Scan(&member, &replacing); err != nil {
 		return fmt.Errorf("workspace store: check member: %w", err)
 	}
 	if member {
 		return ErrAlreadyMember
+	}
+	if !replacing && allow != nil {
+		if err := allow(ctx); err != nil {
+			return err
+		}
 	}
 
 	if _, err := tx.Exec(ctx,
@@ -166,29 +192,40 @@ func (s *PostgresStore) PreviewInvite(ctx context.Context, tokenHash string) (*m
 }
 
 // AcceptInvite locks the invite row so a link can't be accepted twice.
-func (s *PostgresStore) AcceptInvite(ctx context.Context, tokenHash, userID string) (string, error) {
+func (s *PostgresStore) AcceptInvite(ctx context.Context, tokenHash, userID string, allow func(ctx context.Context, workspaceID string) error) (string, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return "", fmt.Errorf("workspace store: begin: %w", err)
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck // no-op after a successful Commit
 
+	// Lock the workspace before the invite row, the order every path uses.
+	var workspaceID string
+	err = tx.QueryRow(ctx, `SELECT workspace_id FROM workspace_invites WHERE token_hash = $1`, tokenHash).Scan(&workspaceID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", ErrInviteNotFound
+	}
+	if err != nil {
+		return "", fmt.Errorf("workspace store: load invite: %w", err)
+	}
+	if err := lockWorkspace(ctx, tx, workspaceID); err != nil {
+		return "", err
+	}
+
 	var (
-		id, workspaceID, role string
-		open, emailMatches    bool
+		id, role                   string
+		open, emailMatches, member bool
 	)
 	err = tx.QueryRow(ctx,
-		`SELECT i.id::text, i.workspace_id, i.role,
+		`SELECT i.id::text, i.role,
 		        i.accepted_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > NOW(),
-		        COALESCE(lower(u.email) = i.email, false)
+		        COALESCE(lower(u.email) = i.email, false),
+		        EXISTS (SELECT 1 FROM workspace_members m WHERE m.workspace_id = i.workspace_id AND m.user_id = $2)
 		   FROM workspace_invites i
 		   LEFT JOIN users u ON u.id::text = $2
 		  WHERE i.token_hash = $1
 		    FOR UPDATE OF i`, tokenHash, userID,
-	).Scan(&id, &workspaceID, &role, &open, &emailMatches)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return "", ErrInviteNotFound
-	}
+	).Scan(&id, &role, &open, &emailMatches, &member)
 	if err != nil {
 		return "", fmt.Errorf("workspace store: load invite: %w", err)
 	}
@@ -197,6 +234,12 @@ func (s *PostgresStore) AcceptInvite(ctx context.Context, tokenHash, userID stri
 	}
 	if !emailMatches {
 		return "", ErrInviteEmailMismatch
+	}
+	// Someone already in takes no new seat; the accept just closes the invite.
+	if allow != nil && !member {
+		if err := allow(ctx, workspaceID); err != nil {
+			return "", err
+		}
 	}
 
 	if _, err := tx.Exec(ctx,

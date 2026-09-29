@@ -77,4 +77,13 @@ describe('InvitePage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/sent to a different email address/);
     expect(onAccepted).not.toHaveBeenCalled();
   });
+
+  it('explains a full workspace when accepting', async () => {
+    fetchMock.mockImplementation((url: string) => url.endsWith('/accept')
+      ? respond(403, { code: 'MEMBER_LIMIT_REACHED', message: 'This workspace has reached its limit of 3 members.' })
+      : respond(200, preview));
+    renderPage({ session: { token: 'jwt', email: 'bob@acme.dev' } });
+    fireEvent.click(await screen.findByRole('button', { name: 'Accept invite' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/reached its member limit/);
+  });
 });

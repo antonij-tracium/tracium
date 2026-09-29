@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"github.com/tracium/api/extension"
 	"github.com/tracium/api/internal/auth"
 	"github.com/tracium/api/internal/middleware"
 	"github.com/tracium/api/internal/model"
@@ -24,13 +25,15 @@ type UserLookup interface {
 // WorkspaceHandler handles workspace CRUD and member management for the
 // authenticated user.
 type WorkspaceHandler struct {
-	store workspace.Store
-	users UserLookup
+	store        workspace.Store
+	users        UserLookup
+	entitlements extension.Entitlements
 }
 
-// NewWorkspaceHandler constructs a WorkspaceHandler.
-func NewWorkspaceHandler(store workspace.Store, users UserLookup) *WorkspaceHandler {
-	return &WorkspaceHandler{store: store, users: users}
+// NewWorkspaceHandler constructs a WorkspaceHandler. A nil entitlements allows
+// adding any number of members.
+func NewWorkspaceHandler(store workspace.Store, users UserLookup, entitlements extension.Entitlements) *WorkspaceHandler {
+	return &WorkspaceHandler{store: store, users: users, entitlements: entitlements}
 }
 
 // List handles GET /v1/workspaces — returns all workspaces for the current user.
@@ -118,7 +121,7 @@ func (h *WorkspaceHandler) Delete(w http.ResponseWriter, r *http.Request) {
 // AddMember handles POST /v1/workspaces/{id}/members — grants another account
 // access to the workspace. Owner-only. The member is named by email.
 func (h *WorkspaceHandler) AddMember(w http.ResponseWriter, r *http.Request) {
-	_, workspaceID, ok := requireOwner(w, r, h.store)
+	userID, workspaceID, ok := requireOwner(w, r, h.store)
 	if !ok {
 		return
 	}
@@ -135,7 +138,6 @@ func (h *WorkspaceHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 	if body.Role == workspace.RoleOwner {
 		role = workspace.RoleOwner
 	}
-
 	member, err := h.users.ByEmail(r.Context(), body.Email)
 	if err != nil {
 		if errors.Is(err, auth.ErrUserNotFound) {
@@ -146,7 +148,24 @@ func (h *WorkspaceHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.store.AddMember(r.Context(), workspaceID, member.ID, role); err != nil {
+	// A person whose open invite already holds their seat joins as if accepting
+	// it; anyone else takes a new seat, exactly like a new invite.
+	allow := func(ctx context.Context, invited bool) error {
+		feature := InviteFeature
+		if invited {
+			feature = MemberAddFeature
+		}
+		if denial := checkMemberEntitlement(ctx, h.entitlements, extension.Subject{UserID: userID, WorkspaceID: workspaceID}, feature); denial != nil {
+			return denial
+		}
+		return nil
+	}
+	if err := h.store.GrantMember(r.Context(), workspaceID, member.ID, role, allow); err != nil {
+		var denial *entitlementDenial
+		if errors.As(err, &denial) {
+			denial.respond(w)
+			return
+		}
 		respondError(w, http.StatusInternalServerError, "INTERNAL", "could not add member")
 		return
 	}

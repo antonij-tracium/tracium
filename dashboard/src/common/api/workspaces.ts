@@ -26,6 +26,8 @@ export interface WorkspaceInvite {
 
 export interface CreatedInvite extends WorkspaceInvite {
   token: string;
+  // True when the deployment emailed the invite itself.
+  email_sent: boolean;
 }
 
 export function inviteLink(token: string, origin = window.location.origin): string {

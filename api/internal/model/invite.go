@@ -22,9 +22,11 @@ type WorkspaceInvite struct {
 }
 
 // CreatedInvite carries the link token, which is returned only at creation.
+// EmailSent reports whether the deployment delivered the invite itself.
 type CreatedInvite struct {
 	WorkspaceInvite
-	Token string `json:"token"`
+	Token     string `json:"token"`
+	EmailSent bool   `json:"email_sent"`
 }
 
 // InvitePreview is what an invite link's holder sees before accepting.
