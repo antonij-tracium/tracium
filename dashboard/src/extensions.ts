@@ -28,6 +28,16 @@ export interface AuthAppearance {
   /** Rendered above the email form on the login and signup pages, e.g. external
    * sign-in buttons. It may render nothing, so it supplies its own divider. */
   signInOptions?: ComponentType<{ mode: 'signin' | 'signup' }>;
+  /** Rendered inside the signup form above the submit button (e.g. a CAPTCHA widget).
+   * The core API ignores the values; the embedding application checks them. */
+  signupFields?: ComponentType<SignupFieldsProps>;
+}
+/** Props for extra content an embedding application renders inside the signup form. */
+export interface SignupFieldsProps {
+  /** Reports values to send with the registration request, under `extensions` in its JSON body. */
+  onChange: (fields: Record<string, string>) => void;
+  /** Increments after every failed submission, so single-use values can be refreshed. */
+  attempt: number;
 }
 export interface AuthRoute { path: string; element: ReactNode }
 export interface DashboardExtensions {

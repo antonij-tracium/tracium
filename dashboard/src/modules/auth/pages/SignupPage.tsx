@@ -10,11 +10,14 @@ interface SignupPageProps {
 }
 
 export default function SignupPage({ onLogin, appearance }: SignupPageProps) {
+  const Fields = appearance?.signupFields;
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   // Set once the account is created but still needs email confirmation; holds
   // the address we sent the link to so we can show it back to the user.
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+  const [extra, setExtra] = useState<Record<string, string>>({});
+  const [attempt, setAttempt] = useState(0);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -31,7 +34,7 @@ export default function SignupPage({ onLogin, appearance }: SignupPageProps) {
     setFormError(null);
 
     try {
-      const result = await registerUser({ email, password });
+      const result = await registerUser(Object.keys(extra).length ? { email, password, extensions: extra } : { email, password });
       // The hosted service withholds the session until the email is confirmed;
       // prompt the user to check their inbox instead of signing them in.
       if (result.confirmationRequired || !result.token) {
@@ -40,6 +43,7 @@ export default function SignupPage({ onLogin, appearance }: SignupPageProps) {
       }
       onLogin(result.token, email);
     } catch (err) {
+      setAttempt((n) => n + 1);
       if (err instanceof AuthError && err.status === 409) {
         setFormError('An account with that email already exists. Try signing in instead.');
       } else if (err instanceof Error) {
@@ -116,6 +120,8 @@ export default function SignupPage({ onLogin, appearance }: SignupPageProps) {
             placeholder="••••••••••••"
           />
         </div>
+
+        {Fields ? <Fields onChange={setExtra} attempt={attempt} /> : null}
 
         {formError ? <div className={styles.errorBanner}>{formError}</div> : null}
 
