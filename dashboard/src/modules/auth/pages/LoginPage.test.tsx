@@ -20,4 +20,12 @@ describe('LoginPage', () => {
     const link = screen.getByText('Forgot password?').closest('a');
     expect(link?.getAttribute('href')).toBe('/forgot-password');
   });
+
+  it('renders extension sign-in options above the form with the page mode', () => {
+    const Options = ({ mode }: { mode: 'signin' | 'signup' }) => <button type="button">external {mode}</button>;
+    render(<MemoryRouter><LoginPage onLogin={vi.fn()} appearance={{ signInOptions: Options }} /></MemoryRouter>);
+    const button = screen.getByText('external signin');
+    const submit = screen.getByRole('button', { name: 'Sign in' });
+    expect(button.compareDocumentPosition(submit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });

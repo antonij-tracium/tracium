@@ -73,6 +73,7 @@ export default function SignupPage({ onLogin, appearance }: SignupPageProps) {
     );
   }
 
+  const SignInOptions = appearance?.signInOptions;
   return (
     <AuthShell appearance={appearance}
       active="signup"
@@ -80,6 +81,7 @@ export default function SignupPage({ onLogin, appearance }: SignupPageProps) {
       subtitle="Free and open source. Self-host in minutes — no limits, no lock-in."
       footnote={{ text: 'Already have an account?', linkText: 'Sign in', to: '/login' }}
     >
+      {SignInOptions ? <SignInOptions mode="signup" /> : null}
       <form onSubmit={handleSubmit} className={styles.form}>
         <div className={styles.field}>
           <label className={styles.label} htmlFor="email">
