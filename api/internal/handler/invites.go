@@ -61,20 +61,6 @@ func (h *InviteHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Replacing an open invite's link takes no new seat, so only new invitations
-	// are checked. That keeps "New link" working in a full workspace.
-	replacing, err := h.invites.HasOpenInvite(r.Context(), workspaceID, email)
-	if err != nil {
-		respondError(w, http.StatusInternalServerError, "INTERNAL", "could not create invite")
-		return
-	}
-	if !replacing {
-		if denial := checkMemberEntitlement(r.Context(), h.entitlements, extension.Subject{UserID: userID, WorkspaceID: workspaceID}, InviteFeature); denial != nil {
-			denial.respond(w)
-			return
-		}
-	}
-
 	token, err := tokens.New(workspace.InviteTokenPrefix)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "INTERNAL", "could not create invite")
@@ -88,7 +74,20 @@ func (h *InviteHandler) Create(w http.ResponseWriter, r *http.Request) {
 		InvitedBy:   userID,
 		ExpiresAt:   time.Now().Add(workspace.InviteTTL).UTC(),
 	}
-	if err := h.invites.CreateInvite(r.Context(), &inv, tokens.Hash(token)); err != nil {
+	// The store runs this only for a new invitation: replacing an open invite's
+	// link takes no new seat, which keeps "New link" working in a full workspace.
+	allow := func(ctx context.Context) error {
+		if denial := checkMemberEntitlement(ctx, h.entitlements, extension.Subject{UserID: userID, WorkspaceID: workspaceID}, InviteFeature); denial != nil {
+			return denial
+		}
+		return nil
+	}
+	if err := h.invites.CreateInvite(r.Context(), &inv, tokens.Hash(token), allow); err != nil {
+		var denial *entitlementDenial
+		if errors.As(err, &denial) {
+			denial.respond(w)
+			return
+		}
 		if errors.Is(err, workspace.ErrAlreadyMember) {
 			respondError(w, http.StatusConflict, "ALREADY_MEMBER", "that account is already a member of this workspace")
 			return

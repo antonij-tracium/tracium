@@ -48,17 +48,23 @@ type stubInvites struct {
 	userID  string
 }
 
-func (s *stubInvites) CreateInvite(_ context.Context, inv *model.WorkspaceInvite, hash string) error {
+// CreateInvite mirrors the store: allow runs only for a new invitation (open is
+// false), before anything is stored.
+func (s *stubInvites) CreateInvite(ctx context.Context, inv *model.WorkspaceInvite, hash string, allow func(context.Context) error) error {
+	if s.err != nil {
+		return s.err
+	}
+	if !s.open && allow != nil {
+		if err := allow(ctx); err != nil {
+			return err
+		}
+	}
 	s.created, s.hash = inv, hash
-	return s.err
+	return nil
 }
 
 func (s *stubInvites) ListInvites(context.Context, string) ([]model.WorkspaceInvite, error) {
 	return nil, s.err
-}
-
-func (s *stubInvites) HasOpenInvite(context.Context, string, string) (bool, error) {
-	return s.open, nil
 }
 
 func (s *stubInvites) RevokeInvite(context.Context, string, string) error { return s.err }

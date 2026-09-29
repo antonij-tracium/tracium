@@ -2237,14 +2237,14 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Member added (idempotent). */
+            /** @description Member added, or already a member (idempotent, no seat check). An open invite for the account is closed by the add. */
             204: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description `MEMBER_LIMIT_REACHED`: the workspace has reached its member limit. `FEATURE_UNAVAILABLE`: the entitlements provider denied `workspaces.members.add`. */
+            /** @description `MEMBER_LIMIT_REACHED`: the workspace has reached its member limit. `FEATURE_UNAVAILABLE`: the entitlements provider denied `workspaces.members.add` (the account has an open invite) or `workspaces.invite` (it takes a new seat). */
             403: {
                 headers: {
                     [name: string]: unknown;

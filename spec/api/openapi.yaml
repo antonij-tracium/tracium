@@ -877,12 +877,15 @@ paths:
               $ref: "#/components/schemas/AddMemberInput"
       responses:
         "204":
-          description: Member added (idempotent).
+          description: >
+            Member added, or already a member (idempotent, no seat check). An
+            open invite for the account is closed by the add.
         "403":
           description: >
             `MEMBER_LIMIT_REACHED`: the workspace has reached its member limit.
             `FEATURE_UNAVAILABLE`: the entitlements provider denied
-            `workspaces.members.add`.
+            `workspaces.members.add` (the account has an open invite) or
+            `workspaces.invite` (it takes a new seat).
           content:
             application/json:
               schema:

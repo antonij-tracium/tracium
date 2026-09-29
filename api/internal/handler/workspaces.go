@@ -138,11 +138,6 @@ func (h *WorkspaceHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 	if body.Role == workspace.RoleOwner {
 		role = workspace.RoleOwner
 	}
-	if denial := checkMemberEntitlement(r.Context(), h.entitlements, extension.Subject{UserID: userID, WorkspaceID: workspaceID}, MemberAddFeature); denial != nil {
-		denial.respond(w)
-		return
-	}
-
 	member, err := h.users.ByEmail(r.Context(), body.Email)
 	if err != nil {
 		if errors.Is(err, auth.ErrUserNotFound) {
@@ -153,7 +148,24 @@ func (h *WorkspaceHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.store.AddMember(r.Context(), workspaceID, member.ID, role); err != nil {
+	// A person whose open invite already holds their seat joins as if accepting
+	// it; anyone else takes a new seat, exactly like a new invite.
+	allow := func(ctx context.Context, invited bool) error {
+		feature := InviteFeature
+		if invited {
+			feature = MemberAddFeature
+		}
+		if denial := checkMemberEntitlement(ctx, h.entitlements, extension.Subject{UserID: userID, WorkspaceID: workspaceID}, feature); denial != nil {
+			return denial
+		}
+		return nil
+	}
+	if err := h.store.GrantMember(r.Context(), workspaceID, member.ID, role, allow); err != nil {
+		var denial *entitlementDenial
+		if errors.As(err, &denial) {
+			denial.respond(w)
+			return
+		}
 		respondError(w, http.StatusInternalServerError, "INTERNAL", "could not add member")
 		return
 	}
