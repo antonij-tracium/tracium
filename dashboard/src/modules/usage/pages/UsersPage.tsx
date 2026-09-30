@@ -167,7 +167,7 @@ interface ColDef {
 
 const COLUMNS: ColDef[] = [
   {
-    key: "name", label: "User", width: "minmax(180px, 1.4fr)", align: "left", sortKey: "name",
+    key: "name", label: "Client", width: "minmax(180px, 1.4fr)", align: "left", sortKey: "name",
     cell: t => (
       <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}>
         <span style={{ fontSize: 13.5, fontWeight: 500, color: "var(--foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.name}</span>
@@ -299,9 +299,9 @@ export function UsersPage({ users, periodLabel, comparison, updatedAt, setView, 
       {/* Header */}
       <header style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 24, paddingBottom: 28, flexWrap: "wrap" }}>
         <div style={{ minWidth: 0 }}>
-          <h1 style={{ fontSize: 28, fontWeight: 600, letterSpacing: "-0.02em", margin: 0, color: "var(--foreground)" }}>Users</h1>
+          <h1 style={{ fontSize: 28, fontWeight: 600, letterSpacing: "-0.02em", margin: 0, color: "var(--foreground)" }}>Clients</h1>
           <p style={{ fontSize: 13.5, color: "var(--muted)", margin: "2px 0 0" }}>
-            {periodLabel} · {users.length} active users · ${totalCost.toFixed(2)} this period
+            {periodLabel} · {users.length} active clients · ${totalCost.toFixed(2)} this period
           </p>
         </div>
         {updatedAt != null && <LastUpdated at={updatedAt} />}
@@ -309,7 +309,7 @@ export function UsersPage({ users, periodLabel, comparison, updatedAt, setView, 
 
       {/* KPI strip */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 28, paddingTop: 4, paddingBottom: 28, borderBottom: "1px solid color-mix(in srgb, var(--border) 50%, transparent)" }}>
-        <Kpi label="Active users" value={users.length.toString()} hint="this period" />
+        <Kpi label="Active clients" value={users.length.toString()} hint="this period" />
         <Kpi
           label="Total runs"
           value={fmtNum(totalRuns)}
@@ -322,7 +322,7 @@ export function UsersPage({ users, periodLabel, comparison, updatedAt, setView, 
           value={"$" + totalCost.toFixed(2)}
           delta={comparison ? pctDelta(totalCost, comparison.cost) : undefined}
           deltaTone={comparison && totalCost > comparison.cost ? "bad" : "good"}
-          hint={"$" + (users.length > 0 ? totalCost / users.length : 0).toFixed(2) + " / user"}
+          hint={"$" + (users.length > 0 ? totalCost / users.length : 0).toFixed(2) + " / client"}
           last
         />
       </div>
@@ -334,7 +334,7 @@ export function UsersPage({ users, periodLabel, comparison, updatedAt, setView, 
       }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 20 }}>
           <h2 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "var(--foreground)" }}>Cost share</h2>
-          <p style={{ fontSize: 12.5, color: "var(--muted)", margin: 0 }}>Top 3 users drive {totalCost > 0 ? ((sortedByCost.slice(0, 3).reduce((s, t) => s + t.cost, 0) / totalCost) * 100).toFixed(0) : "0"}% of spend this period.</p>
+          <p style={{ fontSize: 12.5, color: "var(--muted)", margin: 0 }}>Top 3 clients drive {totalCost > 0 ? ((sortedByCost.slice(0, 3).reduce((s, t) => s + t.cost, 0) / totalCost) * 100).toFixed(0) : "0"}% of spend this period.</p>
         </div>
         <ShareBar users={sortedByCost} totalCost={totalCost} />
       </div>
@@ -343,7 +343,7 @@ export function UsersPage({ users, periodLabel, comparison, updatedAt, setView, 
       <section style={{ paddingTop: 44 }}>
         <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 24, paddingBottom: 18, flexWrap: "wrap" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-            <h2 style={{ fontSize: 19, fontWeight: 600, letterSpacing: "-0.018em", margin: 0, color: "var(--foreground)" }}>All users</h2>
+            <h2 style={{ fontSize: 19, fontWeight: 600, letterSpacing: "-0.018em", margin: 0, color: "var(--foreground)" }}>All clients</h2>
             <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>{sorted.length} of {users.length} shown · click a row to drill in.</p>
           </div>
           {/* Search */}
@@ -358,7 +358,7 @@ export function UsersPage({ users, periodLabel, comparison, updatedAt, setView, 
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search user name or ID…"
+              placeholder="Search client name or ID…"
               style={{
                 flex: 1, background: "transparent", border: "none", outline: "none",
                 color: "var(--foreground)", fontSize: 12.5,
@@ -385,7 +385,7 @@ export function UsersPage({ users, periodLabel, comparison, updatedAt, setView, 
           {/* Rows */}
           {sorted.length === 0 ? (
             <div style={{ padding: "60px 0", textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
-              No users match this filter.
+              No clients match this filter.
             </div>
           ) : sorted.map(t => (
             <div
@@ -408,7 +408,7 @@ export function UsersPage({ users, periodLabel, comparison, updatedAt, setView, 
 
         {/* Footer */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 16, fontSize: 12, color: "var(--muted)" }}>
-          <span>Showing {sorted.length} of {users.length} users</span>
+          <span>Showing {sorted.length} of {users.length} clients</span>
         </div>
       </section>
     </div>

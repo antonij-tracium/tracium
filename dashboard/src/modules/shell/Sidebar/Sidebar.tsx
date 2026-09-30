@@ -49,7 +49,7 @@ const NAV_ITEMS: NavItemData[] = [
   { id: 'overview', icon: <IconHome size={16} />, label: 'Overview' },
   { id: 'workflows', icon: <IconWorkflows size={16} />, label: 'Workflows' },
   { id: 'usage', icon: <IconUsage size={16} />, label: 'Usage' },
-  { id: 'users', icon: <IconUsers size={16} />, label: 'Users' },
+  { id: 'users', icon: <IconUsers size={16} />, label: 'Clients' },
   { id: 'keys', icon: <IconKey size={16} />, label: 'API Keys' },
 ];
 

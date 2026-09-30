@@ -27,8 +27,8 @@ export function stateToPath(view: ViewId, selected: Record<string, string>, page
     case 'workflows':     return selected.workflow ? `/workflows/${enc(selected.workflow)}` : '/workflows';
     case 'trace':      return selected.traceId ? `/traces/${enc(selected.traceId)}` : '/traces';
     case 'usage':      return '/usage';
-    case 'users':    return '/users';
-    case 'user':     return selected.user ? `/users/${enc(selected.user)}` : '/users';
+    case 'users':    return '/clients';
+    case 'user':     return selected.user ? `/clients/${enc(selected.user)}` : '/clients';
     case 'keys':       return '/api-keys';
     case 'settings':   return '/settings';
     default:           return '/';
@@ -58,6 +58,7 @@ export function pathToState(pathname: string, pages: readonly ExtensionPage[] = 
         : { view: 'trace', selected: {} };
     case 'usage':
       return { view: 'usage', selected: {} };
+    case 'clients':
     case 'users':
       return seg[1]
         ? { view: 'user', selected: { user: seg[1] } }

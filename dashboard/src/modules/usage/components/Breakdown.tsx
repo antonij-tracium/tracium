@@ -40,7 +40,7 @@ interface ColDef {
 }
 
 const USER_COLS: ColDef[] = [
-  { key: 'name',  label: 'User',   w: 'minmax(220px, 1.4fr)', sortable: true,  align: 'left'  },
+  { key: 'name',  label: 'Client', w: 'minmax(220px, 1.4fr)', sortable: true,  align: 'left'  },
   { key: 'trend', label: 'Trend',    w: '78px',                  sortable: false, align: 'left'  },
   { key: 'runs',  label: 'Runs',     w: '110px',                 sortable: true,  align: 'right' },
   { key: 'avg',   label: 'Avg / 1K', w: '116px',                 sortable: true,  align: 'right' },

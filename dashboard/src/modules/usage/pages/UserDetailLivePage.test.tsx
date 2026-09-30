@@ -41,6 +41,6 @@ describe('live user details', () => {
     api.getUserUsage.mockRejectedValue(new Error('offline'));
     api.listTraces.mockResolvedValue({ items: [] });
     show('offline-user');
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Could not load user usage.'));
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Could not load client usage.'));
   });
 });
