@@ -385,7 +385,7 @@ export function Dashboard({ embedded = false, onLogout, extensions = EMPTY_EXTEN
           {view === 'trace'       && (embedded
             ? <TraceDetailDashPage setView={setView} />
             : selected.traceId
-              ? <TraceDetailView traceId={selected.traceId} setView={setView} />
+              ? <TraceDetailView traceId={selected.traceId} setView={setView} setSelected={setSelected} />
               : <EmptyState message="No trace selected" description="Open a trace from an workflow or the overview to see its detail." />)}
           {view === 'usage'       && (embedded
             ? <UsagePage range={range} />

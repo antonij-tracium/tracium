@@ -135,6 +135,7 @@ export function toTraceView(trace: LiveTrace): TraceDetail {
     inputTokens: trace.spans.reduce((sum, s) => sum + s.input_tokens, 0),
     outputTokens: trace.spans.reduce((sum, s) => sum + s.output_tokens, 0),
     model: trace.spans.find(s => s.model)?.model ?? '',
+    user: trace.user_id || undefined,
     input: traceInput,
     output: traceOutput ?? null,
     spans,

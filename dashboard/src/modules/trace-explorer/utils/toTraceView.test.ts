@@ -133,4 +133,10 @@ describe('toTraceView', () => {
     expect(view.input).toBeUndefined();
     expect(view.output).toBeNull();
   });
+
+  it('carries the trace client (user_id) and omits it when unset', () => {
+    const withClient = toTraceView({ ...trace([span({ span_id: 'root' })]), user_id: 'acme' } as unknown as TraceDetail);
+    expect(withClient.user).toBe('acme');
+    expect(toTraceView(trace([span({ span_id: 'root' })])).user).toBeUndefined();
+  });
 });

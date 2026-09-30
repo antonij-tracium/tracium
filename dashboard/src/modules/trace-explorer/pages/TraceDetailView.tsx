@@ -7,6 +7,7 @@ export interface TraceDetailViewProps {
   /** Trace selected from the overview activity feed / command palette. */
   traceId: string;
   setView: (v: string) => void;
+  setSelected: (updater: (prev: Record<string, string>) => Record<string, string>) => void;
 }
 
 /**
@@ -15,7 +16,7 @@ export interface TraceDetailViewProps {
  * page. Span input/output text and tool lists aren't in the API, so those
  * sections stay empty for live traces.
  */
-export function TraceDetailView({ traceId, setView }: TraceDetailViewProps) {
+export function TraceDetailView({ traceId, setView, setSelected }: TraceDetailViewProps) {
   const { data, isLoading, error } = useTrace(traceId);
 
   if (isLoading) {
@@ -42,6 +43,10 @@ export function TraceDetailView({ traceId, setView }: TraceDetailViewProps) {
   // state (selected span, collapsed set, tab) would persist when navigating
   // between two already-cached traces and leave the inspector showing a span
   // id that doesn't exist in the new trace.
-  return <TraceView key={data.trace_id} trace={toTraceView(data)} setView={setView} />;
+  const openUser = (user: string) => {
+    setSelected(s => ({ ...s, user }));
+    setView('user');
+  };
+  return <TraceView key={data.trace_id} trace={toTraceView(data)} setView={setView} onOpenUser={openUser} />;
 }
 
