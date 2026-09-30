@@ -1,4 +1,4 @@
-# Plan — Reconcile metric-derived cost in the daily rollup (bug 1)
+# Plan: Reconcile metric-derived cost in the daily rollup (bug 1)
 
 ## The bug
 
@@ -24,26 +24,26 @@ short-window total for an overlapping range. Hence "wider range shows less cost"
 ## Chosen approach
 
 Reconcile in the rollup so long windows apply the *same* per-bucket
-`greatest(span, metric)` reconciliation as the short path — at **day** grain,
+`greatest(span, metric)` reconciliation as the short path, at **day** grain,
 which is exactly the bucket the long-window charts already use.
 
 Metric rows have **no** trace / agent / model identity, so they cannot join the
 existing `metrics_daily` aggregation (they would corrupt `runs`, `error_runs`,
-and the agent/model dimensions — the very reason 003 excludes them). Instead,
+and the agent/model dimensions, the very reason 003 excludes them). Instead,
 add a **separate, cost-only daily table keyed by the dimensions metric rows
-actually have** — `(bucket_date, user_id, workspace_id)` — with span and metric
+actually have** `(bucket_date, user_id, workspace_id)`, with span and metric
 cost in two columns, and reconcile at read time.
 
 Scope note: only the **overall** cost KPI and the **unfiltered** cost series
 reconcile on the short path. The per-agent / per-model / per-user cost lists are
 span-attributed on *both* paths (metric rows carry no agent/model/user-run
 identity), so they stay span-only and are **not** changed. This fix touches the
-overall cost total only — matching precisely which short-path queries reconcile
+overall cost total only, matching precisely which short-path queries reconcile
 today.
 
 ## Changes
 
-### 1. Collector schema — new cost rollup table (migration `007`)
+### 1. Collector schema: new cost rollup table (migration `007`)
 
 `collector/schema/007_create_metrics_daily_cost.sql` (single CREATE statement,
 per the migration runner's one-statement-per-file rule):
@@ -61,9 +61,9 @@ ORDER BY (bucket_date, user_id, workspace_id);
 ```
 
 `SimpleAggregateFunction(sum)` stores the final value; reads just `sum()` across
-merged parts. No `uniq`/merge state needed — cost is additive.
+merged parts. No `uniq`/merge state needed; cost is additive.
 
-### 2. Collector schema — materialized view over BOTH sources (migration `008`)
+### 2. Collector schema: materialized view over BOTH sources (migration `008`)
 
 `collector/schema/008_create_metrics_daily_cost_mv.sql`:
 
@@ -80,7 +80,7 @@ FROM tracium.spans
 GROUP BY bucket_date, user_id, workspace_id;
 ```
 
-Note: no `WHERE source =` filter — the `sumIf`s split the two sources into their
+Note: no `WHERE source =` filter. The `sumIf`s split the two sources into their
 own columns, so a single row per (day, user, workspace) holds both. This MV
 fires on the same inserts as `metrics_daily_mv`; both writing to the spans table
 is fine (independent targets).
@@ -88,7 +88,7 @@ is fine (independent targets).
 ### 3. One-time backfill (docs + release note)
 
 An MV only captures inserts made *after* it exists. Backfill once, immediately
-after creating the table (bounded by the spans TTL — older raw spans are already
+after creating the table (bounded by the spans TTL; older raw spans are already
 gone, and the pre-existing rollup already covers span cost for them):
 
 ```sql
@@ -104,12 +104,12 @@ Document in the migration file header (mirroring 003's backfill note) and in
 
 ### 4. API read path (`api/internal/query/rollup.go`)
 
-Reconcile per day, then sum — the day-grain analog of the short path.
+Reconcile per day, then sum: the day-grain analog of the short path.
 
 - **New helper** for a reconciled window total:
 
   ```go
-  // costTotalRollup sums per-day greatest(span,metric) over the window — the
+  // costTotalRollup sums per-day greatest(span,metric) over the window, the
   // rollup analog of costTotal's per-bucket reconciliation (see costReconcileExpr).
   func (r *ClickHouseRepository) costTotalRollup(ctx context.Context, user string, workspaces []string, lo, hi time.Time, hiInclusive bool) (float64, error) {
       clause, args := rollupWindow(user, workspaces, lo, hi, hiInclusive)
@@ -123,7 +123,7 @@ Reconcile per day, then sum — the day-grain analog of the short path.
 
 - **`kpiWindowRollup`**: stop reading `sum(cost)` from `metrics_daily`. Keep the
   `runs`/`error_runs` query there (span-derived, unchanged) and fetch cost from
-  `costTotalRollup` — exactly how the short path splits `costTotal` out of
+  `costTotalRollup`, exactly how the short path splits `costTotal` out of
   `kpiAggregates`. `rollupKPI.cost` is then the reconciled value.
 
 - **`costSeriesRollup`**: read the reconciled per-day series:
@@ -135,10 +135,10 @@ Reconcile per day, then sum — the day-grain analog of the short path.
   ```
 
   (`bucketMsExpr` already yields UTC-midnight epoch-ms, lining up with the
-  zero-fill axis — reuse it.)
+  zero-fill axis, so reuse it.)
 
 - **Unchanged**: `topAgentsRollup`, `listAgentsRollup`, `modelCostsRollup`,
-  `userUsageRollup`, `agentUsageRollup`, `failuresRollup` — all span-attributed,
+  `userUsageRollup`, `agentUsageRollup`, `failuresRollup` are all span-attributed,
   consistent with their short-path counterparts.
 
 ## Invariants preserved
@@ -165,7 +165,7 @@ Reconcile per day, then sum — the day-grain analog of the short path.
 ## Migration / rollout order
 
 1. Ship 007 + 008 (collector migrations run as the Helm migrate Job / compose
-   migrate service — idempotent `IF NOT EXISTS`).
+   migrate service; idempotent `IF NOT EXISTS`).
 2. Run the backfill once (Job hook or documented manual step).
 3. Deploy the API change. Safe to deploy API before backfill completes: an empty
    `metrics_daily_cost` yields 0 for both sources → cost reads 0 for long windows

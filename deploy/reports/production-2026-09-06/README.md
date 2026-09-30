@@ -1,4 +1,4 @@
-# Production readiness checks — 2026-09-06
+# Production readiness checks: 2026-09-06
 
 **The current build has reproducible data-loss and operational defects. A general
 production-ready claim is not supported yet.** Publishing the source as OSS is

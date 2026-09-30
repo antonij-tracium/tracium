@@ -1,4 +1,4 @@
-# Security assessment — 2026-09-07
+# Security assessment: 2026-09-07
 
 Five additional findings were identified in the current working tree. Prior
 production-readiness findings are not repeated here. Priorities below describe
@@ -8,22 +8,22 @@ remediation order, not calculated CVSS scores.
 > since been fixed in application code (the original assessment was made before
 > any code changes):
 >
-> - **FIXED** — Login rate limiting trusts forwarding headers: the limiter now
+> - **FIXED**: Login rate limiting trusts forwarding headers: the limiter now
 >   keys on the socket peer and honours `X-Forwarded-For` only from configured
 >   `auth.trusted_proxies`; the dashboard nginx overwrites the header with the
 >   real peer instead of appending.
-> - **OPEN** — Email-based membership grants do not establish mailbox ownership.
-> - **FIXED** — URL can silently replace a dashboard session: bearer-token login
+> - **OPEN**: Email-based membership grants do not establish mailbox ownership.
+> - **FIXED**: URL can silently replace a dashboard session: bearer-token login
 >   via query parameter was removed.
-> - **FIXED** — Collector identity cache grows without limit: the OSS passthrough
+> - **FIXED**: Collector identity cache grows without limit: the OSS passthrough
 >   resolver is no longer cached, and `CachedResolver` is now a bounded LRU.
-> - **FIXED** — Metrics bypass span ingest limits: token-count ceiling and
+> - **FIXED**: Metrics bypass span ingest limits: token-count ceiling and
 >   identifier sanitization now apply on the metrics path (shared
 >   `internal/ingest` bounds) and again in the exporter as defense-in-depth.
 >
 > Each fix ships with regression tests. See the per-finding notes below.
 
-## P1 — Login rate limiting trusts attacker-controlled forwarding headers
+## P1: Login rate limiting trusts attacker-controlled forwarding headers
 
 **Status: FIXED.**
 
@@ -46,7 +46,7 @@ explicitly trusted proxy addresses, and parse the chain consistently with that
 trust configuration. Sanitize client-supplied forwarding headers at the public
 edge. Test the actual shipped proxy/API combination against spoofed headers.
 
-## P1 — Email-based membership grants do not establish mailbox ownership
+## P1: Email-based membership grants do not establish mailbox ownership
 
 **Status: OPEN.**
 
@@ -74,7 +74,7 @@ an acceptance flow that cannot attach access to an attacker-held session. For
 deployments without email delivery, disable public signup and use an explicitly
 trusted provisioning/identity workflow.
 
-## P2 — A URL can silently replace an existing dashboard session
+## P2: A URL can silently replace an existing dashboard session
 
 **Status: FIXED.**
 
@@ -98,7 +98,7 @@ short-lived single-use exchange bound to a browser-initiated login. Derive the
 displayed identity from the authenticated account. URL cleanup happens after the
 initial navigation and is not a remedy for placing a credential in that URL.
 
-## P2 — Collector identity cache grows without a limit or eviction
+## P2: Collector identity cache grows without a limit or eviction
 
 **Status: FIXED.**
 
@@ -122,7 +122,7 @@ token does not bound an authorized sender's cardinality.
 external resolver is needed, impose a strict entry/byte budget and eviction.
 Apply the same field bounds on both traces and metrics.
 
-## P2 — Metrics bypass the ingest limits enforced for spans
+## P2: Metrics bypass the ingest limits enforced for spans
 
 **Status: FIXED.**
 

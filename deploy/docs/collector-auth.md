@@ -3,7 +3,7 @@
 **Ingest requires a per-workspace API key on every request.** Both OTLP ports
 (`4317` gRPC, `4318` HTTP) are guarded by the `traciumauth` authenticator: a
 request with no key, or an unknown or revoked one, is rejected with `401` and
-nothing is stored. There is no anonymous or shared-token path — the key is the
+nothing is stored. There is no anonymous or shared-token path; the key is the
 only way in, and it is not configurable off.
 
 ## How it works
@@ -26,7 +26,7 @@ the API:
 POST /v1/workspaces/{id}/api-keys      (authenticated; you must be a member of the workspace)
 ```
 
-The plaintext token (`trc_…`) is returned **once** — capture it then; only its
+The plaintext token (`trc_…`) is returned **once**, so capture it then; only its
 hash is stored. Senders set only the key, no workspace attribute:
 
 ```bash
@@ -51,7 +51,7 @@ receiver protocols, and the `tracium` processor drops any span that somehow
 reaches it unauthenticated. The one setting a deployment must supply is where the
 API lives:
 
-- **`INGEST_VERIFY_URL`** — the API's verify endpoint, e.g.
+- **`INGEST_VERIFY_URL`**: the API's verify endpoint, e.g.
   `http://api:8090/v1/ingest/keys/verify`. Compose and the Helm chart set this to
   the in-cluster API service automatically.
 
@@ -62,7 +62,7 @@ a security control because the cache is keyed by a sender-supplied token).
 `sender_verify_limit` / `sender_verify_window` cap how many verify calls one
 sender (peer address) can force against the API per window. Only cache misses
 count, so a sender presenting one valid key is charged once and then served from
-cache — legitimate high-volume ingest is untouched. This stops a single abusive
+cache, so legitimate high-volume ingest is untouched. This stops a single abusive
 sender, streaming distinct invalid keys, from spending the collector's shared
 verify budget and blocking verification for everyone else behind the same
 collector. Set `sender_verify_limit` to `0` to disable it.
@@ -70,11 +70,11 @@ collector. Set `sender_verify_limit` to `0` to disable it.
 ### The key decides the workspace
 
 On verification the API returns the key's single workspace, and the collector
-**stamps it onto every span** the request carries — overriding any
+**stamps it onto every span** the request carries, overriding any
 `tracium.workspace.id` the sender set. So:
 
 - The client does not send a workspace attribute; the key is the source of truth.
-- A sender cannot land data in a workspace other than its key's — it can't claim
+- A sender cannot land data in a workspace other than its key's. It can't claim
   a workspace, the key grants exactly one.
 - To send to several workspaces, use one key per workspace.
 

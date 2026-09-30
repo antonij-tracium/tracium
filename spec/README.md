@@ -12,7 +12,7 @@ and `dashboard` originates here.
 ## Purpose
 
 When you need to answer "what is the canonical shape of a Span?", the answer is
-`schemas/span.json` in this repository — not a struct in `api`, not an
+`schemas/span.json` in this repository, not a struct in `api`, not an
 interface in `dashboard`.
 
 Any change to a shared data contract must be made here first, then propagated to
@@ -84,25 +84,25 @@ deprecation period:
 
 ## How to Make a Change
 
-### Step 1 — Classify the change
+### Step 1: Classify the change
 
 Is it additive (new optional field, new model, new endpoint) or breaking
 (rename, remove, type change)? Use the compatibility policy above.
 
-### Step 2 — Update the relevant schema files
+### Step 2: Update the relevant schema files
 
 - Field changes: edit `schemas/span.json` or `schemas/trace.json`
 - API changes: edit `api/openapi.yaml`
 - New/updated model pricing: run `pricing/refresh-pricing.sh` (do not hand-edit)
 - New OTel attribute: edit `attributes/genai.yaml` or `attributes/tracium.yaml`
 
-### Step 3 — Increment schema_version (breaking changes only)
+### Step 3: Increment schema_version (breaking changes only)
 
 If your change is breaking, increment the `schema_version` minimum in the
 relevant JSON Schema file. Update any example values and comments referencing
 the version number.
 
-### Step 4 — Run the codegen scripts
+### Step 4: Run the codegen scripts
 
 ```bash
 # Generate TypeScript types for dashboard
@@ -114,13 +114,11 @@ the version number.
 
 Commit the generated output changes alongside your schema changes.
 
-### Step 5 — Update CHANGELOG.md
+### Step 5: Update CHANGELOG.md
 
-Add an entry at the top of the changelog with:
-- The version tag (e.g. `[v3]`)
-- A short title
-- Under `### Added` / `### Changed` / `### Removed`: bullet points describing each change
-- A note on whether the change is additive or breaking
+Add a one-line bullet under `## [Unreleased]`, in `### Added`, `### Changed`,
+`### Fixed` or `### Removed`. Keep it an outline: name the change, and mark it
+"breaking" when it is. Details belong in the PR, not the changelog.
 
 ---
 
@@ -203,5 +201,5 @@ Do not hand-edit the file. Regenerate it:
 1. Run `./pricing/refresh-pricing.sh` (optionally pass a LiteLLM git ref to pin).
    It records the pinned commit in `source`.
 2. Add a `### Changed` entry to `CHANGELOG.md`.
-3. Commit — the collector reads this file at startup and picks up changes on
+3. Commit. The collector reads this file at startup and picks up changes on
    next restart.

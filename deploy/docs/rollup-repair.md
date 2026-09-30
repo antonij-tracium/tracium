@@ -30,18 +30,18 @@ SELECT cost FROM tracium.metrics_daily WHERE user_id = 'affected-user';
 
 The `repair-rollup` command rebuilds specific `bucket_date` days from the raw
 spans, using the same aggregation each materialized view performs. It ships in
-the API image (`ghcr.io/tracium/api`) and rebuilds **both** rollups —
-`tracium.metrics_daily` and `tracium.metrics_daily_cost` — in one run.
+the API image (`ghcr.io/tracium/api`) and rebuilds **both** rollups
+(`tracium.metrics_daily` and `tracium.metrics_daily_cost`) in one run.
 
 It connects over ClickHouse's native protocol via `CLICKHOUSE_DSN` (the same
-value the API uses), so run it in-cluster where port 9000 is reachable — e.g. a
+value the API uses), so run it in-cluster where port 9000 is reachable, e.g. a
 one-off pod from the API image, or `docker compose run`:
 
 ```bash
 # 1. Remove the bad spans from the raw table.
 clickhouse-client --query "ALTER TABLE tracium.spans DELETE WHERE <predicate>"
 
-# 2. Inspect what the rebuild would do — changes nothing.
+# 2. Inspect what the rebuild would do (changes nothing).
 docker compose run --rm --entrypoint ./repair-rollup api \
   --from 2026-07-14 --to 2026-07-16 --dry-run
 
@@ -67,22 +67,22 @@ It refuses to run rather than write aggregates it cannot vouch for:
   deployment's objects can differ from the schema files. On every run the command
   normalises each rollup's materialized-view SELECT (via `EXPLAIN SYNTAX`) and
   compares it against the aggregation it mirrors internally, for **both**
-  `metrics_daily` and `metrics_daily_cost`, and aborts on any mismatch — so it
+  `metrics_daily` and `metrics_daily_cost`, and aborts on any mismatch, so it
   never writes aggregates the live trigger would not have produced. (This guard,
   and the tool itself, are unit-tested in `api/internal/rolluprepair`.)
 - **Still-open days.** Rebuilding a day that is still receiving spans
-  double-counts them — the view inserts a partial for each new span and the
+  double-counts them: the view inserts a partial for each new span and the
   rebuild reads it too. Days with recent arrivals are refused unless you stop
   ingestion and pass `--force`. Late spans arriving *after* a rebuild are fine:
   the view adds them on top, exactly as it would have.
 - **Aged-out days.** If a day's raw spans have already expired under the spans
-  TTL, rebuilding would replace real history with an empty day — the rollups
+  TTL, rebuilding would replace real history with an empty day, since the rollups
   deliberately outlive raw spans. Such days are skipped unless you pass
   `--allow-empty`.
 
 ## Cost
 
-Bounded by the days you request, never by the table size — the span read is a
+Bounded by the days you request, never by the table size: the span read is a
 half-open `start_time_ms` range that prunes on the sort key. There is no
 "rebuild everything" mode; at Tracium's scale bar that would be unrunnable.
 

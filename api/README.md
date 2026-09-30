@@ -3,7 +3,7 @@
 The read half of Tracium. It serves trace and metric data to the dashboard over
 a versioned REST API (`/v1/…`). It reads span data from ClickHouse and
 config/accounts from Postgres. It never ingests spans and never writes to the
-span store — that's [`collector`](../collector).
+span store; that's [`collector`](../collector).
 
 ## The one rule that shapes everything
 
@@ -25,8 +25,8 @@ span table unbounded, and there must never be one.
 
 Handlers depend on the `TraceRepository` / `MetricsRepository` **interfaces**, not
 on ClickHouse. The concrete store is wired once in `cmd/api/main.go`; swapping it
-(or the no-op stub used in tests) is a one-line change. Errors are typed —
-`ErrNotFound` maps to 404, everything else to 500 — so handlers never string-match
+(or the no-op stub used in tests) is a one-line change. Errors are typed
+(`ErrNotFound` maps to 404, everything else to 500), so handlers never string-match
 on error text.
 
 ```
@@ -39,7 +39,7 @@ internal/query/        ClickHouse repository + the windowing/rollup logic
 internal/auth/         accounts, password hashing, JWT issuing (Postgres-backed)
 internal/middleware/   CORS, API version prefix, auth, tenant scoping
 internal/model/        response types (mirrors spec)
-testing/mocks/         interface mocks — the only backend unit tests touch
+testing/mocks/         interface mocks, the only backend unit tests touch
 ```
 
 ## Run
@@ -49,7 +49,7 @@ go run ./cmd/api      # needs CLICKHOUSE_DSN, POSTGRES_DSN, JWT_SECRET
 go test ./...
 ```
 
-Config comes from env vars and is validated at startup — a missing DSN or
+Config comes from env vars and is validated at startup: a missing DSN or
 `JWT_SECRET` exits the process with a listed error rather than starting in a
 degraded state. Copy [`.env.example`](.env.example) to `.env` for local dev.
 
@@ -57,12 +57,12 @@ degraded state. Copy [`.env.example`](.env.example) to `.env` for local dev.
 |---|---|---|
 | `CLICKHOUSE_DSN` | yes | span data (HTTP scheme selects the HTTP protocol) |
 | `POSTGRES_DSN` | yes | accounts/config; auth cannot run without it |
-| `JWT_SECRET` | yes | signs **and** verifies admin tokens — never a shared default |
+| `JWT_SECRET` | yes | signs **and** verifies admin tokens, never a shared default |
 | `LISTEN_ADDR` | no | defaults to `:8090` |
 
 **Auth fails closed.** With both DSNs and a secret set, auth is on. The only way
 to disable it is an explicit `auth.mode=none`, which logs a loud warning and is
-for local dev only — there is no silent fallback to an open API.
+for local dev only; there is no silent fallback to an open API.
 
 ## Routes
 
@@ -93,14 +93,14 @@ carries a `workspace_id` (promoted from `tracium.workspace.id`); every read is
 scoped to the workspaces the caller is a member of:
 
 - An optional `workspace_id` query param (on `/traces` and every `/metrics/*`)
-  narrows a read to one workspace — the dashboard passes the active one from its
+  narrows a read to one workspace; the dashboard passes the active one from its
   workspace switcher.
 - If the caller is **not** a member of the requested workspace, the read is
   refused with **403**.
 - With no `workspace_id`, a read returns the union of the caller's workspaces; an
   account that is a member of none sees nothing (never everything).
 
-`user_id` is a *different* axis — the end-client/metering label the dashboard
+`user_id` is a *different* axis: the end-client/metering label the dashboard
 allocates cost by, an optional filter, not an access boundary.
 
 Single-trace reads and their `/spans` endpoint enforce the same membership
@@ -109,7 +109,7 @@ inaccessible workspace returns 403. A trace ID is never an access credential.
 
 ## License
 
-Apache 2.0 — see [LICENSE](LICENSE).
+Apache 2.0. See [LICENSE](LICENSE).
 
 ## Application composition
 

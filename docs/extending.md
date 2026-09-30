@@ -58,9 +58,11 @@ const extensions: DashboardExtensions = {
 shared authentication behavior. Its `signInOptions` component renders above the
 login and signup forms (for external sign-in buttons) and supplies its own
 divider, for example the exported `AuthDivider`. An `authRoutes` page that
-completes such a sign-in stores the token under `TOKEN_KEY` and the address under
-`EMAIL_KEY`, then reloads. Bind that token to a sign-in this browser started
-(an HttpOnly cookie, say); never accept one from the URL.
+completes such a sign-in stores the session token and address with the exported
+`storeSession`, then reloads. Bind that session token to a sign-in this browser
+started (an HttpOnly cookie, say); never accept one from the URL. If the visitor
+arrived through an invite link, `readPendingInvite` returns its token so the page
+can send them back to `/invite/<token>`.
 
 `authAppearance.signupFields` renders a component inside the signup form, above the submit
 button (for example a CAPTCHA widget). It receives `onChange(fields)` and

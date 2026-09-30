@@ -59,7 +59,7 @@ against an active installation.
 Migrations `007`/`008` add `tracium.metrics_daily_cost`, a source-aware cost
 rollup that lets long windows (90d/1y) reconcile span- and metric-derived spend
 the same way short windows do. Before it existed, the long-window cost read
-`tracium.metrics_daily`, which is span-only — so a wide range could report less
+`tracium.metrics_daily`, which is span-only, so a wide range could report less
 cost than a shorter one whenever the metric source metered more than spans.
 
 The table and its materialized view are created automatically by the migration
@@ -77,7 +77,7 @@ GROUP BY 1, 2, 3;
 ```
 
 Run it once, while it is safe to read the current spans (ideally with ingestion
-quiet, so a day is not both backfilled here and captured by the view — the same
+quiet, so a day is not both backfilled here and captured by the view, the same
 open-day caution as `rollup-repair.md`). It only recovers days still within the
 spans TTL; older days keep whatever span cost the pre-existing `metrics_daily`
 already holds, and long windows fall back to that for those days.
@@ -89,7 +89,7 @@ directing users at long-range cost if that transient is unacceptable.
 > Note: because materialized views do not retract on DELETE, a bad span deleted
 > from `tracium.spans` leaves its contribution in both `metrics_daily` and
 > `metrics_daily_cost`. The `repair-rollup` command (in the API image) rebuilds
-> **both** rollups for the affected days — see `rollup-repair.md`.
+> **both** rollups for the affected days; see `rollup-repair.md`.
 
 # Typed read views (calls / usage_metrics)
 
@@ -97,13 +97,13 @@ Migrations `009`/`010` add two views over `tracium.spans`:
 `tracium.calls` (`source='span'`) and `tracium.usage_metrics` (`source='metric'`).
 The API reads these instead of filtering `source` itself, so a trace/workflow/latency
 query structurally cannot see identity-less metric rows, and cost reconciliation
-reads both views explicitly. They hold no data and copy nothing — reading a view
+reads both views explicitly. They hold no data and copy nothing: reading a view
 is rewritten to its underlying `SELECT` at run time.
 
 **The new API depends on these views existing.** They are created by the same
 migration step that runs before the app in every deploy path (the Helm migrate
 hook is `pre-upgrade`; Compose runs `migrate` before `up`), so the standard order
-already covers it — just don't roll the new API pods against a database that has
+already covers it; just don't roll the new API pods against a database that has
 not yet applied `009`/`010`. Nothing to backfill: the views are pure metadata.
 
 If you later `ADD COLUMN` to `tracium.spans` and the API must read it, recreate

@@ -2,7 +2,7 @@
 
 The ingest half of Tracium. It receives OTLP from your instrumented apps,
 enriches each span with cost/user/workspace/normalised-model, and writes it to
-ClickHouse. It does **not** serve queries — that's [`api`](../api).
+ClickHouse. It does **not** serve queries; that's [`api`](../api).
 It exposes no HTTP API of its own beyond a health check.
 
 It is a **generic [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/)
@@ -10,9 +10,9 @@ distribution**, not a bespoke service. OTLP receiving, batching, the durable sen
 queue, retry, and health checks are all upstream OTel components. Tracium adds
 exactly two:
 
-- `processors.tracium` — the enrichment chain (validate → normalise model →
+- `processors.tracium`: the enrichment chain (validate → normalise model →
   resolve user → price → filter).
-- `exporters.clickhousespan` — writes the `tracium.spans` schema.
+- `exporters.clickhousespan`: writes the `tracium.spans` schema.
 
 All domain logic lives behind the `enrich.Enricher` seam in the framework-free
 [`enrich/`](enrich/) package. That seam is the whole open-core split: OSS and
@@ -33,7 +33,7 @@ GOWORK=off builder --config builder/oss.builder.yaml  # → ./_build/tracium-col
 ./_build/tracium-collector --config config/collector.yaml
 ```
 
-Or `docker compose up collector` from the repo root — the Dockerfile runs OCB
+Or `docker compose up collector` from the repo root; the Dockerfile runs OCB
 during the image build. Building always needs network access (OCB pulls the
 collector framework); the `enrich/` core does not.
 
@@ -60,15 +60,15 @@ every knob and its `${env:VAR}` override.
   with an error code and counted; see `internal/deadletter` and the `dropped`
   counter on `:8888`.
 - **Ingest is bounded on purpose.** Even for an authenticated sender, token
-  counts, model names, and user labels are capped before they can reach storage
-  — one span claiming 2^62 tokens would otherwise poison every `sum(cost_usd)`.
+  counts, model names, and user labels are capped before they can reach storage:
+  one span claiming 2^62 tokens would otherwise poison every `sum(cost_usd)`.
   The ceilings live in [`enrich/enrichers.go`](enrich/enrichers.go).
 - **Ingest requires a per-workspace API key.** The `traciumauth` authenticator is
   wired into both OTLP receivers and verifies every request's key against the API,
   rejecting unknown or revoked ones with 401. The key decides the workspace, so it
   overrides any sender-supplied `tracium.workspace.id`. As a fail-closed backstop,
   the `tracium` processor drops any span that reaches it without a verified key.
-  This stops data *poisoning* and anonymous senders, not *volume* — rate-limit at
+  This stops data *poisoning* and anonymous senders, not *volume*, so rate-limit at
   the gateway if the port is exposed.
 
 ## Test
@@ -78,8 +78,8 @@ go test ./enrich/...   # domain logic, no network needed
 go test ./...          # includes the processor/exporter adapter modules
 ```
 
-Unit tests use `testing/mocks` only — never a real database.
+Unit tests use `testing/mocks` only, never a real database.
 
 ## License
 
-Apache 2.0 — see [LICENSE](LICENSE).
+Apache 2.0. See [LICENSE](LICENSE).

@@ -7,7 +7,7 @@ a separate private repo and are out of scope here.
 
 One repository, five components: `collector/` and `api/` (Go), `dashboard/`
 (React/TS), `spec/` (schemas + codegen), `deploy/` (Helm, migrations, infra).
-Each has a `README.md` documenting its conventions — read the relevant one before
+Each has a `README.md` documenting its conventions. Read the relevant one before
 changing that component.
 
 ## Build & test
@@ -26,10 +26,10 @@ with no version pins.
 
 - **Program against interfaces**, wire concrete types in one place (`main.go` /
   provider setup).
-- **Typed errors** from `internal/errors` — never bare `fmt.Errorf`/`new Error` out
+- **Typed errors** from `internal/errors`, never bare `fmt.Errorf`/`new Error` out
   of a pipeline stage or repository.
 - **`spec/` is the source of truth.** Change a shared type there first, then
-  regenerate consumers — never hand-edit generated files.
+  regenerate consumers; never hand-edit generated files.
 - **Every read must be time- or trace-bounded.** Nothing may scan the span table
   unbounded; cost scales with the query window, not total rows stored.
 - **No Enterprise features** (SSO, RBAC, PII redaction, budgets) in this repo.
