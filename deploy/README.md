@@ -2,7 +2,7 @@
 
 Infrastructure for running Tracium: the Helm chart, the schema-migration runner,
 and default service configs. **The Docker Compose quickstart lives at the repo
-root** (`docker compose up --build` — see the top-level [README](../README.md));
+root** (`docker compose up --build`, see the top-level [README](../README.md));
 this directory is the Kubernetes/production side plus the shared pieces both use.
 
 ```
@@ -49,5 +49,5 @@ Existing installations: follow [the workspace upgrade guide](docs/upgrading.md).
   `collector/schema/`. The Helm chart needs its own copies under
   `helm/tracium/files/`; regenerate them with **`make sync-generated`** from the
   repo root after any change (don't hand-edit the copies).
-- **OTLP ingest requires a per-workspace API key** — [securing the collector](docs/collector-auth.md).
+- **OTLP ingest requires a per-workspace API key**: [securing the collector](docs/collector-auth.md).
 - **Runbook:** [repairing the daily rollup](docs/rollup-repair.md).

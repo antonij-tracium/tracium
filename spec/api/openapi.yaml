@@ -2,7 +2,7 @@ openapi: "3.1.0"
 
 info:
   title: Tracium API
-  version: 0.1.0
+  version: 1.0.1
   description: >
     REST API for querying traces and spans collected by the Tracium
     OpenTelemetry-native LLM observability platform. All timestamps are
@@ -40,7 +40,7 @@ paths:
             type: string
         - name: workflow
           in: query
-          description: Filter to traces belonging to a single workflow (the trace root name) — powers an workflow's recent runs.
+          description: Filter to traces belonging to a single workflow (the trace root name), which powers a workflow's recent runs.
           schema:
             type: string
         - name: has_error
@@ -261,7 +261,7 @@ paths:
     get:
       operationId: getErrorSeries
       summary: Failures over time
-      description: Failed-vs-total run counts per time bucket across the range — the "Failures by day" strip.
+      description: Failed-vs-total run counts per time bucket across the range, for the "Failures by day" strip.
       tags:
         - Metrics
       parameters:
@@ -314,7 +314,7 @@ paths:
       summary: Workflow activity list
       description: >
         Every active workflow in the range with its run count, total spend, mean
-        run latency, error rate, and call-count sparkline — the data behind the
+        run latency, error rate, and call-count sparkline, the data behind the
         Workflows page. Ordered by call count descending; sorting and filtering are
         done client-side. avg_latency_ms is 0 for long windows served from the
         daily rollup, where per-trace durations are not retained.
@@ -344,7 +344,7 @@ paths:
       summary: Workflow detail
       description: >
         One workflow's detail-page payload: its headline metrics over the range
-        plus the tool surface from its most recent run. Span-backed only — there
+        plus the tool surface from its most recent run. Span-backed only; there
         is no workflow-config store, so runtime params (temperature, retries,
         version, owner, …) are not served. A raw-window feature: ranges longer
         than 30d (90d, 1y) are rejected with a 400, since per-workflow latency
@@ -414,7 +414,7 @@ paths:
       summary: Statistical anomalies
       description: >
         Buckets that deviated significantly from their own recent history, for
-        cost, error rate, and run volume — workspace-wide and per busy workflow.
+        cost, error rate, and run volume, workspace-wide and per busy workflow.
         Detection is daily and robust (median + MAD over a trailing 28-day
         baseline), served entirely from the daily rollup, so a range of 7d or
         longer is required (24h is rejected with a 400). Results are ordered most
@@ -456,7 +456,7 @@ paths:
       operationId: getModelCosts
       summary: Cost by model
       description: >
-        Spend broken down by model over the range — the usage page's
+        Spend broken down by model over the range, the usage page's
         "where it goes" list. Each entry carries the model's cost, run
         (trace) count, and summed input/output tokens, ordered by cost
         descending.
@@ -570,8 +570,8 @@ paths:
       operationId: getUsageByAttribute
       summary: Cost allocation by attribute
       description: >
-        Spend and usage allocated across the values of one custom attribute
-        — the cost-allocation primitive that splits AI spend by whatever
+        Spend and usage allocated across the values of one custom attribute,
+        the cost-allocation primitive that splits AI spend by whatever
         dimension the instrumentation tags spans with. The `key` query
         parameter names the dimension (from /v1/metrics/attribute-keys) and
         is required. Ordered by cost descending.
@@ -673,7 +673,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/Credentials"
+              $ref: "#/components/schemas/RegisterRequest"
       responses:
         "201":
           description: Account created; token returned.
@@ -1158,7 +1158,7 @@ paths:
       description: >
         Every API key bound to the workspace, newest first, including revoked
         ones (so history is visible). The secret token itself is never returned
-        here — only its non-secret prefix and metadata. Requires membership of
+        here, only its non-secret prefix and metadata. Requires membership of
         the workspace.
       tags: [API Keys]
       parameters:
@@ -1190,7 +1190,7 @@ paths:
         ingestion. The key both authenticates the sender and determines the
         workspace its telemetry lands in, so senders need not set a workspace
         attribute. The plaintext token is returned in this response exactly once
-        and cannot be retrieved again — capture it now. Only its hash is stored.
+        and cannot be retrieved again, so capture it now. Only its hash is stored.
         Requires membership of the workspace; the caller is recorded as the key's
         creator, for provenance only.
       tags: [API Keys]
@@ -1330,7 +1330,7 @@ components:
       description: >-
         Optional: restrict the metric to a single workflow (the trace root name),
         powering the workflow detail page's charts. Workflow-scoped metrics are a
-        raw-window feature — ranges longer than 30d (90d, 1y) are rejected with a
+        raw-window feature; ranges longer than 30d (90d, 1y) are rejected with a
         400, since per-workflow latency cannot be derived from the daily rollup.
       schema:
         type: string
@@ -1346,6 +1346,18 @@ components:
         password:
           type: string
           format: password
+    RegisterRequest:
+      allOf:
+        - $ref: "#/components/schemas/Credentials"
+        - type: object
+          properties:
+            extensions:
+              type: object
+              additionalProperties: true
+              description: >
+                Values from the dashboard's `signupFields` extension (for example
+                a CAPTCHA response). The core API ignores them; an embedding
+                application checks them itself.
     ConfirmationRequired:
       type: object
       required: [confirmation_required]
@@ -1519,7 +1531,7 @@ components:
           type: string
           description: >
             The account that created the key, for provenance only. It carries no
-            authority — the key keeps working regardless of this account.
+            authority; the key keeps working regardless of this account.
         name:
           type: string
           description: Human label for the key.
@@ -1574,7 +1586,7 @@ components:
           type: string
           description: >
             The workspace the key grants. The collector stamps this onto every
-            span the request carries, overriding any sender-supplied workspace —
+            span the request carries, overriding any sender-supplied workspace;
             the key, not the payload, decides where data lands.
     Span:
       type: object
@@ -1624,10 +1636,10 @@ components:
           description: Computed cost in USD for this span.
         user_id:
           type: string
-          description: End-client / user identifier — the metering & cost-attribution label (not an access boundary).
+          description: End-client / user identifier, the metering & cost-attribution label (not an access boundary).
         workspace_id:
           type: string
-          description: Workspace the span belongs to — the access-control unit (accounts read only workspaces they are a member of).
+          description: Workspace the span belongs to, the access-control unit (accounts read only workspaces they are a member of).
         model_normalized:
           type: string
           description: Canonical model id after alias resolution.
@@ -1673,10 +1685,10 @@ components:
           description: Total duration in milliseconds.
         user_id:
           type: string
-          description: End-client / user identifier — the metering & cost-attribution label (not an access boundary).
+          description: End-client / user identifier, the metering & cost-attribution label (not an access boundary).
         workspace_id:
           type: string
-          description: Workspace the trace belongs to — the access-control unit.
+          description: Workspace the trace belongs to, the access-control unit.
         span_count:
           type: integer
           minimum: 0
@@ -2025,7 +2037,7 @@ components:
           items:
             $ref: "#/components/schemas/AvailableTool"
           description: >-
-            The workflow's tool surface — the union of available_tools from its most
+            The workflow's tool surface, the union of available_tools from its most
             recent run. Empty when content/tool capture is disabled.
         last_trace_id:
           type: string

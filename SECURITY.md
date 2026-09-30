@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-Please report security issues **privately** — do not open a public issue.
+Please report security issues **privately**. Do not open a public issue.
 
 Use GitHub's private vulnerability reporting ("Report a vulnerability" under the
 repo's Security tab), or email the maintainers at **antonij@tracium.ai**.
@@ -12,7 +12,7 @@ confirmed issues before any public disclosure.
 
 ## Scope notes for self-hosters
 
-- **`JWT_SECRET` must be unique per deployment** — it signs and verifies auth
+- **`JWT_SECRET` must be unique per deployment.** It signs and verifies auth
   tokens. Never ship the default.
 - **The collector's OTLP ports (4317/4318) require a per-workspace API key.**
   Every OTLP request must present a valid key; unknown or revoked keys are

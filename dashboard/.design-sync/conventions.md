@@ -1,10 +1,10 @@
-# Tracium design system — how to build with it
+# Tracium design system: how to build with it
 
 Tracium is the **dark-themed** UI kit for the Tracium LLM-observability dashboard. Components are imported from `window.Tracium.*` (bundle auto-loaded). React 18.
 
-## Setup — no provider, but set the theme surface
+## Setup: no provider, but set the theme surface
 
-There is **no provider or context to wrap** — components render standalone. But they are built for a dark surface: every component styles itself with the design tokens, and most text/icon colors resolve to the near-white `var(--foreground)`. **Put your app root on the dark background or everything reads invisible:**
+There is **no provider or context to wrap**; components render standalone. But they are built for a dark surface: every component styles itself with the design tokens, and most text/icon colors resolve to the near-white `var(--foreground)`. **Put your app root on the dark background or everything reads invisible:**
 
 ```jsx
 <div style={{ background: 'var(--background)', color: 'var(--foreground)', minHeight: '100vh' }}>
@@ -12,9 +12,9 @@ There is **no provider or context to wrap** — components render standalone. Bu
 </div>
 ```
 
-The tokens and component CSS load from `styles.css` (which `@import`s `_ds_bundle.css`); make sure it's linked. Default font is the system stack — no web font to load.
+The tokens and component CSS load from `styles.css` (which `@import`s `_ds_bundle.css`); make sure it's linked. Default font is the system stack, so there's no web font to load.
 
-## Styling idiom — CSS custom-property tokens, not classes
+## Styling idiom: CSS custom-property tokens, not classes
 
 Tracium has **no utility classes and no `className` API**. Components are self-styling; you influence them only through their typed props (e.g. `Badge variant`, `StatusPill status`, `LastUpdated tone`, `Card style`). For **your own layout glue**, use the token `var(--*)` values so it matches the kit. Real tokens (all defined in `_ds_bundle.css`):
 
@@ -32,9 +32,9 @@ The accent is a mint green (`--accent`); success/error/warning drive status colo
 
 ## Components
 
-15 components. `Card` + `CardHeader` (surface + header), `Badge`, `StatusPill`, `CostTag`, `Duration`, `LastUpdated` (inline indicators), `EmptyState`, `Spinner`, `ErrorBoundary` (states), `Sparkline`, `CostBarChart`, `LatencyChart`, `HorizonStrip` (data viz), `Icon` (base glyph — the kit also exports ~30 ready `Icon*` glyphs like `IconHome`, `IconSearch`, `IconKey` from `window.Tracium.*`).
+15 components. `Card` + `CardHeader` (surface + header), `Badge`, `StatusPill`, `CostTag`, `Duration`, `LastUpdated` (inline indicators), `EmptyState`, `Spinner`, `ErrorBoundary` (states), `Sparkline`, `CostBarChart`, `LatencyChart`, `HorizonStrip` (data viz), `Icon` (base glyph; the kit also exports ~30 ready `Icon*` glyphs like `IconHome`, `IconSearch`, `IconKey` from `window.Tracium.*`).
 
-**Read the real files before styling:** each component's `<Name>.d.ts` (its exact props) and `<Name>.prompt.md` (usage), plus `styles.css` → `_ds_bundle.css` for the token values. The charts and `CostTag`/`Duration` take domain data (cost in USD, latency percentiles that may be `null`, epoch-ms timestamps) — check the `.d.ts` for the shape.
+**Read the real files before styling:** each component's `<Name>.d.ts` (its exact props) and `<Name>.prompt.md` (usage), plus `styles.css` → `_ds_bundle.css` for the token values. The charts and `CostTag`/`Duration` take domain data (cost in USD, latency percentiles that may be `null`, epoch-ms timestamps), so check the `.d.ts` for the shape.
 
 ## Idiomatic example
 

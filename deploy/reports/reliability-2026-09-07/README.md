@@ -1,10 +1,10 @@
-# Further reliability assessment — 2026-09-07
+# Further reliability assessment: 2026-09-07
 
 Scope: server-side correctness for trusted-team self-hosting. SDK work and
 previous findings are excluded. Three further findings are supported below.
 Application code was not changed.
 
-## P1 — Replaying a span inflates cost and tokens in both storage layers
+## P1: Replaying a span inflates cost and tokens in both storage layers
 
 Locations: `collector/schema/001_create_spans.sql:111`,
 `collector/internal/writer/clickhouse.go:54`,
@@ -35,7 +35,7 @@ overlapping/rebatched retries. ClickHouse's
 [insert retry guide](https://github.com/ClickHouse/clickhouse-docs/blob/main/docs/guides/developer/deduplicating-inserts-on-retries.md)
 explains the engine deduplication controls and their limits.
 
-## P1 — Aggregate metric pricing applies per-call tier rules to interval totals
+## P1: Aggregate metric pricing applies per-call tier rules to interval totals
 
 Locations: `collector/processor/traciumprocessor/metrics.go:159`,
 `collector/processor/traciumprocessor/metrics.go:221`,
@@ -65,7 +65,7 @@ recover how many calls crossed a threshold; dividing by count is not a general
 solution. For insufficiently attributed metrics, expose the estimate/coverage
 limitation rather than allowing it to silently override exact per-call cost.
 
-## P2 — Rollup repair can double-count concurrent arrivals
+## P2: Rollup repair can double-count concurrent arrivals
 
 Locations: `deploy/scripts/repair-rollup.sh:217` and
 `deploy/scripts/repair-rollup.sh:258`.

@@ -1,8 +1,8 @@
-# Tracium Collector — Architecture
+# Tracium Collector: Architecture
 
 The collector is a **generic [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/)
-distribution**, not a bespoke service. All the transport plumbing — OTLP
-ingestion, batching, queueing, retry, back-pressure, health checks — comes from
+distribution**, not a bespoke service. All the transport plumbing (OTLP
+ingestion, batching, queueing, retry, back-pressure, health checks) comes from
 upstream OTel components. Tracium adds exactly two custom components:
 
 | Component | Type | What it does |
@@ -33,7 +33,7 @@ type Enricher interface {
 - **Enterprise** ships a second processor that composes on top of the OSS chain
   with its own enrichers (dynamic per-user pricing, real user-store lookups,
   quotas, PII redaction) behind the *same* interface. It lives in a separate
-  private repo — none of it is in this repo.
+  private repo; none of it is in this repo.
 
 This OSS edition is assembled by [`builder/oss.builder.yaml`](builder/oss.builder.yaml).
 The Enterprise edition uses its own OCB manifest (in the private enterprise repo)
@@ -92,5 +92,5 @@ were deleted because upstream OTel now provides them:
 | `internal/health` | `healthcheckextension` |
 | `internal/config`, `config.yaml`, `cmd/collector` | collector config + OCB binary |
 
-The enrichment logic itself was preserved verbatim — it just moved from
+The enrichment logic itself was preserved verbatim; it just moved from
 pipeline `Stage`s into `enrich.Enricher`s.

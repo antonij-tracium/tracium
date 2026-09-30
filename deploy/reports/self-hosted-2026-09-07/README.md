@@ -1,11 +1,11 @@
-# Self-hosted production assessment — 2026-09-07
+# Self-hosted production assessment: 2026-09-07
 
 Scope: trusted-team self-hosting, excluding the SDK and previously reported
 security findings. This pass found two release/correctness blockers and two
 operational defects. The Helm findings do not block a Compose-only deployment.
 No application code was changed.
 
-## P1 — Long-range dashboards omit metric-derived spend
+## P1: Long-range dashboards omit metric-derived spend
 
 Locations: `collector/schema/003_create_metrics_daily_mv.sql:40`,
 `api/internal/query/metrics.go:173`, `api/internal/query/rollup.go:76`.
@@ -31,7 +31,7 @@ across 30-day, 90-day and one-year ranges, including raw-data expiry. Existing
 historical metric totals may be unrecoverable if their raw rows have already
 expired; a migration needs an explicit recovery policy.
 
-## P1 — Published image tags and the packaged Helm chart disagree
+## P1: Published image tags and the packaged Helm chart disagree
 
 Locations: `.github/workflows/release.yml:55`,
 `deploy/helm/tracium/values.yaml:4`,
@@ -52,7 +52,7 @@ packaging; bind chart defaults to that release while retaining explicit operator
 overrides. Validate the packaged chart's rendered image references against the
 tags produced for at least two distinct releases.
 
-## P2 — Helm mounts API configuration that the process never reads
+## P2: Helm mounts API configuration that the process never reads
 
 Locations: `deploy/helm/tracium/templates/api-deployment.yaml:75`,
 `api/cmd/api/main.go:32`, `api/internal/config/config.go:167`.
@@ -68,7 +68,7 @@ Required correction: explicitly select the mounted config and ensure config
 changes restart or reload the application. Check a non-default setting through
 the deployed API's behavior, not merely the contents of its ConfigMap.
 
-## P2 — The configured query timeout is never enforced
+## P2: The configured query timeout is never enforced
 
 Locations: `api/internal/config/config.go:45`,
 `api/internal/query/clickhouse.go:209`.

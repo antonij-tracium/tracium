@@ -133,7 +133,7 @@ export interface paths {
         };
         /**
          * Failures over time
-         * @description Failed-vs-total run counts per time bucket across the range — the "Failures by day" strip.
+         * @description Failed-vs-total run counts per time bucket across the range, for the "Failures by day" strip.
          */
         get: operations["getErrorSeries"];
         put?: never;
@@ -173,7 +173,7 @@ export interface paths {
         };
         /**
          * Workflow activity list
-         * @description Every active workflow in the range with its run count, total spend, mean run latency, error rate, and call-count sparkline — the data behind the Workflows page. Ordered by call count descending; sorting and filtering are done client-side. avg_latency_ms is 0 for long windows served from the daily rollup, where per-trace durations are not retained.
+         * @description Every active workflow in the range with its run count, total spend, mean run latency, error rate, and call-count sparkline, the data behind the Workflows page. Ordered by call count descending; sorting and filtering are done client-side. avg_latency_ms is 0 for long windows served from the daily rollup, where per-trace durations are not retained.
          */
         get: operations["listWorkflows"];
         put?: never;
@@ -193,7 +193,7 @@ export interface paths {
         };
         /**
          * Workflow detail
-         * @description One workflow's detail-page payload: its headline metrics over the range plus the tool surface from its most recent run. Span-backed only — there is no workflow-config store, so runtime params (temperature, retries, version, owner, …) are not served. A raw-window feature: ranges longer than 30d (90d, 1y) are rejected with a 400, since per-workflow latency cannot be derived from the daily rollup.
+         * @description One workflow's detail-page payload: its headline metrics over the range plus the tool surface from its most recent run. Span-backed only; there is no workflow-config store, so runtime params (temperature, retries, version, owner, …) are not served. A raw-window feature: ranges longer than 30d (90d, 1y) are rejected with a 400, since per-workflow latency cannot be derived from the daily rollup.
          */
         get: operations["getWorkflowDetail"];
         put?: never;
@@ -233,7 +233,7 @@ export interface paths {
         };
         /**
          * Statistical anomalies
-         * @description Buckets that deviated significantly from their own recent history, for cost, error rate, and run volume — workspace-wide and per busy workflow. Detection is daily and robust (median + MAD over a trailing 28-day baseline), served entirely from the daily rollup, so a range of 7d or longer is required (24h is rejected with a 400). Results are ordered most severe first.
+         * @description Buckets that deviated significantly from their own recent history, for cost, error rate, and run volume, workspace-wide and per busy workflow. Detection is daily and robust (median + MAD over a trailing 28-day baseline), served entirely from the daily rollup, so a range of 7d or longer is required (24h is rejected with a 400). Results are ordered most severe first.
          */
         get: operations["getAnomalies"];
         put?: never;
@@ -253,7 +253,7 @@ export interface paths {
         };
         /**
          * Cost by model
-         * @description Spend broken down by model over the range — the usage page's "where it goes" list. Each entry carries the model's cost, run (trace) count, and summed input/output tokens, ordered by cost descending.
+         * @description Spend broken down by model over the range, the usage page's "where it goes" list. Each entry carries the model's cost, run (trace) count, and summed input/output tokens, ordered by cost descending.
          */
         get: operations["getModelCosts"];
         put?: never;
@@ -333,7 +333,7 @@ export interface paths {
         };
         /**
          * Cost allocation by attribute
-         * @description Spend and usage allocated across the values of one custom attribute — the cost-allocation primitive that splits AI spend by whatever dimension the instrumentation tags spans with. The `key` query parameter names the dimension (from /v1/metrics/attribute-keys) and is required. Ordered by cost descending.
+         * @description Spend and usage allocated across the values of one custom attribute, the cost-allocation primitive that splits AI spend by whatever dimension the instrumentation tags spans with. The `key` query parameter names the dimension (from /v1/metrics/attribute-keys) and is required. Ordered by cost descending.
          */
         get: operations["getUsageByAttribute"];
         put?: never;
@@ -625,13 +625,13 @@ export interface paths {
         };
         /**
          * List a workspace's ingest API keys
-         * @description Every API key bound to the workspace, newest first, including revoked ones (so history is visible). The secret token itself is never returned here — only its non-secret prefix and metadata. Requires membership of the workspace.
+         * @description Every API key bound to the workspace, newest first, including revoked ones (so history is visible). The secret token itself is never returned here, only its non-secret prefix and metadata. Requires membership of the workspace.
          */
         get: operations["listApiKeys"];
         put?: never;
         /**
          * Create an ingest API key
-         * @description Issues a new key bound to this workspace for authenticating trace ingestion. The key both authenticates the sender and determines the workspace its telemetry lands in, so senders need not set a workspace attribute. The plaintext token is returned in this response exactly once and cannot be retrieved again — capture it now. Only its hash is stored. Requires membership of the workspace; the caller is recorded as the key's creator, for provenance only.
+         * @description Issues a new key bound to this workspace for authenticating trace ingestion. The key both authenticates the sender and determines the workspace its telemetry lands in, so senders need not set a workspace attribute. The plaintext token is returned in this response exactly once and cannot be retrieved again, so capture it now. Only its hash is stored. Requires membership of the workspace; the caller is recorded as the key's creator, for provenance only.
          */
         post: operations["createApiKey"];
         delete?: never;
@@ -689,6 +689,12 @@ export interface components {
             email: string;
             /** Format: password */
             password: string;
+        };
+        RegisterRequest: components["schemas"]["Credentials"] & {
+            /** @description Values from the dashboard's `signupFields` extension (for example a CAPTCHA response). The core API ignores them; an embedding application checks them itself. */
+            extensions?: {
+                [key: string]: unknown;
+            };
         };
         ConfirmationRequired: {
             /** @description Always true; the account must confirm its email before signing in. */
@@ -797,7 +803,7 @@ export interface components {
             id: string;
             /** @description The workspace this key is bound to and ingests into. */
             workspace_id: string;
-            /** @description The account that created the key, for provenance only. It carries no authority — the key keeps working regardless of this account. */
+            /** @description The account that created the key, for provenance only. It carries no authority; the key keeps working regardless of this account. */
             created_by: string;
             /** @description Human label for the key. */
             name: string;
@@ -830,7 +836,7 @@ export interface components {
             key: string;
         };
         APIKeyVerifyResponse: {
-            /** @description The workspace the key grants. The collector stamps this onto every span the request carries, overriding any sender-supplied workspace — the key, not the payload, decides where data lands. */
+            /** @description The workspace the key grants. The collector stamps this onto every span the request carries, overriding any sender-supplied workspace; the key, not the payload, decides where data lands. */
             workspace_id: string;
         };
         Span: {
@@ -858,9 +864,9 @@ export interface components {
             output_tokens?: number;
             /** @description Computed cost in USD for this span. */
             cost_usd?: number;
-            /** @description End-client / user identifier — the metering & cost-attribution label (not an access boundary). */
+            /** @description End-client / user identifier, the metering & cost-attribution label (not an access boundary). */
             user_id?: string;
-            /** @description Workspace the span belongs to — the access-control unit (accounts read only workspaces they are a member of). */
+            /** @description Workspace the span belongs to, the access-control unit (accounts read only workspaces they are a member of). */
             workspace_id?: string;
             /** @description Canonical model id after alias resolution. */
             model_normalized?: string;
@@ -887,9 +893,9 @@ export interface components {
             end_time_ms?: number;
             /** @description Total duration in milliseconds. */
             duration_ms?: number;
-            /** @description End-client / user identifier — the metering & cost-attribution label (not an access boundary). */
+            /** @description End-client / user identifier, the metering & cost-attribution label (not an access boundary). */
             user_id?: string;
-            /** @description Workspace the trace belongs to — the access-control unit. */
+            /** @description Workspace the trace belongs to, the access-control unit. */
             workspace_id?: string;
             /** @description Total number of spans in this trace. */
             span_count?: number;
@@ -1030,7 +1036,7 @@ export interface components {
             model: string;
             /** @description Provider inferred from the model id; empty when unrecognised. */
             provider: string;
-            /** @description The workflow's tool surface — the union of available_tools from its most recent run. Empty when content/tool capture is disabled. */
+            /** @description The workflow's tool surface, the union of available_tools from its most recent run. Empty when content/tool capture is disabled. */
             tools: components["schemas"]["AvailableTool"][];
             /** @description The workflow's most recent trace in the window, for deep-linking. */
             last_trace_id: string;
@@ -1218,7 +1224,7 @@ export interface components {
         UserFilter: string;
         /** @description Scope the read to one workspace. This is an access boundary, not just a filter: the caller must be a member of the workspace or the request is refused with 403. Omitted, the read covers every workspace the caller is a member of (an account that is a member of none sees nothing). The dashboard passes the active workspace from its switcher. */
         WorkspaceFilter: string;
-        /** @description Optional: restrict the metric to a single workflow (the trace root name), powering the workflow detail page's charts. Workflow-scoped metrics are a raw-window feature — ranges longer than 30d (90d, 1y) are rejected with a 400, since per-workflow latency cannot be derived from the daily rollup. */
+        /** @description Optional: restrict the metric to a single workflow (the trace root name), powering the workflow detail page's charts. Workflow-scoped metrics are a raw-window feature; ranges longer than 30d (90d, 1y) are rejected with a 400, since per-workflow latency cannot be derived from the daily rollup. */
         WorkflowFilter: string;
     };
     requestBodies: never;
@@ -1236,7 +1242,7 @@ export interface operations {
                 workspace_id?: components["parameters"]["WorkspaceFilter"];
                 /** @description Filter traces that contain at least one span using this model (normalized model id). */
                 model?: string;
-                /** @description Filter to traces belonging to a single workflow (the trace root name) — powers an workflow's recent runs. */
+                /** @description Filter to traces belonging to a single workflow (the trace root name), which powers a workflow's recent runs. */
                 workflow?: string;
                 /** @description Filter to traces that have at least one error span. */
                 has_error?: boolean;
@@ -1453,7 +1459,7 @@ export interface operations {
                 user_id?: components["parameters"]["UserFilter"];
                 /** @description Scope the read to one workspace. This is an access boundary, not just a filter: the caller must be a member of the workspace or the request is refused with 403. Omitted, the read covers every workspace the caller is a member of (an account that is a member of none sees nothing). The dashboard passes the active workspace from its switcher. */
                 workspace_id?: components["parameters"]["WorkspaceFilter"];
-                /** @description Optional: restrict the metric to a single workflow (the trace root name), powering the workflow detail page's charts. Workflow-scoped metrics are a raw-window feature — ranges longer than 30d (90d, 1y) are rejected with a 400, since per-workflow latency cannot be derived from the daily rollup. */
+                /** @description Optional: restrict the metric to a single workflow (the trace root name), powering the workflow detail page's charts. Workflow-scoped metrics are a raw-window feature; ranges longer than 30d (90d, 1y) are rejected with a 400, since per-workflow latency cannot be derived from the daily rollup. */
                 workflow?: components["parameters"]["WorkflowFilter"];
             };
             header?: never;
@@ -1491,7 +1497,7 @@ export interface operations {
                 user_id?: components["parameters"]["UserFilter"];
                 /** @description Scope the read to one workspace. This is an access boundary, not just a filter: the caller must be a member of the workspace or the request is refused with 403. Omitted, the read covers every workspace the caller is a member of (an account that is a member of none sees nothing). The dashboard passes the active workspace from its switcher. */
                 workspace_id?: components["parameters"]["WorkspaceFilter"];
-                /** @description Optional: restrict the metric to a single workflow (the trace root name), powering the workflow detail page's charts. Workflow-scoped metrics are a raw-window feature — ranges longer than 30d (90d, 1y) are rejected with a 400, since per-workflow latency cannot be derived from the daily rollup. */
+                /** @description Optional: restrict the metric to a single workflow (the trace root name), powering the workflow detail page's charts. Workflow-scoped metrics are a raw-window feature; ranges longer than 30d (90d, 1y) are rejected with a 400, since per-workflow latency cannot be derived from the daily rollup. */
                 workflow?: components["parameters"]["WorkflowFilter"];
             };
             header?: never;
@@ -1529,7 +1535,7 @@ export interface operations {
                 user_id?: components["parameters"]["UserFilter"];
                 /** @description Scope the read to one workspace. This is an access boundary, not just a filter: the caller must be a member of the workspace or the request is refused with 403. Omitted, the read covers every workspace the caller is a member of (an account that is a member of none sees nothing). The dashboard passes the active workspace from its switcher. */
                 workspace_id?: components["parameters"]["WorkspaceFilter"];
-                /** @description Optional: restrict the metric to a single workflow (the trace root name), powering the workflow detail page's charts. Workflow-scoped metrics are a raw-window feature — ranges longer than 30d (90d, 1y) are rejected with a 400, since per-workflow latency cannot be derived from the daily rollup. */
+                /** @description Optional: restrict the metric to a single workflow (the trace root name), powering the workflow detail page's charts. Workflow-scoped metrics are a raw-window feature; ranges longer than 30d (90d, 1y) are rejected with a 400, since per-workflow latency cannot be derived from the daily rollup. */
                 workflow?: components["parameters"]["WorkflowFilter"];
             };
             header?: never;
@@ -2003,7 +2009,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Credentials"];
+                "application/json": components["schemas"]["RegisterRequest"];
             };
         };
         responses: {
