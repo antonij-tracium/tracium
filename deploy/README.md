@@ -34,7 +34,9 @@ The chart pulls `ghcr.io/antonij-tracium/{collector,api,dashboard,migrate}`,
 tagged with the chart's `appVersion`. Publishing a GitHub release builds and
 pushes all four images tagged with the release version (the tag without its
 leading `v`) and `latest`, then attaches the packaged chart to the release.
-Pre-releases publish their version tag but don't move `latest`.
+Pre-releases publish their version tag but don't move `latest`. GHCR creates
+new packages as private, so after the first release set each of the four
+packages to public in its package settings, or anonymous pulls will fail.
 
 To cut a release, bump `version` and `appVersion` in
 [`helm/tracium/Chart.yaml`](helm/tracium/Chart.yaml) to the new version, merge,
