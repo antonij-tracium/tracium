@@ -2,21 +2,19 @@ import { useState } from 'react';
 import {
   EmptyState,
   LastUpdated,
-  StatusPill,
-  costFormatter,
-  fmtCost,
+  RunsTable,
   fmtMs,
   fmtNum,
   fmtPct,
   isLongRange,
+  periodLabel,
   relativeTime,
-  tokenFormatter,
   useMaxWidth,
   BREAKPOINTS,
 } from '../../../common';
 import { Section } from '../../overview/components';
 import type { KpiSet } from '../../overview/interfaces';
-import type { Trace } from '../../trace-explorer/interfaces';
+import { toRunRow } from '../../trace-explorer';
 import {
   SectionHead,
   KpiStrip,
@@ -38,12 +36,14 @@ import {
 } from '../hooks/useClientDetail';
 import {
   deltaParts,
-  periodLabel,
   toDailySeries,
   toModelSummaries,
   toWorkflowSummaries,
   sumCost,
-} from '../mappers';
+  spendTile,
+  runsTile,
+  tokensTile,
+} from '../utils';
 import styles from './UserDetailLivePage.module.css';
 
 interface Props {
@@ -54,79 +54,25 @@ interface Props {
 }
 
 function toKpiItems(kpis: KpiSet, tokens: number | undefined, range: string): KpiItem[] {
-  const spend = kpis.cost.value;
-  const runs = kpis.runs.value;
-  const failed = Math.round(runs * kpis.error_rate.value);
-  const items: KpiItem[] = [
-    {
-      label: 'Spend',
-      value: costFormatter.format(spend),
-      ...deltaParts(kpis.cost),
-      hint: 'vs prev period',
-    },
-    {
-      label: 'Runs',
-      value: fmtNum(Math.round(runs)),
-      ...deltaParts(kpis.runs),
-      hint: costFormatter.format(runs > 0 ? (spend / runs) * 1000 : 0) + ' / 1K runs',
-    },
+  const failed = Math.round(kpis.runs.value * kpis.error_rate.value);
+  return [
+    spendTile(kpis),
+    runsTile(kpis),
     {
       label: 'Failure rate',
       value: fmtPct(kpis.error_rate.value * 100),
       ...deltaParts(kpis.error_rate),
       hint: `${fmtNum(failed)} failed`,
     },
+    isLongRange(range)
+      ? tokensTile(tokens)
+      : {
+          label: 'p95 latency',
+          value: fmtMs(kpis.latency_p95.value),
+          ...deltaParts(kpis.latency_p95),
+          hint: 'end-to-end',
+        },
   ];
-  if (isLongRange(range)) {
-    items.push({
-      label: 'Tokens',
-      value: tokens != null ? tokenFormatter.format(tokens) : '—',
-      delta: '',
-      deltaTone: 'neutral',
-      hint: 'input + output',
-    });
-  } else {
-    items.push({
-      label: 'p95 latency',
-      value: fmtMs(kpis.latency_p95.value),
-      ...deltaParts(kpis.latency_p95),
-      hint: 'end-to-end',
-    });
-  }
-  return items;
-}
-
-function TracesTable({ traces, onOpen }: { traces: Trace[]; onOpen: (id: string) => void }) {
-  if (traces.length === 0) {
-    return <p className={styles.none}>No traces in this period.</p>;
-  }
-  return (
-    <div className={styles.tableScroll}>
-      <div className={styles.traceHead}>
-        <span>Trace</span>
-        <span>Status</span>
-        <span>Started</span>
-        <span className={styles.right}>Spans</span>
-        <span className={styles.right}>Duration</span>
-        <span className={styles.right}>Cost</span>
-      </div>
-      {traces.map((t) => (
-        <button key={t.trace_id} className={styles.traceRow} onClick={() => onOpen(t.trace_id)}>
-          <span className={styles.traceName}>
-            <span className={styles.traceTitle}>{t.name || t.trace_id}</span>
-            <span className={styles.traceId}>{t.trace_id}</span>
-          </span>
-          <span>
-            <StatusPill status={t.has_error ? 'failed' : 'completed'} />
-          </span>
-          <span className={styles.muted}>{relativeTime(t.start_time_ms)}</span>
-          <span className={styles.num}>{fmtNum(t.span_count)}</span>
-          <span className={styles.num}>{fmtMs(t.duration_ms)}</span>
-          <span className={styles.num}>{fmtCost(t.total_cost_usd)}</span>
-        </button>
-      ))}
-    </div>
-  );
 }
 
 export function UserDetailLivePage({ userId, range, setView, setSelected }: Props) {
@@ -266,7 +212,11 @@ export function UserDetailLivePage({ userId, range, setView, setSelected }: Prop
 
       <SectionHead title="Recent traces" hint="The client's latest runs, newest first." />
       <Section isLoading={traces.isLoading} isError={traces.isError}>
-        <TracesTable traces={traces.data?.items ?? []} onOpen={openTrace} />
+        <RunsTable
+          runs={(traces.data?.items ?? []).map((t) => ({ ...toRunRow(t), name: t.name || undefined }))}
+          onOpen={openTrace}
+          emptyText="No traces in this period."
+        />
       </Section>
     </div>
   );

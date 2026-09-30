@@ -1,21 +1,15 @@
-import { RANGE_LABEL } from '../../common';
-import type { Kpi, CostBucket, ErrorBucket } from '../overview/interfaces';
-import type { DeltaTone } from './components';
+import type { Kpi, CostBucket, ErrorBucket } from '../../overview/interfaces';
+import type { DeltaTone } from '../components';
 import type {
   DailySeriesPoint,
   ModelCost,
   ModelSummary,
   WorkflowUsage,
   WorkflowSummary,
-} from './interfaces';
+} from '../interfaces';
 
 // Bar colors for the models list, cycled in rank order (highest spend first).
 const MODEL_COLORS = ['var(--accent)', '#7aa5ff', '#c08aff', '#f5a524', '#6366f1', '#34d399'];
-
-export function periodLabel(range: string): string {
-  const label = RANGE_LABEL[range] ?? RANGE_LABEL['7d'];
-  return label[0].toUpperCase() + label.slice(1);
-}
 
 function bucketLabel(ms: number, range: string): string {
   const d = new Date(ms);

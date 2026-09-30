@@ -16,13 +16,12 @@ import {
   EmptyState,
   Spinner,
   fmtNum,
-  relativeTime,
   toCostPoints,
   toLatencyPoints,
   toErrorPoints,
   isLongRange,
 } from '../../../common';
-import type { Trace } from '../../trace-explorer/interfaces';
+import { toRunRow } from '../../trace-explorer';
 import {
   useWorkflowDetail,
   useWorkflowCostSeries,
@@ -32,7 +31,6 @@ import {
 } from '../hooks/useWorkflowDetail';
 import { deriveRunOutcomes } from '../utils';
 import { WorkflowDetailPage, type WorkflowConfigRow } from './WorkflowDetailPage';
-import type { WorkflowRun } from '../interfaces';
 
 interface WorkflowDetailLivePageProps {
   workflowName: string;
@@ -56,20 +54,6 @@ function Centered({ children }: { children: ReactNode }) {
       {children}
     </div>
   );
-}
-
-// A trace becomes a run row. The trace list carries no token totals, so Tokens
-// reads "—" (tokens: null); status is the trace's error outcome, not workflow health.
-function toRun(t: Trace): WorkflowRun {
-  return {
-    id: t.trace_id,
-    status: t.has_error ? 'failed' : 'completed',
-    time: relativeTime(t.start_time_ms),
-    duration: t.duration_ms,
-    cost: t.total_cost_usd,
-    tokens: null,
-    err: null,
-  };
 }
 
 export function WorkflowDetailLivePage({ workflowName, range, setView, setSelected }: WorkflowDetailLivePageProps) {
@@ -129,7 +113,7 @@ export function WorkflowDetailLivePage({ workflowName, range, setView, setSelect
       costSeries={cost.data ? toCostPoints(cost.data.items, range) : []}
       latencySeries={latency.data ? toLatencyPoints(latency.data.items, range) : []}
       errorSeries={errors.data ? toErrorPoints(errors.data.items, range) : []}
-      runs={runs.data ? runs.data.items.map(toRun) : []}
+      runs={runs.data ? runs.data.items.map(toRunRow) : []}
       setView={setView}
       setSelected={setSelected}
     />

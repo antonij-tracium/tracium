@@ -92,12 +92,16 @@
   width: 100%;
   padding: 13px 0;
   border-bottom: 1px solid color-mix(in srgb, var(--border) 30%, transparent);
-  cursor: pointer;
   transition: background 0.12s;
 }
 
 .row:hover {
   background: color-mix(in srgb, var(--surface) 50%, transparent);
+}
+
+.clickable:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 .row.last {

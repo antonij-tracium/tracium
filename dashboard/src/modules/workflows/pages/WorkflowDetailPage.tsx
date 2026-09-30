@@ -16,15 +16,14 @@ import {
   CostBarChart,
   LatencyChart,
   HorizonStrip,
-  StatusPill,
+  RunsTable,
   RANGE_LABEL,
   fmtCost,
   fmtNum,
   fmtPct,
-  fmtMs,
 } from '../../../common';
+import type { RunRow } from '../../../common';
 import type { CostPoint, LatencyPoint, ErrorPoint } from '../../../common/interfaces';
-import type { WorkflowRun } from '../interfaces';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -66,7 +65,7 @@ export interface WorkflowDetailPageProps {
   costSeries: CostPoint[];
   latencySeries: LatencyPoint[];
   errorSeries: ErrorPoint[];
-  runs: WorkflowRun[];
+  runs: RunRow[];
 
   setView: (v: string) => void;
   setSelected: (updater: (prev: Record<string, string>) => Record<string, string>) => void;
@@ -76,9 +75,6 @@ export interface WorkflowDetailPageProps {
 // a warning — matches the workflows list.
 const ERR_BAD = 0.02;
 const ERR_WARN = 0.005;
-
-// [Trace, Status, Started, Duration, Cost]
-const RUNS_GRID = '1.4fr 110px 1fr 90px 80px';
 
 type Tone = 'bad' | 'warn' | 'good' | undefined;
 
@@ -295,65 +291,7 @@ export function WorkflowDetailPage(props: WorkflowDetailPageProps) {
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 }}>
             <h2 style={{ fontSize: 16, fontWeight: 600, letterSpacing: '-0.01em', margin: 0 }}>Recent runs</h2>
           </div>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: RUNS_GRID,
-              gap: 12,
-              padding: '0 6px 10px',
-              borderBottom: '1px solid var(--border)',
-              fontSize: 11,
-              color: 'var(--muted)',
-              fontWeight: 500,
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-            }}
-          >
-            <span>Trace</span>
-            <span>Status</span>
-            <span>Started</span>
-            <span style={{ textAlign: 'right' }}>Duration</span>
-            <span style={{ textAlign: 'right' }}>Cost</span>
-          </div>
-          {runs.length === 0 ? (
-            <div style={{ padding: '32px 6px', fontSize: 13, color: 'var(--muted)' }}>No runs in this window.</div>
-          ) : (
-            runs.map((run, i) => (
-              <button
-                key={run.id}
-                onClick={() => openTrace(run.id)}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: RUNS_GRID,
-                  gap: 12,
-                  alignItems: 'center',
-                  width: '100%',
-                  padding: '12px 6px',
-                  border: 'none',
-                  textAlign: 'left',
-                  borderBottom: i < runs.length - 1 ? '1px solid color-mix(in srgb, var(--border) 50%, transparent)' : 'none',
-                  background: 'transparent',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = 'color-mix(in srgb, var(--surface-alt) 60%, transparent)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-              >
-                <span style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
-                  <span style={{ fontSize: 12.5, fontFamily: 'var(--font-mono)', color: 'var(--foreground)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {run.id}
-                  </span>
-                  {run.err && (
-                    <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--error)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {run.err}
-                    </span>
-                  )}
-                </span>
-                <StatusPill status={run.status} />
-                <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>{run.time}</span>
-                <span style={{ fontSize: 12.5, textAlign: 'right', color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>{fmtMs(run.duration)}</span>
-                <span style={{ fontSize: 12.5, textAlign: 'right', color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>{fmtCost(run.cost)}</span>
-              </button>
-            ))
-          )}
+          <RunsTable runs={runs} onOpen={openTrace} />
         </div>
 
         {/* Config */}

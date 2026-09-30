@@ -6,7 +6,7 @@
 // to a comparable two-decimal dollar value instead of a noisy six-decimal one.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, KeyboardEvent } from 'react';
 import {
   Sparkline,
   IconArrowUp,
@@ -175,9 +175,19 @@ function BreakdownRow({ row, kind, sharePct, isTop, isLast, tmpl, onClick }: Bre
 
   return (
     <div
-      className={`${styles.row} ${isLast ? styles.last : ''}`}
+      className={`${styles.row} ${isLast ? styles.last : ''} ${onClick ? styles.clickable : ''}`}
       style={{ gridTemplateColumns: tmpl } as CSSProperties}
-      onClick={onClick}
+      {...(onClick && {
+        role: 'button',
+        tabIndex: 0,
+        onClick,
+        onKeyDown: (e: KeyboardEvent) => {
+          if (!e.repeat && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            onClick();
+          }
+        },
+      })}
     >
       {/* Name column */}
       <div className={styles.nameCell}>

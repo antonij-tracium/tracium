@@ -10,17 +10,10 @@
 // ---------------------------------------------------------------------------
 
 import { useState } from 'react';
-import {
-  EmptyState,
-  costFormatter,
-  tokenFormatter,
-  useMaxWidth,
-  BREAKPOINTS,
-} from '../../../common';
+import { EmptyState, periodLabel, useMaxWidth, BREAKPOINTS } from '../../../common';
 import type { UserId } from '../../../common/ids';
 import { Section } from '../../overview/components';
 import { useKpis, useCostSeries, useErrorSeries } from '../../overview/hooks/useMetrics';
-import type { KpiSet } from '../../overview/interfaces';
 import {
   SectionHead,
   KpiStrip,
@@ -33,7 +26,7 @@ import {
   Breakdown,
   TabPill,
 } from '../components';
-import type { KpiItem, BreakdownTab, SortKey } from '../components';
+import type { BreakdownTab, SortKey } from '../components';
 import {
   useModelCosts,
   useUserUsage,
@@ -42,41 +35,20 @@ import {
   useAttributeUsage,
 } from '../hooks/useUsage';
 import type { UserSummary, AttributeSummary, UserUsage, AttributeUsage } from '../interfaces';
-import { deltaParts, periodLabel, toDailySeries, toModelSummaries, toWorkflowSummaries, sumCost } from '../mappers';
+import {
+  toDailySeries,
+  toModelSummaries,
+  toWorkflowSummaries,
+  sumCost,
+  spendTile,
+  runsTile,
+  tokensTile,
+} from '../utils';
 
 interface UsageLivePageProps {
   range: string;
   setView: (v: string) => void;
   setSelected: (updater: (prev: Record<string, string>) => Record<string, string>) => void;
-}
-
-// tokens is the summed input+output token count for the window, drawn from the
-// (separately loaded) model-cost query; undefined until that query resolves.
-function toKpiItems(kpis: KpiSet, tokens: number | undefined): KpiItem[] {
-  const spend = kpis.cost.value;
-  const runs = kpis.runs.value;
-  const avgPer1k = runs > 0 ? (spend / runs) * 1000 : 0;
-  return [
-    {
-      label: 'Spend',
-      value: costFormatter.format(spend),
-      ...deltaParts(kpis.cost),
-      hint: 'vs prev period',
-    },
-    {
-      label: 'Runs',
-      value: Math.round(runs).toLocaleString(),
-      ...deltaParts(kpis.runs),
-      hint: costFormatter.format(avgPer1k) + ' / 1K runs',
-    },
-    {
-      label: 'Tokens',
-      value: tokens != null ? tokenFormatter.format(tokens) : '—',
-      delta: '',
-      deltaTone: 'neutral',
-      hint: 'input + output',
-    },
-  ];
 }
 
 const UNATTRIBUTED = '—';
@@ -196,7 +168,7 @@ export function UsageLivePage({ range, setView, setSelected }: UsageLivePageProp
 
       <div style={{ paddingBottom: 8 }}>
         <Section isLoading={kpis.isLoading} isError={kpis.isError} minHeight={90}>
-          {kpis.data && <KpiStrip items={toKpiItems(kpis.data, totalTokens)} />}
+          {kpis.data && <KpiStrip items={[spendTile(kpis.data), runsTile(kpis.data), tokensTile(totalTokens)]} />}
         </Section>
       </div>
 

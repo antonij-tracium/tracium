@@ -85,14 +85,15 @@ describe('live client details', () => {
     expect(setSelected.mock.calls[0][0]({}).traceId).toBe('real-trace');
   });
 
-  it('opens a workflow from the breakdown', async () => {
+  it('opens a workflow from the breakdown with the keyboard', async () => {
     api.getKpis.mockResolvedValue(kpis(12, 8));
     api.getWorkflowUsage.mockResolvedValue({
       ...empty,
       items: [{ name: 'summarize', model: 'gpt-4o', cost: 3, cost_prev: 1, runs: 5, runs_prev: 2 }],
     });
     const { setView, setSelected } = show('customer-42');
-    fireEvent.click(await screen.findByText('summarize'));
+    const row = (await screen.findByText('summarize')).closest('[role="button"]')!;
+    fireEvent.keyDown(row, { key: 'Enter' });
     expect(setView).toHaveBeenCalledWith('workflows');
     expect(setSelected.mock.calls[0][0]({}).workflow).toBe('summarize');
   });

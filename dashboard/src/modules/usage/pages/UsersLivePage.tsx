@@ -10,9 +10,8 @@
 // ---------------------------------------------------------------------------
 
 import type { ReactNode } from 'react';
-import { EmptyState, Spinner } from '../../../common';
+import { EmptyState, Spinner, periodLabel } from '../../../common';
 import { useUserUsage } from '../hooks/useUsage';
-import { periodLabel } from '../mappers';
 import { UsersPage, type User } from './UsersPage';
 
 interface UsersLivePageProps {
