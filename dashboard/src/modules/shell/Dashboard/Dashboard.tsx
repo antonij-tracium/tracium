@@ -38,6 +38,8 @@ export interface DashboardProps {
   onLogout?: () => void;
 }
 
+const VIEWS_WITH_RANGE: ViewId[] = ['overview', 'workflows', 'usage', 'users', 'user'];
+
 /**
  * Demo data (KPIs, workflows, traces, usage…) exists only to bring the logged-out
  * auth-page preview to life. A real signed-in workspace starts empty until it
@@ -356,6 +358,7 @@ export function Dashboard({ embedded = false, onLogout, extensions = EMPTY_EXTEN
           breadcrumb={breadcrumb}
           range={range}
           setRange={setRange}
+          showRange={VIEWS_WITH_RANGE.includes(view)}
           onOpenCmd={() => setCmdOpen(true)}
           workspace={workspace}
           setWorkspace={updateWorkspace}

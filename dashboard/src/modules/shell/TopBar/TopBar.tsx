@@ -18,8 +18,6 @@ const RANGE_OPTIONS: RangeOption[] = [
   { id: '1y', label: '1y' },
 ];
 
-const VIEWS_WITH_RANGE = ['overview', 'workflows', 'usage'];
-
 interface TopBarProps {
   breadcrumb: BreadcrumbItem[];
   range: string;
@@ -29,6 +27,7 @@ interface TopBarProps {
   setWorkspace: (ws: Workspace) => void;
   setView: (v: string) => void;
   embedded?: boolean;
+  showRange?: boolean;
   /** Shows the hamburger menu button (mobile: opens the sidebar drawer). */
   showMenu?: boolean;
   /** Opens the sidebar drawer. */
@@ -41,15 +40,10 @@ export function TopBar({
   setRange,
   onOpenCmd,
   embedded = false,
+  showRange = false,
   showMenu = false,
   onOpenNav,
 }: TopBarProps): React.ReactElement {
-  const currentView = breadcrumb[0]?.label?.toLowerCase();
-  const lastView = breadcrumb[breadcrumb.length - 1]?.label?.toLowerCase();
-  const showRange =
-    VIEWS_WITH_RANGE.includes(currentView ?? '') ||
-    (breadcrumb.length > 1 && VIEWS_WITH_RANGE.includes(lastView ?? ''));
-
   return (
     <header
       style={{
