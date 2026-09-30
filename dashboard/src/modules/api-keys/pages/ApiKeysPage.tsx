@@ -81,7 +81,7 @@ function SectionHead({ title, hint, right, first = false }: SectionHeadProps) {
         {hint && (
           <p
             style={{
-              fontSize: 13,
+              fontSize: 14,
               color: 'var(--muted)',
               margin: 0,
               maxWidth: 620,
@@ -125,7 +125,7 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
     <div
       style={{
-        fontSize: 11,
+        fontSize: 12,
         color: 'var(--muted)',
         textTransform: 'uppercase',
         letterSpacing: '0.08em',
@@ -171,7 +171,7 @@ function InlineCreateForm({ onCreate, submitting, error }: InlineCreateFormProps
             border: '1px solid var(--border-strong, rgba(255,255,255,0.12))',
             borderRadius: 7,
             color: 'var(--foreground)',
-            fontSize: 13,
+            fontSize: 14,
             outline: 'none',
             fontFamily: 'inherit',
             boxSizing: 'border-box',
@@ -181,15 +181,15 @@ function InlineCreateForm({ onCreate, submitting, error }: InlineCreateFormProps
           {submitting ? 'Creating…' : 'Create key'}
         </SlicedButton>
       </div>
-      <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8 }}>
-        A label to recognise this key later — it grants ingest access to this
+      <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 8 }}>
+        A label to recognise this key later. It grants ingest access to this
         workspace. The full token is shown once, right after it's created.
       </div>
       {error && (
         <div
           style={{
             marginTop: 12,
-            fontSize: 12.5,
+            fontSize: 13.5,
             color: 'var(--error)',
             display: 'flex',
             gap: 8,
@@ -256,15 +256,15 @@ function InlineReveal({ created, onClose }: InlineRevealProps) {
         </span>
         <div
           style={{
-            fontSize: 14,
+            fontSize: 15,
             fontWeight: 600,
             letterSpacing: '-0.015em',
             color: 'var(--foreground)',
           }}
         >
-          Key created — copy it now
+          Key created. Copy it now
         </div>
-        <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>
+        <span style={{ fontSize: 13.5, color: 'var(--muted)' }}>
           This is the only time the full token is shown.
         </span>
       </div>
@@ -280,7 +280,7 @@ function InlineReveal({ created, onClose }: InlineRevealProps) {
           border: '1px solid var(--border-strong, rgba(255,255,255,0.12))',
           borderRadius: 8,
           fontFamily: 'var(--font-mono)',
-          fontSize: 12.5,
+          fontSize: 13.5,
           color: 'var(--foreground)',
           wordBreak: 'break-all',
         }}
@@ -304,7 +304,7 @@ function InlineReveal({ created, onClose }: InlineRevealProps) {
               : copyFailed
                 ? 'var(--error)'
                 : 'var(--foreground)',
-            fontSize: 11.5,
+            fontSize: 12.5,
             fontWeight: 500,
             fontFamily: 'inherit',
             flexShrink: 0,
@@ -315,15 +315,15 @@ function InlineReveal({ created, onClose }: InlineRevealProps) {
         </button>
       </div>
       {copyFailed && (
-        <div style={{ marginTop: 8, fontSize: 12, color: 'var(--error)' }}>
-          Couldn't copy automatically — select the token above and copy it manually.
+        <div style={{ marginTop: 8, fontSize: 13, color: 'var(--error)' }}>
+          Couldn't copy automatically. Select the token above and copy it manually.
         </div>
       )}
 
       <div
         style={{
           marginTop: 12,
-          fontSize: 12.5,
+          fontSize: 13.5,
           color: 'var(--muted)',
           display: 'flex',
           gap: 10,
@@ -347,7 +347,7 @@ function InlineReveal({ created, onClose }: InlineRevealProps) {
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
         <SlicedButton onClick={onClose}>
-          Done — I've stored it safely
+          Done, I've stored it safely
         </SlicedButton>
       </div>
     </div>
@@ -379,7 +379,7 @@ function RevokeConfirmRow({ target, onCancel, onConfirm, submitting, error }: Re
         gap: 12,
       }}
     >
-      <div style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.55 }}>
+      <div style={{ fontSize: 13.5, color: 'var(--muted)', lineHeight: 1.55 }}>
         <span style={{ color: 'var(--foreground)', fontWeight: 500 }}>
           Revoke “{target.name}”?
         </span>{' '}
@@ -391,7 +391,7 @@ function RevokeConfirmRow({ target, onCancel, onConfirm, submitting, error }: Re
       {error && (
         <div
           style={{
-            fontSize: 12.5,
+            fontSize: 13.5,
             color: 'var(--error)',
             display: 'flex',
             gap: 8,
@@ -412,7 +412,7 @@ function RevokeConfirmRow({ target, onCancel, onConfirm, submitting, error }: Re
             border: '1px solid var(--border-strong, rgba(255,255,255,0.12))',
             borderRadius: 7,
             color: 'var(--foreground)',
-            fontSize: 13,
+            fontSize: 14,
             fontFamily: 'inherit',
             cursor: submitting ? 'not-allowed' : 'pointer',
           }}
@@ -428,7 +428,7 @@ function RevokeConfirmRow({ target, onCancel, onConfirm, submitting, error }: Re
             border: '1px solid color-mix(in srgb, var(--error) 30%, transparent)',
             borderRadius: 7,
             color: 'var(--error)',
-            fontSize: 13,
+            fontSize: 14,
             fontWeight: 500,
             fontFamily: 'inherit',
             cursor: submitting ? 'not-allowed' : 'pointer',
@@ -497,7 +497,7 @@ function LiveKeyRow({ k, isLast, confirming, onRevoke }: LiveKeyRowProps) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
         <span
           style={{
-            fontSize: 13.5,
+            fontSize: 14.5,
             fontWeight: 500,
             color: 'var(--foreground)',
             whiteSpace: 'nowrap',
@@ -510,7 +510,7 @@ function LiveKeyRow({ k, isLast, confirming, onRevoke }: LiveKeyRowProps) {
           {k.name}
         </span>
         {revoked && k.revoked_at && (
-          <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>
+          <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>
             Revoked {fmtDate(k.revoked_at)}
           </div>
         )}
@@ -521,7 +521,7 @@ function LiveKeyRow({ k, isLast, confirming, onRevoke }: LiveKeyRowProps) {
         <code
           style={{
             fontFamily: 'var(--font-mono)',
-            fontSize: 12,
+            fontSize: 13,
             color: 'var(--muted)',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
@@ -557,12 +557,12 @@ function LiveKeyRow({ k, isLast, confirming, onRevoke }: LiveKeyRowProps) {
       </div>
 
       {/* Last used */}
-      <div style={{ fontSize: 12.5, color: 'var(--foreground)' }}>
+      <div style={{ fontSize: 13.5, color: 'var(--foreground)' }}>
         {fmtLastUsed(k.last_used_at)}
       </div>
 
       {/* Created */}
-      <div style={{ fontSize: 12.5, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>
+      <div style={{ fontSize: 13.5, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>
         {fmtDate(k.created_at)}
       </div>
 
@@ -687,7 +687,7 @@ function ApiKeysView({ data, workspaceId }: { data: UseApiKeysResult; workspaceI
         </h1>
         <p
           style={{
-            fontSize: 13,
+            fontSize: 14,
             color: 'var(--muted)',
             margin: '6px 0 0',
             maxWidth: 620,
@@ -730,7 +730,7 @@ function ApiKeysView({ data, workspaceId }: { data: UseApiKeysResult; workspaceI
                 border: '1px solid var(--border-strong, rgba(255,255,255,0.12))',
                 borderRadius: 7,
                 color: 'var(--foreground)',
-                fontSize: 13,
+                fontSize: 14,
                 outline: 'none',
                 fontFamily: 'inherit',
               }}
@@ -762,7 +762,7 @@ function ApiKeysView({ data, workspaceId }: { data: UseApiKeysResult; workspaceI
             padding: '48px 20px',
             textAlign: 'center',
             color: 'var(--muted)',
-            fontSize: 13,
+            fontSize: 14,
           }}
           role="alert"
         >
@@ -778,7 +778,7 @@ function ApiKeysView({ data, workspaceId }: { data: UseApiKeysResult; workspaceI
               gap: 14,
               padding: '12px 0',
               borderBottom: '1px solid color-mix(in srgb, var(--border) 70%, transparent)',
-              fontSize: 11,
+              fontSize: 12,
               color: 'var(--muted)',
               textTransform: 'uppercase',
               letterSpacing: '0.06em',
@@ -798,7 +798,7 @@ function ApiKeysView({ data, workspaceId }: { data: UseApiKeysResult; workspaceI
                 padding: '60px 20px',
                 textAlign: 'center',
                 color: 'var(--muted)',
-                fontSize: 13,
+                fontSize: 14,
               }}
             >
               {search
@@ -833,7 +833,7 @@ function ApiKeysView({ data, workspaceId }: { data: UseApiKeysResult; workspaceI
       )}
 
       {!isLoading && !isError && keys.length > 0 && (
-        <div style={{ marginTop: 16, fontSize: 12, color: 'var(--muted)' }}>
+        <div style={{ marginTop: 16, fontSize: 13, color: 'var(--muted)' }}>
           {active.length} active · {revoked.length} revoked
         </div>
       )}

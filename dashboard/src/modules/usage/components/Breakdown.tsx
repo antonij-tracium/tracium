@@ -405,13 +405,13 @@ function AttributeTab({
               placeholder="Search attributes…"
               style={{
                 flex: 1, minWidth: 0, background: 'transparent', border: 'none', outline: 'none',
-                color: 'var(--foreground)', fontSize: 13, fontFamily: 'inherit',
+                color: 'var(--foreground)', fontSize: 14, fontFamily: 'inherit',
               }}
             />
           </div>
           <div style={{ maxHeight: 260, overflowY: 'auto', padding: '4px 0' }}>
             {matches.length === 0 && (
-              <div style={{ padding: '10px 12px', fontSize: 12.5, color: 'var(--muted)' }}>No matching attributes</div>
+              <div style={{ padding: '10px 12px', fontSize: 13.5, color: 'var(--muted)' }}>No matching attributes</div>
             )}
             {matches.map((k) => {
               const isActive = active && k === value;
@@ -425,7 +425,7 @@ function AttributeTab({
                     display: 'flex', alignItems: 'center', gap: 8,
                     padding: '7px 12px', cursor: 'pointer',
                     background: isActive ? 'var(--surface-active)' : 'transparent',
-                    fontSize: 13, color: 'var(--foreground)',
+                    fontSize: 14, color: 'var(--foreground)',
                   }}
                 >
                   <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{k}</span>

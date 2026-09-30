@@ -99,7 +99,7 @@ export function TopBar({
         {breadcrumb.map((crumb, i) => (
           <React.Fragment key={i}>
             {i > 0 && (
-              <span style={{ color: 'var(--border-strong)', fontSize: 13 }}>/</span>
+              <span style={{ color: 'var(--border-strong)', fontSize: 14 }}>/</span>
             )}
             {crumb.onClick ? (
               <button
@@ -112,7 +112,7 @@ export function TopBar({
                     i === breadcrumb.length - 1 ? 'var(--foreground)' : 'var(--muted)')
                 }
                 style={{
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: i === breadcrumb.length - 1 ? 500 : 400,
                   color:
                     i === breadcrumb.length - 1
@@ -130,7 +130,7 @@ export function TopBar({
             ) : (
               <span
                 style={{
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: i === breadcrumb.length - 1 ? 500 : 400,
                   color:
                     i === breadcrumb.length - 1
@@ -163,7 +163,7 @@ export function TopBar({
               onClick={() => setRange(o.id)}
               style={{
                 padding: '4px 9px',
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: 500,
                 background: range === o.id ? 'var(--surface)' : 'transparent',
                 color: range === o.id ? 'var(--foreground)' : 'var(--muted)',
@@ -200,14 +200,14 @@ export function TopBar({
           borderRadius: 7,
           cursor: 'pointer',
           color: 'var(--muted)',
-          fontSize: 12,
+          fontSize: 13,
         }}
       >
         <IconSearch size={13} />
         <span>Search</span>
         <kbd
           style={{
-            fontSize: 10,
+            fontSize: 11,
             padding: '1px 5px',
             borderRadius: 4,
             background: 'var(--surface)',

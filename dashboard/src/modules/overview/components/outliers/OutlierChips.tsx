@@ -15,13 +15,13 @@ export function OutlierChips({ anomalies, onOpen }: OutlierChipsProps) {
   if (chips.length === 0) return null;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 28 }}>
-      <span style={{ fontSize: 12, color: 'var(--muted)' }}>Outliers this window:</span>
+      <span style={{ fontSize: 13, color: 'var(--muted)' }}>Outliers this window:</span>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {chips.map((c) => (
           <span
             key={c.key}
             style={{
-              fontSize: 11,
+              fontSize: 12,
               padding: '5px 10px',
               borderRadius: 20,
               background: c.tint,
@@ -39,7 +39,7 @@ export function OutlierChips({ anomalies, onOpen }: OutlierChipsProps) {
           onClick={onOpen}
           style={{
             marginLeft: 'auto',
-            fontSize: 12,
+            fontSize: 13,
             color: 'var(--muted)',
             background: 'transparent',
             border: 'none',

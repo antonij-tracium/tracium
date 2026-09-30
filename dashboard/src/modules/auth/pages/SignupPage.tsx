@@ -82,7 +82,7 @@ export default function SignupPage({ onLogin, appearance }: SignupPageProps) {
     <AuthShell appearance={appearance}
       active="signup"
       title="Start tracing"
-      subtitle="Free and open source. Self-host in minutes — no limits, no lock-in."
+      subtitle="Free and open source. Self-host in minutes. No limits, no lock-in."
       footnote={{ text: 'Already have an account?', linkText: 'Sign in', to: '/login' }}
     >
       {SignInOptions ? <SignInOptions mode="signup" /> : null}

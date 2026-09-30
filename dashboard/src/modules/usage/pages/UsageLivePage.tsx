@@ -197,7 +197,7 @@ export function UsageLivePage({ range, setView, setSelected }: UsageLivePageProp
 
       <SectionHead
         title="Who's driving cost"
-        hint="Dot marks the top 75% of spend — the rows worth reviewing first."
+        hint="Dot marks the top 75% of spend: the rows worth reviewing first."
         right={
           <TabPill
             tab={tab}

@@ -53,7 +53,7 @@ export function KpiStrip({ items }: { items: KpiItem[] }) {
               minWidth: 0,
             }}
           >
-            <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 500 }}>{it.label}</span>
+            <span style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 500 }}>{it.label}</span>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
               <span
                 style={{
@@ -77,7 +77,7 @@ export function KpiStrip({ items }: { items: KpiItem[] }) {
                 />
               )}
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
               {(delta || it.deltaTone === 'neutral') && (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: deltaColor, fontWeight: 500 }}>
                   {delta.startsWith('+') ? (

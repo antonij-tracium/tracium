@@ -34,9 +34,9 @@ function MiniStat({ label, value, sub, tone, isFirst }: MiniStatProps) {
   const color = tone === 'bad' ? 'var(--error)' : tone === 'warn' ? 'var(--warning)' : 'var(--foreground)';
   return (
     <div style={{ padding: '16px 20px 18px', borderLeft: isFirst ? 'none' : '1px solid var(--border)' }}>
-      <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8, fontWeight: 500 }}>{label}</div>
+      <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 8, fontWeight: 500 }}>{label}</div>
       <div style={{ fontSize: 22, fontWeight: 500, letterSpacing: '-0.02em', color, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{value}</div>
-      {sub && <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 6 }}>{sub}</div>}
+      {sub && <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 6 }}>{sub}</div>}
     </div>
   );
 }
@@ -56,7 +56,7 @@ interface MetaRowProps {
 function MetaRow({ label, value, mono, onClick }: MetaRowProps) {
   if (value == null || value === '') return null;
   const valueStyle: React.CSSProperties = {
-    fontSize: 12.5, color: onClick ? 'var(--accent)' : 'var(--foreground)', fontWeight: 500,
+    fontSize: 13.5, color: onClick ? 'var(--accent)' : 'var(--foreground)', fontWeight: 500,
     fontFamily: mono ? 'var(--font-mono)' : 'inherit',
     textAlign: 'right', whiteSpace: 'nowrap', overflow: 'hidden',
     textOverflow: 'ellipsis', maxWidth: '70%',
@@ -67,7 +67,7 @@ function MetaRow({ label, value, mono, onClick }: MetaRowProps) {
       gap: 12, padding: '8px 0',
       borderBottom: '1px solid color-mix(in srgb, var(--border) 55%, transparent)',
     }}>
-      <span style={{ fontSize: 12, color: 'var(--muted)' }}>{label}</span>
+      <span style={{ fontSize: 13, color: 'var(--muted)' }}>{label}</span>
       {onClick ? (
         <button
           onClick={onClick}
@@ -92,7 +92,7 @@ function CodeBlock({ children, maxHeight = 220 }: { children: string; maxHeight?
       background: 'color-mix(in srgb, var(--surface-alt) 60%, transparent)',
       border: '1px solid color-mix(in srgb, var(--border) 60%, transparent)',
       borderRadius: 8,
-      fontFamily: 'var(--font-mono)', fontSize: 12, lineHeight: 1.55,
+      fontFamily: 'var(--font-mono)', fontSize: 13, lineHeight: 1.55,
       color: 'var(--foreground)',
       whiteSpace: 'pre-wrap', wordBreak: 'break-word',
       maxHeight, overflowY: 'auto',
@@ -106,7 +106,7 @@ function CodeBlock({ children, maxHeight = 220 }: { children: string; maxHeight?
 
 function EmptyBlock({ children }: { children: string }) {
   return (
-    <div style={{ padding: '28px 18px', border: '1px dashed var(--border)', borderRadius: 10, color: 'var(--muted)', fontSize: 13, textAlign: 'center' }}>
+    <div style={{ padding: '28px 18px', border: '1px dashed var(--border)', borderRadius: 10, color: 'var(--muted)', fontSize: 14, textAlign: 'center' }}>
       {children}
     </div>
   );
@@ -119,7 +119,7 @@ function EmptyBlock({ children }: { children: string }) {
 function SectionLabel({ children, tone, style }: { children: string; tone?: 'error'; style?: React.CSSProperties }) {
   return (
     <div style={{
-      fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em',
+      fontSize: 12, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em',
       color: tone === 'error' ? 'var(--error)' : 'var(--muted)', marginBottom: 8, ...style,
     }}>{children}</div>
   );
@@ -146,7 +146,7 @@ function SpanTypeTag({ type }: { type: SpanDetail['type'] }) {
   const c = TYPE_COLORS[type] ?? TYPE_COLORS.internal;
   return (
     <span style={{
-      fontSize: 10.5, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em',
+      fontSize: 11.5, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em',
       padding: '2px 7px', borderRadius: 4, color: c,
       background: `color-mix(in srgb, ${c} 12%, transparent)`,
       border: `1px solid color-mix(in srgb, ${c} 22%, transparent)`,
@@ -196,17 +196,17 @@ function AvailableToolsList({ tools }: { tools: AvailableTool[] }) {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <span style={{ fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)' }}>
+          <span style={{ fontSize: 12, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)' }}>
             Available tools
           </span>
-          <span style={{ fontSize: 11, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>
+          <span style={{ fontSize: 12, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>
             {usedCount} of {tools.length} used
           </span>
         </div>
         <div style={{ display: 'inline-flex', padding: 2, background: 'var(--surface-alt)', border: '1px solid var(--border)', borderRadius: 6 }}>
           {[{ id: false, label: 'Used' }, { id: true, label: 'All' }].map(opt => (
             <button key={String(opt.id)} onClick={() => setShowAll(opt.id)} style={{
-              padding: '3px 10px', fontSize: 11.5, fontWeight: 500, border: 'none', borderRadius: 4,
+              padding: '3px 10px', fontSize: 12.5, fontWeight: 500, border: 'none', borderRadius: 4,
               background: showAll === opt.id ? 'var(--surface)' : 'transparent',
               color: showAll === opt.id ? 'var(--foreground)' : 'var(--muted)',
               boxShadow: showAll === opt.id ? '0 0 0 1px var(--border)' : 'none',
@@ -217,7 +217,7 @@ function AvailableToolsList({ tools }: { tools: AvailableTool[] }) {
       </div>
       <div style={{ border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', overflow: 'hidden' }}>
         {visible.length === 0 && (
-          <div style={{ padding: '16px 14px', fontSize: 12.5, color: 'var(--muted)', textAlign: 'center' }}>
+          <div style={{ padding: '16px 14px', fontSize: 13.5, color: 'var(--muted)', textAlign: 'center' }}>
             No tools were called in this span.
           </div>
         )}
@@ -234,10 +234,10 @@ function AvailableToolsList({ tools }: { tools: AvailableTool[] }) {
               background: tool.used ? 'var(--accent)' : 'var(--muted)',
               display: 'inline-block',
             }} />
-            <span style={{ fontSize: 12.5, fontWeight: 500, fontFamily: 'var(--font-mono)', color: 'var(--foreground)' }}>
+            <span style={{ fontSize: 13.5, fontWeight: 500, fontFamily: 'var(--font-mono)', color: 'var(--foreground)' }}>
               {tool.name}
             </span>
-            <span style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>{tool.description}</span>
+            <span style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5 }}>{tool.description}</span>
           </div>
         ))}
       </div>
@@ -267,29 +267,29 @@ function SpanInspector({ span, error }: { span: SpanDetail | undefined; error: T
           <SpanTypeTag type={span.type} />
           <StatusPill status={span.status === 'ok' ? 'completed' : 'failed'} />
         </div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--foreground)', letterSpacing: '-0.01em', wordBreak: 'break-word' }}>
+        <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--foreground)', letterSpacing: '-0.01em', wordBreak: 'break-word' }}>
           {span.name}
         </div>
-        <div style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{span.id}</div>
+        <div style={{ fontSize: 13, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{span.id}</div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
         <div style={{ padding: '12px 14px', borderRight: '1px solid var(--border)' }}>
-          <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Duration</div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>Duration</div>
           <div style={{ fontSize: 18, fontWeight: 500, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.015em' }}>{fmtMs(span.duration)}</div>
-          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>starts at +{fmtMs(span.start)}</div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>starts at +{fmtMs(span.start)}</div>
         </div>
         <div style={{ padding: '12px 14px' }}>
-          <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>{isParent ? 'Cost (subtree)' : 'Cost'}</div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>{isParent ? 'Cost (subtree)' : 'Cost'}</div>
           <div style={{ fontSize: 18, fontWeight: 500, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.015em' }}>
             {cost > 0 ? fmtCost(cost) : '—'}
           </div>
           {isParent ? (
-            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3, fontVariantNumeric: 'tabular-nums' }}>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3, fontVariantNumeric: 'tabular-nums' }}>
               {span.cost > 0 ? `${fmtCost(span.cost)} self · ` : ''}{span.childCount} child span{span.childCount! > 1 ? 's' : ''}
             </div>
           ) : span.tokens > 0 && (
-            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3, fontVariantNumeric: 'tabular-nums' }}>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3, fontVariantNumeric: 'tabular-nums' }}>
               {fmtNum(span.inputTokens ?? span.tokens)} in{span.outputTokens ? ` · ${fmtNum(span.outputTokens)} out` : ''}
             </div>
           )}
@@ -299,7 +299,7 @@ function SpanInspector({ span, error }: { span: SpanDetail | undefined; error: T
       {showError && (
         <div>
           <SectionLabel tone="error">{spanError.code ? `Error · HTTP ${spanError.code}` : 'Error'}</SectionLabel>
-          <div style={{ fontSize: 12.5, color: 'var(--foreground)', marginBottom: 10, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 13.5, color: 'var(--foreground)', marginBottom: 10, lineHeight: 1.5 }}>
             <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--error)' }}>{spanError.type}</span>
             {spanError.message && <span style={{ color: 'var(--muted)' }}> · </span>}
             {spanError.message}
@@ -347,7 +347,7 @@ function SpanInspector({ span, error }: { span: SpanDetail | undefined; error: T
 function HeaderButton({ children, primary, onClick }: { children: React.ReactNode; primary?: boolean; onClick?: () => void }) {
   return (
     <button onClick={onClick} style={{
-      fontSize: 12.5, fontWeight: 500, padding: '7px 12px', borderRadius: 8,
+      fontSize: 13.5, fontWeight: 500, padding: '7px 12px', borderRadius: 8,
       display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
       fontFamily: 'inherit', whiteSpace: 'nowrap',
       background: primary ? 'var(--accent)' : 'transparent',
@@ -463,7 +463,7 @@ export function TraceView({ trace: t, setView, onOpenUser }: TraceViewProps) {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24, flexWrap: 'wrap', marginBottom: 24 }}>
         <div style={{ minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, fontSize: 12, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, fontSize: 13, flexWrap: 'wrap' }}>
             <span onClick={() => setView('workflows')} style={{ color: 'var(--muted)', cursor: 'pointer' }}>Workflows</span>
             <span style={{ color: 'var(--muted)', opacity: 0.4 }}>/</span>
             <span style={{ color: 'var(--muted)' }}>{t.workflow}</span>
@@ -475,13 +475,13 @@ export function TraceView({ trace: t, setView, onOpenUser }: TraceViewProps) {
             {subtitle.map((p, i) => (
               <React.Fragment key={i}>
                 {i > 0 && <span style={{ color: 'var(--muted)', opacity: 0.4 }}>·</span>}
-                <span style={{ fontSize: 12, color: 'var(--muted)', fontFamily: p.mono ? 'var(--font-mono)' : 'inherit' }}>{p.text}</span>
+                <span style={{ fontSize: 13, color: 'var(--muted)', fontFamily: p.mono ? 'var(--font-mono)' : 'inherit' }}>{p.text}</span>
               </React.Fragment>
             ))}
           </div>
           <h1 style={{ fontSize: 26, fontWeight: 600, letterSpacing: '-0.02em', margin: '0 0 6px', color: 'var(--foreground)' }}>{t.workflow}</h1>
           {t.user && (
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, fontSize: 12.5, color: 'var(--muted)', marginBottom: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, fontSize: 13.5, color: 'var(--muted)', marginBottom: 4 }}>
               <span>Client</span>
               {onOpenUser ? (
                 <button
@@ -498,7 +498,7 @@ export function TraceView({ trace: t, setView, onOpenUser }: TraceViewProps) {
             </div>
           )}
           {t.startedAt && (
-            <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>
+            <div style={{ fontSize: 13.5, color: 'var(--muted)' }}>
               {t.startedAt}{t.endedAt && <> <span style={{ opacity: 0.4 }}>→</span> {t.endedAt}</>}
             </div>
           )}
@@ -525,16 +525,16 @@ export function TraceView({ trace: t, setView, onOpenUser }: TraceViewProps) {
             <IconX size={14} />
           </span>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--foreground)', marginBottom: 4 }}>
+            <div style={{ fontSize: 14.5, fontWeight: 500, color: 'var(--foreground)', marginBottom: 4 }}>
               {t.error.code && <>HTTP {t.error.code} · </>}<span style={{ fontFamily: 'var(--font-mono)' }}>{t.error.type}</span>
             </div>
-            <div style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.5 }}>{t.error.message}</div>
+            <div style={{ fontSize: 13.5, color: 'var(--muted)', lineHeight: 1.5 }}>{t.error.message}</div>
           </div>
           {firstFailed && (
             <button
               onClick={() => revealSpan(firstFailed.id)}
               style={{
-                fontSize: 12, fontWeight: 500, color: 'var(--error)', padding: '5px 10px',
+                fontSize: 13, fontWeight: 500, color: 'var(--error)', padding: '5px 10px',
                 border: '1px solid color-mix(in srgb, var(--error) 28%, transparent)', borderRadius: 7,
                 background: 'transparent', whiteSpace: 'nowrap', cursor: 'pointer', fontFamily: 'inherit',
               }}
@@ -557,7 +557,7 @@ export function TraceView({ trace: t, setView, onOpenUser }: TraceViewProps) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, borderBottom: '1px solid var(--border)', marginBottom: 24 }}>
         {tabs.map(tb => (
           <button key={tb.id} onClick={() => setTab(tb.id)} style={{
-            padding: '10px 14px', fontSize: 13, fontWeight: 500,
+            padding: '10px 14px', fontSize: 14, fontWeight: 500,
             color: tab === tb.id ? 'var(--foreground)' : 'var(--muted)',
             background: 'transparent', border: 'none',
             borderBottom: '2px solid ' + (tab === tb.id ? 'var(--accent)' : 'transparent'),
@@ -575,7 +575,7 @@ export function TraceView({ trace: t, setView, onOpenUser }: TraceViewProps) {
               gridTemplateColumns: 'minmax(220px, 1.5fr) 70px 64px 72px 2fr',
               minWidth: 560,
               gap: 14, padding: '10px 4px',
-              fontSize: 11, color: 'var(--muted)', fontWeight: 500,
+              fontSize: 12, color: 'var(--muted)', fontWeight: 500,
               textTransform: 'uppercase', letterSpacing: '0.06em',
               borderBottom: '1px solid var(--border)',
             }}>
@@ -587,7 +587,7 @@ export function TraceView({ trace: t, setView, onOpenUser }: TraceViewProps) {
                 {tickValues.map((v, i) => (
                   <span key={i} style={{
                     position: 'absolute', left: (v / totalDuration) * 100 + '%',
-                    transform: 'translateX(-50%)', fontSize: 10.5, color: 'var(--muted)',
+                    transform: 'translateX(-50%)', fontSize: 11.5, color: 'var(--muted)',
                     opacity: 0.7, whiteSpace: 'nowrap',
                   }}>{fmtMs(v)}</span>
                 ))}
@@ -628,7 +628,7 @@ export function TraceView({ trace: t, setView, onOpenUser }: TraceViewProps) {
             <div style={{
               display: 'flex', alignItems: 'center', gap: 18,
               padding: '14px 4px 0', borderTop: '1px solid var(--border)',
-              fontSize: 12, color: 'var(--muted)', marginTop: 6,
+              fontSize: 13, color: 'var(--muted)', marginTop: 6,
             }}>
               <LegendDot color={TYPE_COLORS.llm} label="LLM" />
               <LegendDot color={TYPE_COLORS.tool} label="Tool" />
@@ -668,7 +668,7 @@ export function TraceView({ trace: t, setView, onOpenUser }: TraceViewProps) {
           <SectionLabel style={{ marginBottom: 10 }}>Workflow output</SectionLabel>
           {t.output
             ? <CodeBlock maxHeight={500}>{prettifyMaybeJson(t.output)}</CodeBlock>
-            : <EmptyBlock>{t.status === 'failed' ? 'No output — trace failed before completion.' : 'No output recorded for this trace.'}</EmptyBlock>}
+            : <EmptyBlock>{t.status === 'failed' ? 'No output. The trace failed before completion.' : 'No output recorded for this trace.'}</EmptyBlock>}
         </div>
       )}
 
@@ -700,7 +700,7 @@ export function TraceView({ trace: t, setView, onOpenUser }: TraceViewProps) {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '4px 0' }}>
                   {t.tags.map(tag => (
                     <span key={tag} style={{
-                      fontSize: 11.5, padding: '3px 10px', borderRadius: 999,
+                      fontSize: 12.5, padding: '3px 10px', borderRadius: 999,
                       color: 'var(--muted)', border: '1px solid var(--border)', background: 'transparent',
                     }}>{tag}</span>
                   ))}
@@ -781,30 +781,30 @@ function SpanRow({ span, isLast, isActive, isCollapsed, isHidden, totalDuration,
             }}
           >
             <span style={{
-              fontSize: 9, lineHeight: 1,
+              fontSize: 10, lineHeight: 1,
               transform: isCollapsed ? 'rotate(-90deg)' : 'none',
               transition: 'transform 0.12s ease',
             }}>▼</span>
           </span>
         ) : (
-          <span style={{ width: 16, flexShrink: 0, textAlign: 'center', color: 'var(--muted)', fontSize: 12, opacity: 0.5 }}>
+          <span style={{ width: 16, flexShrink: 0, textAlign: 'center', color: 'var(--muted)', fontSize: 13, opacity: 0.5 }}>
             {span.depth > 0 ? '└' : ''}
           </span>
         )}
         <span style={{ display: 'inline-block', width: 7, height: 7, background: color, borderRadius: 2, flexShrink: 0 }} />
-        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--foreground)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{span.name}</span>
+        <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--foreground)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{span.name}</span>
         <SpanTypeTag type={span.type} />
       </div>
-      <span style={{ fontSize: 12.5, textAlign: 'right', color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>{fmtMs(span.duration)}</span>
+      <span style={{ fontSize: 13.5, textAlign: 'right', color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>{fmtMs(span.duration)}</span>
       <span
         title={isParent ? `Subtree total over ${span.childCount} child span${span.childCount! > 1 ? 's' : ''}` : undefined}
-        style={{ fontSize: 12.5, textAlign: 'right', color: rowTokens > 0 ? 'var(--foreground)' : 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}
+        style={{ fontSize: 13.5, textAlign: 'right', color: rowTokens > 0 ? 'var(--foreground)' : 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}
       >
         {rowTokens > 0 ? fmtNum(rowTokens) : '—'}
       </span>
       <span
         title={isParent ? `Subtree total over ${span.childCount} child span${span.childCount! > 1 ? 's' : ''}` : undefined}
-        style={{ fontSize: 12.5, textAlign: 'right', color: rowCost > 0 ? 'var(--foreground)' : 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}
+        style={{ fontSize: 13.5, textAlign: 'right', color: rowCost > 0 ? 'var(--foreground)' : 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}
       >
         {rowCost > 0 ? fmtCost(rowCost) : '—'}
       </span>
@@ -827,7 +827,7 @@ function SpanRow({ span, isLast, isActive, isCollapsed, isHidden, totalDuration,
           display: 'flex', alignItems: 'center', paddingLeft: 6,
         }}>
           {widthPct > 14 && (
-            <span style={{ fontSize: 10.5, color: 'var(--accent-contrast)', fontWeight: 500, whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: 11.5, color: 'var(--accent-contrast)', fontWeight: 500, whiteSpace: 'nowrap' }}>
               {fmtMs(span.duration)}
             </span>
           )}

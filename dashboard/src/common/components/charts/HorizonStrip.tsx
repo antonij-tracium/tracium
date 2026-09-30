@@ -33,7 +33,7 @@ export function HorizonStrip({ data, height = 40, markers = [] }: HorizonStripPr
               border: '1px solid var(--border)',
               borderRadius: 6,
               padding: '5px 9px',
-              fontSize: 12,
+              fontSize: 13,
               whiteSpace: 'nowrap',
               pointerEvents: 'none',
               boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
@@ -79,7 +79,7 @@ export function HorizonStrip({ data, height = 40, markers = [] }: HorizonStripPr
                 y={height / 2 + 4}
                 textAnchor="middle"
                 fill="var(--foreground)"
-                fontSize="12"
+                fontSize="13"
                 fontWeight={intensity > 0.33 ? 600 : 400}
               >
                 {d.errors}
@@ -113,7 +113,7 @@ export function HorizonStrip({ data, height = 40, markers = [] }: HorizonStripPr
         {data.map((d, i) => (
           <div
             key={i}
-            style={{ flex: 1, textAlign: 'center', fontSize: 11, color: 'var(--muted)' }}
+            style={{ flex: 1, textAlign: 'center', fontSize: 12, color: 'var(--muted)' }}
           >
             {d.label}
           </div>

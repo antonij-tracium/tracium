@@ -37,7 +37,7 @@ export function ActivityFeed({ items, onSelectTrace }: ActivityFeedProps) {
               display: 'flex',
               alignItems: 'center',
               gap: 7,
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: 500,
               color: 'var(--muted)',
               padding: '5px 10px',
@@ -85,7 +85,7 @@ export function ActivityFeed({ items, onSelectTrace }: ActivityFeedProps) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
               <span
                 style={{
-                  fontSize: 13.5,
+                  fontSize: 14.5,
                   fontWeight: 500,
                   color: 'var(--foreground)',
                   whiteSpace: 'nowrap',
@@ -96,15 +96,15 @@ export function ActivityFeed({ items, onSelectTrace }: ActivityFeedProps) {
                 {it.workflow}
               </span>
               {it.msg && (
-                <span style={{ fontSize: 12, color: it.status === 'failed' ? 'var(--error)' : 'var(--muted)' }}>
+                <span style={{ fontSize: 13, color: it.status === 'failed' ? 'var(--error)' : 'var(--muted)' }}>
                   {it.msg}
                 </span>
               )}
             </div>
-            <span style={{ fontSize: 12.5, color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>
+            <span style={{ fontSize: 13.5, color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>
               {it.latency.toFixed(1)}s
             </span>
-            <span style={{ fontSize: 12, color: 'var(--muted)', width: 64, textAlign: 'right' }}>{it.time}</span>
+            <span style={{ fontSize: 13, color: 'var(--muted)', width: 64, textAlign: 'right' }}>{it.time}</span>
           </button>
         ))}
       </div>

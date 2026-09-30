@@ -70,7 +70,7 @@ function SmallStat({
         gap: 8,
       }}
     >
-      <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 500 }}>{label}</span>
+      <span style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 500 }}>{label}</span>
       <span
         title={typeof value === 'string' ? value : undefined}
         style={{
@@ -87,7 +87,7 @@ function SmallStat({
       >
         {value}
       </span>
-      {sub && <span style={{ fontSize: 12, color: 'var(--muted)' }}>{sub}</span>}
+      {sub && <span style={{ fontSize: 13, color: 'var(--muted)' }}>{sub}</span>}
     </div>
   );
 }
@@ -119,7 +119,7 @@ function SortHeader({
         background: 'transparent',
         border: 'none',
         padding: 0,
-        fontSize: 12,
+        fontSize: 13,
         color: active ? 'var(--foreground)' : 'var(--muted)',
         fontWeight: 500,
         display: 'flex',
@@ -189,7 +189,7 @@ export function WorkflowsPage({ workflows, setView, setSelected, workspaceName, 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <span
             style={{
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: 500,
               textTransform: 'uppercase',
               letterSpacing: '0.1em',
@@ -199,7 +199,7 @@ export function WorkflowsPage({ workflows, setView, setSelected, workspaceName, 
             {workspaceName ? `${workspaceName} · Workspace` : 'Workspace'}
           </span>
           <h1 style={{ fontSize: 26, fontWeight: 600, letterSpacing: '-0.02em', margin: 0 }}>Workflows</h1>
-          <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0 }}>
+          <p style={{ fontSize: 14, color: 'var(--muted)', margin: 0 }}>
             {workflows.length} active workflows · {fmtNum(totalCalls)} runs · {fmtCost(totalCost)} spend
           </p>
         </div>
@@ -247,7 +247,7 @@ export function WorkflowsPage({ workflows, setView, setSelected, workspaceName, 
               border: 'none',
               outline: 'none',
               color: 'var(--foreground)',
-              fontSize: 13,
+              fontSize: 14,
             }}
           />
         </div>
@@ -265,7 +265,7 @@ export function WorkflowsPage({ workflows, setView, setSelected, workspaceName, 
           }}
         >
           <SortHeader label="Workflow" k="name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-          <span style={{ fontSize: 12, color: 'var(--muted)' }}>Trend (7d)</span>
+          <span style={{ fontSize: 13, color: 'var(--muted)' }}>Trend (7d)</span>
           <SortHeader label="Calls" k="calls" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" />
           <SortHeader label="Cost" k="cost" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" />
           <SortHeader label="Avg latency" k="avg_latency_ms" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" />
@@ -273,7 +273,7 @@ export function WorkflowsPage({ workflows, setView, setSelected, workspaceName, 
         </div>
 
         {filtered.length === 0 ? (
-          <div style={{ padding: '60px 4px', textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>
+          <div style={{ padding: '60px 4px', textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>
             No workflows match.
           </div>
         ) : (
@@ -323,20 +323,20 @@ function WorkflowRow({ workflow: a, isLast, onOpen }: { workflow: Workflow; isLa
           : 'transparent',
       }}
     >
-      <span style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--foreground)' }}>{a.name}</span>
+      <span style={{ fontSize: 14.5, fontWeight: 500, color: 'var(--foreground)' }}>{a.name}</span>
       <Sparkline data={a.trend} width={140} height={26} color="var(--accent)" fillOpacity={0.1} />
-      <span style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums', textAlign: 'right', color: 'var(--foreground)' }}>
+      <span style={{ fontSize: 14, fontVariantNumeric: 'tabular-nums', textAlign: 'right', color: 'var(--foreground)' }}>
         {fmtNum(a.calls)}
       </span>
-      <span style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums', textAlign: 'right', color: 'var(--foreground)' }}>
+      <span style={{ fontSize: 14, fontVariantNumeric: 'tabular-nums', textAlign: 'right', color: 'var(--foreground)' }}>
         {fmtCost(a.cost)}
       </span>
-      <span style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums', textAlign: 'right', color: 'var(--muted)' }}>
+      <span style={{ fontSize: 14, fontVariantNumeric: 'tabular-nums', textAlign: 'right', color: 'var(--muted)' }}>
         {a.avg_latency_ms > 0 ? fmtMs(a.avg_latency_ms) : '—'}
       </span>
       <span
         style={{
-          fontSize: 13,
+          fontSize: 14,
           fontVariantNumeric: 'tabular-nums',
           textAlign: 'right',
           color: errColor,

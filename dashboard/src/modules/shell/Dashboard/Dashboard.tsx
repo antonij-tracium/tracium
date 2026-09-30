@@ -78,7 +78,7 @@ function WorkspaceEmptyState({ onCreate }: { onCreate: () => void }) {
       <h2 style={{ fontSize: 18, fontWeight: 600, color: 'var(--foreground)', margin: 0 }}>
         Create your first workspace
       </h2>
-      <p style={{ fontSize: 13.5, color: 'var(--muted)', maxWidth: 420, margin: 0, lineHeight: 1.5 }}>
+      <p style={{ fontSize: 14.5, color: 'var(--muted)', maxWidth: 420, margin: 0, lineHeight: 1.5 }}>
         Workspaces hold your workflows, traces, and usage. Create one to start
         sending data to Tracium.
       </p>
@@ -91,7 +91,7 @@ function WorkspaceEmptyState({ onCreate }: { onCreate: () => void }) {
           background: 'var(--accent)',
           color: 'var(--accent-contrast)',
           border: 'none',
-          fontSize: 13,
+          fontSize: 14,
           fontWeight: 600,
           cursor: 'pointer',
         }}

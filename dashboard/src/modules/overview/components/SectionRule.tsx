@@ -31,7 +31,7 @@ export function SectionRule({ eyebrow, title, subtitle, right, style }: SectionR
         {eyebrow && (
           <span
             style={{
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: 500,
               textTransform: 'uppercase',
               letterSpacing: '0.08em',
@@ -43,7 +43,7 @@ export function SectionRule({ eyebrow, title, subtitle, right, style }: SectionR
         )}
         <span
           style={{
-            fontSize: 16,
+            fontSize: 17,
             fontWeight: 600,
             color: 'var(--foreground)',
             letterSpacing: '-0.01em',
@@ -51,7 +51,7 @@ export function SectionRule({ eyebrow, title, subtitle, right, style }: SectionR
         >
           {title}
         </span>
-        {subtitle && <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>{subtitle}</span>}
+        {subtitle && <span style={{ fontSize: 13.5, color: 'var(--muted)' }}>{subtitle}</span>}
       </div>
       {right}
     </div>

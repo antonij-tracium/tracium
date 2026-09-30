@@ -34,7 +34,7 @@
 }
 
 .modelName {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--foreground);
   white-space: nowrap;
@@ -49,7 +49,7 @@
 }
 
 .cost {
-  font-size: 13.5px;
+  font-size: 14.5px;
   font-weight: 500;
   color: var(--foreground);
   font-variant-numeric: tabular-nums;
@@ -58,7 +58,7 @@
 .pct {
   min-width: 32px;
   text-align: right;
-  font-size: 11.5px;
+  font-size: 12.5px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -80,7 +80,7 @@
 .meta {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }

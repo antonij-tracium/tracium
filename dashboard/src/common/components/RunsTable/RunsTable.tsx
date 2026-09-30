@@ -24,7 +24,7 @@ const GRID = '1.4fr 110px 1fr 90px 80px';
 const MIN_WIDTH = 560;
 
 const ellipsis = { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } as const;
-const numeric = { fontSize: 12.5, textAlign: 'right', color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' } as const;
+const numeric = { fontSize: 13.5, textAlign: 'right', color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' } as const;
 
 export function RunsTable({ runs, onOpen, emptyText = 'No runs in this window.' }: RunsTableProps) {
   return (
@@ -37,7 +37,7 @@ export function RunsTable({ runs, onOpen, emptyText = 'No runs in this window.' 
           gap: 12,
           padding: '0 6px 10px',
           borderBottom: '1px solid var(--border)',
-          fontSize: 11,
+          fontSize: 12,
           color: 'var(--muted)',
           fontWeight: 500,
           textTransform: 'uppercase',
@@ -51,7 +51,7 @@ export function RunsTable({ runs, onOpen, emptyText = 'No runs in this window.' 
         <span style={{ textAlign: 'right' }}>Cost</span>
       </div>
       {runs.length === 0 ? (
-        <div style={{ padding: '32px 6px', fontSize: 13, color: 'var(--muted)' }}>{emptyText}</div>
+        <div style={{ padding: '32px 6px', fontSize: 14, color: 'var(--muted)' }}>{emptyText}</div>
       ) : (
         runs.map((run, i) => (
           <button
@@ -77,7 +77,7 @@ export function RunsTable({ runs, onOpen, emptyText = 'No runs in this window.' 
           >
             <span style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
               {run.name && (
-                <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--foreground)', ...ellipsis }}>{run.name}</span>
+                <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--foreground)', ...ellipsis }}>{run.name}</span>
               )}
               <span
                 style={{
@@ -90,13 +90,13 @@ export function RunsTable({ runs, onOpen, emptyText = 'No runs in this window.' 
                 {run.id}
               </span>
               {run.err && (
-                <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--error)', ...ellipsis }}>
+                <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--error)', ...ellipsis }}>
                   {run.err}
                 </span>
               )}
             </span>
             <StatusPill status={run.status} />
-            <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>{run.time}</span>
+            <span style={{ fontSize: 13.5, color: 'var(--muted)' }}>{run.time}</span>
             <span style={numeric}>{fmtMs(run.duration)}</span>
             <span style={numeric}>{fmtCost(run.cost)}</span>
           </button>

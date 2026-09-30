@@ -21,7 +21,7 @@ function PanelHeader({ eyebrow, title, legend }: { eyebrow: string; title: strin
       <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
         <span
           style={{
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: 500,
             textTransform: 'uppercase',
             letterSpacing: '0.08em',
@@ -30,11 +30,11 @@ function PanelHeader({ eyebrow, title, legend }: { eyebrow: string; title: strin
         >
           {eyebrow}
         </span>
-        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--foreground)', letterSpacing: '-0.01em' }}>
+        <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--foreground)', letterSpacing: '-0.01em' }}>
           {title}
         </span>
       </div>
-      <div style={{ display: 'flex', gap: 14, fontSize: 12, color: 'var(--muted)' }}>{legend}</div>
+      <div style={{ display: 'flex', gap: 14, fontSize: 13, color: 'var(--muted)' }}>{legend}</div>
     </div>
   );
 }

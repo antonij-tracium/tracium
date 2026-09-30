@@ -36,7 +36,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
           }}
         >
           <p style={{ fontWeight: 600, margin: '0 0 8px' }}>Something went wrong</p>
-          <p style={{ fontSize: '13px', margin: 0, fontFamily: 'monospace' }}>
+          <p style={{ fontSize: '14px', margin: 0, fontFamily: 'monospace' }}>
             {this.state.error?.message}
           </p>
         </div>

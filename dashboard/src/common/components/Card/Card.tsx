@@ -41,11 +41,11 @@ export function CardHeader({ title, subtitle, right }: CardHeaderProps) {
       }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--foreground)' }}>
+        <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--foreground)' }}>
           {title}
         </span>
         {subtitle && (
-          <span style={{ fontSize: 12, color: 'var(--muted)' }}>{subtitle}</span>
+          <span style={{ fontSize: 13, color: 'var(--muted)' }}>{subtitle}</span>
         )}
       </div>
       {right}

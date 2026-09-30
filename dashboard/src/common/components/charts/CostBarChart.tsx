@@ -46,7 +46,7 @@ export function CostBarChart({ series, height = 220, markers = [] }: CostBarChar
                 x={pad.left - 10}
                 y={y + 4}
                 fill="var(--muted)"
-                fontSize="11"
+                fontSize="12"
                 textAnchor="end"
               >
                 ${v.toFixed(2)}
@@ -91,7 +91,7 @@ export function CostBarChart({ series, height = 220, markers = [] }: CostBarChar
                   y={height - 10}
                   textAnchor="middle"
                   fill="var(--muted)"
-                  fontSize="11"
+                  fontSize="12"
                 >
                   {d.label}
                 </text>
@@ -147,14 +147,14 @@ export function CostBarChart({ series, height = 220, markers = [] }: CostBarChar
                   fill="var(--chart-tooltip-bg)"
                   stroke="var(--border)"
                 />
-                <text x="-58" y="18" fill="var(--muted)" fontSize="11">
+                <text x="-58" y="18" fill="var(--muted)" fontSize="12">
                   {d.label}
                 </text>
                 <text
                   x="-58"
                   y="35"
                   fill="var(--foreground)"
-                  fontSize="14"
+                  fontSize="15"
                   fontWeight="600"
                 >
                   ${d.value.toFixed(4)}
@@ -188,7 +188,7 @@ export function CostBarChart({ series, height = 220, markers = [] }: CostBarChar
                   maxWidth: '90%',
                   padding: '4px 9px',
                   borderRadius: 8,
-                  fontSize: 11,
+                  fontSize: 12,
                   lineHeight: 1.2,
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
