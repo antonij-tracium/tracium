@@ -15,6 +15,7 @@ import { prettifyMaybeJson } from '../utils';
 export interface TraceViewProps {
   trace: TraceDetail;
   setView: (v: string) => void;
+  onOpenUser?: (user: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -350,7 +351,7 @@ function HeaderButton({ children, primary, onClick }: { children: React.ReactNod
 // TraceView — the shared presentational trace detail page
 // ---------------------------------------------------------------------------
 
-export function TraceView({ trace: t, setView }: TraceViewProps) {
+export function TraceView({ trace: t, setView, onOpenUser }: TraceViewProps) {
   // Guard against zero-duration traces (single instantaneous span) so the
   // timeline's percentage math never divides by zero and emits NaN positions.
   const totalDuration = t.duration || 1;
@@ -469,6 +470,23 @@ export function TraceView({ trace: t, setView }: TraceViewProps) {
             ))}
           </div>
           <h1 style={{ fontSize: 26, fontWeight: 600, letterSpacing: '-0.02em', margin: '0 0 6px', color: 'var(--foreground)' }}>{t.workflow}</h1>
+          {t.user && (
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, fontSize: 12.5, color: 'var(--muted)', marginBottom: 4 }}>
+              <span>Client</span>
+              {onOpenUser ? (
+                <button
+                  onClick={() => onOpenUser(t.user!)}
+                  title="Open client"
+                  style={{
+                    padding: 0, border: 'none', background: 'none', cursor: 'pointer',
+                    fontSize: 'inherit', fontFamily: 'var(--font-mono)', color: 'var(--accent)',
+                  }}
+                >{t.user}</button>
+              ) : (
+                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--foreground)' }}>{t.user}</span>
+              )}
+            </div>
+          )}
           {t.startedAt && (
             <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>
               {t.startedAt}{t.endedAt && <> <span style={{ opacity: 0.4 }}>→</span> {t.endedAt}</>}
