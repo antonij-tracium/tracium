@@ -76,7 +76,7 @@ export default function UsagePage({ range: _range }: UsagePageProps) {
       }}
     >
       <UsageMasthead
-        subtitle={`${data.range.start} – ${data.range.end} · ${data.users.length} active users, ${data.workflows.length} workflows`}
+        subtitle={`${data.range.start} – ${data.range.end} · ${data.users.length} active clients, ${data.workflows.length} workflows`}
       />
 
       <div style={{ paddingBottom: 8 }}>
@@ -106,7 +106,7 @@ export default function UsagePage({ range: _range }: UsagePageProps) {
             tab={tab}
             setTab={handleTabChange}
             tabs={[
-              { id: 'user', label: 'By user', count: data.users.length },
+              { id: 'user', label: 'By client', count: data.users.length },
               { id: 'workflow', label: 'By workflow', count: data.workflows.length },
             ]}
           />

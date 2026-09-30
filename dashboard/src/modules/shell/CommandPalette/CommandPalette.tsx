@@ -28,7 +28,7 @@ const CMD_ITEMS: CmdItemData[] = [
   { label: 'Overview', icon: <IconHome size={14} />, action: { view: 'overview' } },
   { label: 'Workflows', icon: <IconWorkflows size={14} />, action: { view: 'workflows' } },
   { label: 'Usage', icon: <IconUsage size={14} />, action: { view: 'usage' } },
-  { label: 'Users', icon: <IconUsers size={14} />, action: { view: 'users' } },
+  { label: 'Clients', icon: <IconUsers size={14} />, action: { view: 'users' } },
   { label: 'API Keys', icon: <IconKey size={14} />, action: { view: 'keys' } },
   { label: 'Settings', icon: <IconSettings size={14} />, action: { view: 'settings' } },
   {

@@ -49,8 +49,8 @@ export interface DashboardProps {
  * are no runs yet.
  */
 const DATA_EMPTY: Partial<Record<ViewId, { message: string; description: string }>> = {
-  // Users now renders UsersLivePage, which fetches real metrics and shows
-  // its own "No users yet" empty state when the window has no activity.
+  // Clients now renders UsersLivePage, which fetches real metrics and shows
+  // its own "No clients yet" empty state when the window has no activity.
 };
 
 /**
@@ -294,8 +294,8 @@ export function Dashboard({ embedded = false, onLogout, extensions = EMPTY_EXTEN
       ? [{ label: 'Workflows', onClick: () => { setSelected(s => { const n = { ...s }; delete n.workflow; return n; }); setView('workflows'); } }, { label: selected.workflow }]
       : [{ label: 'Workflows' }];
     if (view === 'usage')      return [{ label: 'Usage' }];
-    if (view === 'users')    return [{ label: 'Users' }];
-    if (view === 'user')     return [{ label: 'Users', onClick: () => setView('users') }, { label: 'User detail' }];
+    if (view === 'users')    return [{ label: 'Clients' }];
+    if (view === 'user')     return [{ label: 'Clients', onClick: () => setView('users') }, { label: 'Client detail' }];
     if (view === 'keys')       return [{ label: 'Settings', onClick: () => setView('settings') }, { label: 'API Keys' }];
     if (view === 'settings')   return [{ label: 'Settings' }];
     return [{ label: 'Overview' }];

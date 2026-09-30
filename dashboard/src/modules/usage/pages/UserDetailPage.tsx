@@ -151,7 +151,7 @@ function TdHeader({ user, setView }: TdHeaderProps) {
           onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = "var(--foreground)"; }}
           onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = "var(--muted)"; }}
         >
-          ← All users
+          ← All clients
         </button>
       </div>
 
@@ -618,17 +618,17 @@ export function UserDetailPage({ selected, setView }: UserDetailPageProps) {
 
       <TdSectionHead
         title="Usage by workflow"
-        hint="Per-workflow activity within this user. Click a row for the workflow's full timeline."
+        hint="Per-workflow activity within this client. Click a row for the workflow's full timeline."
       />
       <TdWorkflowTable/>
 
       <TdSectionHead
         title="Recent traces"
-        hint="Live tail of this user's traffic. Click a row to inspect spans."
+        hint="Live tail of this client's traffic. Click a row to inspect spans."
       />
       <TdTracesTable setView={setView} setSelected={undefined}/>
 
-      <TdSectionHead title="Connection" hint="How this user identifies itself to Tracium."/>
+      <TdSectionHead title="Connection" hint="How this client identifies itself to Tracium."/>
       <TdConnection user={user}/>
     </div>
   );

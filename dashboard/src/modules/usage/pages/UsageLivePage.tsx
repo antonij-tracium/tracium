@@ -230,7 +230,7 @@ export function UsageLivePage({ range }: UsageLivePageProps) {
 
   const userCount = users.data?.items.length ?? 0;
   const workflowCount = workflows.data?.items.length ?? 0;
-  const subtitle = `${RANGE_LABEL[range] ?? RANGE_LABEL['7d']} · ${userCount} active users, ${workflowCount} workflows`;
+  const subtitle = `${RANGE_LABEL[range] ?? RANGE_LABEL['7d']} · ${userCount} active clients, ${workflowCount} workflows`;
 
   // Freshness reflects the most recent successful fetch across the page's
   // sections; 0 (nothing loaded yet) hides the badge.
@@ -291,7 +291,7 @@ export function UsageLivePage({ range }: UsageLivePageProps) {
             tab={tab}
             setTab={handleTabChange}
             tabs={[
-              { id: 'user', label: 'By user', count: userCount },
+              { id: 'user', label: 'By client', count: userCount },
               { id: 'workflow', label: 'By workflow', count: workflowCount },
             ]}
             attribute={{

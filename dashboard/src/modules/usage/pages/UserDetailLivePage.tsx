@@ -24,11 +24,11 @@ export function UserDetailLivePage({ userId, range, setView, setSelected }: Prop
   });
   const user = usage.data?.items.find(item => item.user_id === userId);
   return <div style={{ padding: 32, maxWidth: 1000, margin: '0 auto' }}>
-    <button onClick={() => setView('users')}>← Users</button>
+    <button onClick={() => setView('users')}>← Clients</button>
     <h1>{userId || 'Unattributed usage'}</h1>
     <p>Usage in the selected workspace · {range}</p>
-    {usage.isLoading ? <Spinner /> : usage.isError ? <p role="alert">Could not load user usage.</p> : !user ?
-      <EmptyState message="No usage found" description="This user has no activity in the selected workspace and period." /> :
+    {usage.isLoading ? <Spinner /> : usage.isError ? <p role="alert">Could not load client usage.</p> : !user ?
+      <EmptyState message="No usage found" description="This client has no activity in the selected workspace and period." /> :
       <dl style={{ display: 'flex', gap: 36 }}>
         <div><dt>Cost</dt><dd>{costFormatter.format(user.cost)}</dd></div>
         <div><dt>Runs</dt><dd>{user.runs.toLocaleString()}</dd></div>

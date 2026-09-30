@@ -56,15 +56,15 @@ export function UsersLivePage({ range, setView, setSelected }: UsersLivePageProp
     );
   }
   if (isError) {
-    return <Centered>Failed to load users</Centered>;
+    return <Centered>Failed to load clients</Centered>;
   }
 
   const items = data?.items ?? [];
   if (items.length === 0) {
     return (
       <EmptyState
-        message="No users yet"
-        description="Users appear as your workflows report user-scoped activity."
+        message="No clients yet"
+        description="Clients appear as your workflows report activity tagged with a user.id."
       />
     );
   }
