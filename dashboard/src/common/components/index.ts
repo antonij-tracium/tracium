@@ -5,6 +5,8 @@ export { EmptyState } from './EmptyState';
 export { LastUpdated } from './LastUpdated';
 export type { LastUpdatedProps, SyncTone } from './LastUpdated';
 export { ErrorBoundary } from './ErrorBoundary';
+export { RunsTable } from './RunsTable';
+export type { RunRow, RunsTableProps } from './RunsTable';
 export { Spinner } from './Spinner';
 export { SlicedButton } from './SlicedButton';
 export type { SlicedButtonProps } from './SlicedButton';

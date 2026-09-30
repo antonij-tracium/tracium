@@ -6,7 +6,7 @@
 // to a comparable two-decimal dollar value instead of a noisy six-decimal one.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, KeyboardEvent } from 'react';
 import {
   Sparkline,
   IconArrowUp,
@@ -158,9 +158,10 @@ interface BreakdownRowProps {
   isTop: boolean;
   isLast: boolean;
   tmpl: string;
+  onClick?: () => void;
 }
 
-function BreakdownRow({ row, kind, sharePct, isTop, isLast, tmpl }: BreakdownRowProps) {
+function BreakdownRow({ row, kind, sharePct, isTop, isLast, tmpl, onClick }: BreakdownRowProps) {
   const user = isUserSummary(row) ? row : null;
 
   // Per-column change vs the previous period
@@ -174,8 +175,19 @@ function BreakdownRow({ row, kind, sharePct, isTop, isLast, tmpl }: BreakdownRow
 
   return (
     <div
-      className={`${styles.row} ${isLast ? styles.last : ''}`}
+      className={`${styles.row} ${isLast ? styles.last : ''} ${onClick ? styles.clickable : ''}`}
       style={{ gridTemplateColumns: tmpl } as CSSProperties}
+      {...(onClick && {
+        role: 'button',
+        tabIndex: 0,
+        onClick,
+        onKeyDown: (e: KeyboardEvent) => {
+          if (!e.repeat && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            onClick();
+          }
+        },
+      })}
     >
       {/* Name column */}
       <div className={styles.nameCell}>
@@ -236,9 +248,10 @@ export interface BreakdownProps {
   // For kind="attribute", the header label of the name column — the chosen
   // attribute key (e.g. "team"). Ignored for the user/workflow tabs.
   nameLabel?: string;
+  onRowClick?: (row: BreakdownRowData) => void;
 }
 
-export function Breakdown({ rows, totalCost, kind, sortBy, setSortBy, nameLabel }: BreakdownProps) {
+export function Breakdown({ rows, totalCost, kind, sortBy, setSortBy, nameLabel, onRowClick }: BreakdownProps) {
   const sorted = useMemo(() => {
     return [...rows].sort((a, b) => {
       if (sortBy === 'name') return a.name.localeCompare(b.name);
@@ -298,6 +311,7 @@ export function Breakdown({ rows, totalCost, kind, sortBy, setSortBy, nameLabel 
             isTop={top75Set.has(rowId)}
             isLast={i === sorted.length - 1}
             tmpl={tmpl}
+            onClick={onRowClick && (() => onRowClick(row))}
           />
         );
       })}

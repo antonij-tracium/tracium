@@ -7,7 +7,8 @@
 // workflow's ordinary day-to-day variation only.
 
 import type { CostPoint, LatencyPoint, ErrorPoint } from '../../../common/interfaces';
-import type { Workflow, WorkflowRun } from '../interfaces';
+import type { RunRow } from '../../../common';
+import type { Workflow } from '../interfaces';
 
 function hash(s: string): number {
   let h = 0;
@@ -79,7 +80,7 @@ const RUN_ERRORS = [
 ];
 
 /** The workflow's most recent runs, oldest-to-newest left in source order. */
-export function buildRuns(a: Workflow): WorkflowRun[] {
+export function buildRuns(a: Workflow): RunRow[] {
   const r = rng(hash(a.name) + 101);
   const hex = (s: string) => (hash(s) & 0xffff).toString(16).padStart(4, '0');
   return RUN_TIMES.map((time, i) => {
@@ -91,7 +92,6 @@ export function buildRuns(a: Workflow): WorkflowRun[] {
       time,
       duration: lat,
       cost: (a.cost / a.calls) * (0.5 + r() * 1.1),
-      tokens: Math.round(600 + r() * 4200),
       err: failed ? RUN_ERRORS[Math.floor(r() * RUN_ERRORS.length)] : null,
     };
   });

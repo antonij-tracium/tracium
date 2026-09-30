@@ -4,6 +4,6 @@ export { costFormatter, durationFormatter, tokenFormatter } from './utils/format
 export type { Formatter } from './utils/formatters';
 export { relativeTime, formatDate } from './utils/time';
 export { bucketLabel, toCostPoints, toLatencyPoints, toErrorPoints } from './utils/buckets';
-export { isLongRange, LONG_RANGES, RANGE_LABEL } from './utils/ranges';
+export { isLongRange, LONG_RANGES, RANGE_LABEL, periodLabel } from './utils/ranges';
 export { useResize } from './hooks/useResize';
 export { useMediaQuery, useMaxWidth, BREAKPOINTS } from './hooks/useMediaQuery';
