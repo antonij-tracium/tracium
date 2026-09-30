@@ -1,10 +1,13 @@
 name: Release
 on:
-  push:
-    tags: ['v*']
+  release:
+    types: [published]
+
+concurrency:
+  group: release-${{ github.ref_name }}
 
 permissions:
-  contents: write   # create the GitHub Release + upload the chart
+  contents: write   # upload the chart to the GitHub Release
   packages: write   # push images to GHCR
 
 jobs:
@@ -13,6 +16,8 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -22,6 +27,20 @@ jobs:
         with:
           node-version: 20
       - uses: azure/setup-helm@v5
+      # Images and the packaged chart are versioned by the tag without the
+      # leading "v" (1.0.0, not v1.0.0). The chart in the repo must already
+      # carry that appVersion so installing from a checkout of the tag pulls
+      # the images this release publishes.
+      - name: Derive version and check it matches the chart's appVersion
+        id: version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          app_version="$(helm show chart deploy/helm/tracium | sed -n 's/^appVersion: *//p' | tr -d "\"'")"
+          if [ "$app_version" != "$version" ]; then
+            echo "::error file=deploy/helm/tracium/Chart.yaml::appVersion is $app_version but the release is $version; bump version and appVersion before releasing"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
       - run: make test
       - run: npm --prefix dashboard run build
       - run: npm --prefix dashboard run build:library
@@ -48,32 +67,35 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      # The chart job packages with --app-version = tag without the leading "v",
-      # and the chart requests images by that appVersion, so the image tag must
-      # match it exactly (0.1.0, not v0.1.0). Strip the "v" here too.
-      - name: Derive version (tag without the leading v)
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+      # Must match the image repositories in deploy/helm/tracium/values.yaml.
+      # Pre-releases publish their version tag but leave latest alone.
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}
+          tags: type=raw,value=${{ needs.validate.outputs.version }}
+          flavor: latest=${{ !github.event.release.prerelease }}
       - uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
           push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}:${{ env.VERSION }}
-            ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
 
   chart:
-    needs: images
+    needs: [validate, images]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: azure/setup-helm@v5
-      - name: Package the Helm chart (version = tag without the leading v)
+      - name: Package the Helm chart
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
         run: |
           make sync-generated
-          V="${GITHUB_REF_NAME#v}"
-          helm package deploy/helm/tracium --version "$V" --app-version "$V"
+          helm package deploy/helm/tracium --version "$VERSION" --app-version "$VERSION"
       - uses: softprops/action-gh-release@v3
         with:
           files: tracium-*.tgz

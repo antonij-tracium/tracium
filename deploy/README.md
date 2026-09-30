@@ -28,6 +28,26 @@ helm install tracium ./helm/tracium
 Every tunable is documented in [`helm/tracium/values.yaml`](helm/tracium/values.yaml).
 Ingress exposes the API and dashboard. OTLP and database services stay internal.
 
+### Images and releases
+
+The chart pulls `ghcr.io/antonij-tracium/{collector,api,dashboard,migrate}`,
+tagged with the chart's `appVersion`. Publishing a GitHub release builds and
+pushes all four images tagged with the release version (the tag without its
+leading `v`) and `latest`, then attaches the packaged chart to the release.
+Pre-releases publish their version tag but don't move `latest`.
+
+To cut a release, bump `version` and `appVersion` in
+[`helm/tracium/Chart.yaml`](helm/tracium/Chart.yaml) to the new version, merge,
+then publish a release for that tag:
+
+```bash
+gh release create v1.0.1 --generate-notes
+```
+
+The release workflow fails before building anything if the tag and `appVersion`
+disagree. To run your own builds instead, push the images to your registry and
+set `<component>.image.repository` and `global.imageTag` when installing.
+
 Browser login limits use the original client IP. Compose trusts only the
 `dashboard` service's resolved addresses; Helm uses a dedicated headless
 dashboard Service to discover proxy pod addresses. The API refreshes these
