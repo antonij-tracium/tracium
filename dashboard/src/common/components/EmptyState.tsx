@@ -16,9 +16,9 @@ export function EmptyState({ message, description }: EmptyStateProps) {
         textAlign: 'center',
       }}
     >
-      <p style={{ fontSize: '16px', fontWeight: 500, margin: '0 0 8px' }}>{message}</p>
+      <p style={{ fontSize: '17px', fontWeight: 500, margin: '0 0 8px' }}>{message}</p>
       {description && (
-        <p style={{ fontSize: '14px', margin: 0 }}>{description}</p>
+        <p style={{ fontSize: '15px', margin: 0 }}>{description}</p>
       )}
     </div>
   );

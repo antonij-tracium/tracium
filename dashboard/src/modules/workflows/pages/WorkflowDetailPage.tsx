@@ -102,7 +102,7 @@ function ADStat({
     : 'var(--foreground)';
   return (
     <div style={{ padding: '16px 22px 18px', borderLeft: isFirst ? 'none' : '1px solid var(--border)' }}>
-      <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8, fontWeight: 500 }}>{label}</div>
+      <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 8, fontWeight: 500 }}>{label}</div>
       <div
         style={{
           fontSize: 22,
@@ -115,7 +115,7 @@ function ADStat({
       >
         {value}
       </div>
-      {sub && <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 6 }}>{sub}</div>}
+      {sub && <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 6 }}>{sub}</div>}
     </div>
   );
 }
@@ -136,11 +136,11 @@ function ADMetaRow({ label, value, mono, accent }: WorkflowConfigRow) {
         borderBottom: '1px solid color-mix(in srgb, var(--border) 55%, transparent)',
       }}
     >
-      <span style={{ fontSize: 12, color: 'var(--muted)' }}>{label}</span>
+      <span style={{ fontSize: 13, color: 'var(--muted)' }}>{label}</span>
       <span
         title={typeof value === 'string' ? value : undefined}
         style={{
-          fontSize: 12.5,
+          fontSize: 13.5,
           color: accent ? 'var(--accent)' : 'var(--foreground)',
           fontWeight: 500,
           fontFamily: mono ? 'var(--font-mono)' : 'inherit',
@@ -189,7 +189,7 @@ export function WorkflowDetailPage(props: WorkflowDetailPageProps) {
             {version && (
               <span
                 style={{
-                  fontSize: 11.5,
+                  fontSize: 12.5,
                   padding: '3px 9px',
                   borderRadius: 6,
                   background: 'var(--surface-alt)',
@@ -203,7 +203,7 @@ export function WorkflowDetailPage(props: WorkflowDetailPageProps) {
             )}
           </div>
           {description && (
-            <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: 0, maxWidth: 660, lineHeight: 1.55, textWrap: 'pretty' }}>
+            <p style={{ fontSize: 14.5, color: 'var(--muted)', margin: 0, maxWidth: 660, lineHeight: 1.55, textWrap: 'pretty' }}>
               {description}
             </p>
           )}
@@ -236,20 +236,20 @@ export function WorkflowDetailPage(props: WorkflowDetailPageProps) {
         <div className="ad-chart-cell ad-chart-cell--first" style={{ padding: '22px 26px 20px', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 18 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              <span style={{ fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)' }}>Spend</span>
-              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--foreground)', letterSpacing: '-0.01em' }}>{hourly ? 'Hourly' : 'Daily'} cost · {rangeLabel}</span>
+              <span style={{ fontSize: 12, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)' }}>Spend</span>
+              <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--foreground)', letterSpacing: '-0.01em' }}>{hourly ? 'Hourly' : 'Daily'} cost · {rangeLabel}</span>
             </div>
-            <span style={{ fontSize: 12, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{fmtCost(cost)} total</span>
+            <span style={{ fontSize: 13, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{fmtCost(cost)} total</span>
           </div>
           <CostBarChart series={costSeries} height={210} />
         </div>
         <div className="ad-chart-cell" style={{ padding: '22px 26px 20px', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 18 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              <span style={{ fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)' }}>Latency</span>
-              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--foreground)', letterSpacing: '-0.01em' }}>Response time · p50 / p95 / p99</span>
+              <span style={{ fontSize: 12, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)' }}>Latency</span>
+              <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--foreground)', letterSpacing: '-0.01em' }}>Response time · p50 / p95 / p99</span>
             </div>
-            <div style={{ display: 'flex', gap: 12, fontSize: 11.5, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
+            <div style={{ display: 'flex', gap: 12, fontSize: 12.5, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
               <span><span style={{ display: 'inline-block', width: 8, height: 2, background: 'var(--foreground)', opacity: 0.4, verticalAlign: 'middle', marginRight: 4 }} />p50</span>
               <span><span style={{ display: 'inline-block', width: 8, height: 2, background: 'var(--accent)', verticalAlign: 'middle', marginRight: 4 }} />p95</span>
               <span><span style={{ display: 'inline-block', width: 8, height: 2, background: 'var(--warning)', verticalAlign: 'middle', marginRight: 4 }} />p99</span>
@@ -273,11 +273,11 @@ export function WorkflowDetailPage(props: WorkflowDetailPageProps) {
           }}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={{ fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)' }}>Reliability</span>
-            <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--foreground)', letterSpacing: '-0.01em' }}>Failed runs</span>
-            <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>Errors per {hourly ? 'hour' : 'day'} · {rangeLabel}</span>
+            <span style={{ fontSize: 12, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)' }}>Reliability</span>
+            <span style={{ fontSize: 17, fontWeight: 600, color: 'var(--foreground)', letterSpacing: '-0.01em' }}>Failed runs</span>
+            <span style={{ fontSize: 13.5, color: 'var(--muted)' }}>Errors per {hourly ? 'hour' : 'day'} · {rangeLabel}</span>
           </div>
-          <span style={{ fontSize: 12, color: errorRate > ERR_BAD ? 'var(--error)' : 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>
+          <span style={{ fontSize: 13, color: errorRate > ERR_BAD ? 'var(--error)' : 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>
             {totalFailures} failures
           </span>
         </div>
@@ -289,14 +289,14 @@ export function WorkflowDetailPage(props: WorkflowDetailPageProps) {
         {/* Recent runs */}
         <div style={{ minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 600, letterSpacing: '-0.01em', margin: 0 }}>Recent runs</h2>
+            <h2 style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-0.01em', margin: 0 }}>Recent runs</h2>
           </div>
           <RunsTable runs={runs} onOpen={openTrace} />
         </div>
 
         {/* Config */}
         <div>
-          <div style={{ fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 8 }}>
+          <div style={{ fontSize: 12, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 8 }}>
             Configuration
           </div>
           {configRows.map((row) => (

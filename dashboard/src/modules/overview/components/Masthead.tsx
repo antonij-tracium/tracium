@@ -42,7 +42,7 @@ export function Masthead({
         {eyebrow && (
           <span
             style={{
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: 500,
               textTransform: 'uppercase',
               letterSpacing: '0.1em',
@@ -63,7 +63,7 @@ export function Masthead({
         >
           {title}
         </h1>
-        <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0 }}>{subtitle}</p>
+        <p style={{ fontSize: 14, color: 'var(--muted)', margin: 0 }}>{subtitle}</p>
       </div>
       <LastUpdated label={status.label} tone={status.tone} />
     </div>

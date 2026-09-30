@@ -20,7 +20,7 @@ function Centered({ minHeight, children }: { minHeight: number; children: React.
         justifyContent: 'center',
         minHeight,
         color: 'var(--muted)',
-        fontSize: 13,
+        fontSize: 14,
       }}
     >
       {children}

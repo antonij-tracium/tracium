@@ -53,7 +53,7 @@ export function TopWorkflows({
             >
               <div style={{ display: 'flex', flexDirection: 'column', gap: 7, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--foreground)' }}>{a.name}</span>
+                  <span style={{ fontSize: 14.5, fontWeight: 500, color: 'var(--foreground)' }}>{a.name}</span>
                 </div>
                 <div
                   style={{
@@ -71,10 +71,10 @@ export function TopWorkflows({
               </div>
               {a.trend ? <Sparkline data={a.trend} width={60} height={24} color={tone} fillOpacity={0.06} /> : <span />}
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, minWidth: 84 }}>
-                <span style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>
+                <span style={{ fontSize: 14.5, fontWeight: 500, color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>
                   {fmtNum(a.calls)}
                 </span>
-                <span style={{ fontSize: 12, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{fmtCost(a.cost)}</span>
+                <span style={{ fontSize: 13, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{fmtCost(a.cost)}</span>
               </div>
             </button>
           );

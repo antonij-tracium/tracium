@@ -26,7 +26,7 @@ export function StatusPill({ status, children }: StatusPillProps) {
         gap: 6,
         padding: '3px 9px 3px 7px',
         borderRadius: 999,
-        fontSize: 12,
+        fontSize: 13,
         fontWeight: 500,
         color: s.color,
         background: `color-mix(in srgb, ${s.color} 10%, transparent)`,

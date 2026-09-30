@@ -29,7 +29,7 @@ function Centered({ children }: { children: ReactNode }) {
         justifyContent: 'center',
         minHeight: 320,
         color: 'var(--muted)',
-        fontSize: 13,
+        fontSize: 14,
       }}
     >
       {children}

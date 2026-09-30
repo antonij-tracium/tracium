@@ -47,7 +47,7 @@ export function FailuresBlock({ series, totalFailed, worstWorkflow, onViewWorkfl
               display: 'inline-flex',
               alignItems: 'center',
               gap: 5,
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: 500,
               color: 'var(--foreground)',
               padding: '5px 10px',
@@ -61,7 +61,7 @@ export function FailuresBlock({ series, totalFailed, worstWorkflow, onViewWorkfl
         }
       />
       {series && series.length > 0 && <HorizonStrip data={series} markers={errorMarkers} />}
-      <div style={{ display: 'flex', gap: 36, alignItems: 'center', marginTop: series && series.length > 0 ? 20 : 0, fontSize: 12.5 }}>
+      <div style={{ display: 'flex', gap: 36, alignItems: 'center', marginTop: series && series.length > 0 ? 20 : 0, fontSize: 13.5 }}>
         <SummaryStat label="Total failed" value={String(totalFailed)} valueColor="var(--error)" />
         <Divider />
         <SummaryStat label="Worst workflow" value={worstWorkflow} />

@@ -25,7 +25,7 @@ export function SlicedButton({ disabled, style, children, ...rest }: SlicedButto
         borderRadius: 0,
         clipPath: SLICE,
         color: 'var(--accent-contrast)',
-        fontSize: 13,
+        fontSize: 14,
         fontWeight: 600,
         fontFamily: 'inherit',
         cursor: disabled ? 'not-allowed' : 'pointer',

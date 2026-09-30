@@ -23,7 +23,7 @@ export function Badge({ label, variant = 'default' }: BadgeProps) {
     display: 'inline-block',
     padding: '2px 8px',
     borderRadius: '9999px',
-    fontSize: '12px',
+    fontSize: '13px',
     fontWeight: 500,
     lineHeight: '20px',
     ...variantStyles[variant],

@@ -134,14 +134,14 @@ export function CommandPalette({
               background: 'transparent',
               border: 'none',
               outline: 'none',
-              fontSize: 14,
+              fontSize: 15,
               color: 'var(--foreground)',
               fontFamily: 'inherit',
             }}
           />
           <kbd
             style={{
-              fontSize: 10,
+              fontSize: 11,
               padding: '2px 6px',
               borderRadius: 4,
               background: 'var(--surface-alt)',
@@ -160,7 +160,7 @@ export function CommandPalette({
                 padding: '32px 20px',
                 textAlign: 'center',
                 color: 'var(--muted)',
-                fontSize: 13,
+                fontSize: 14,
               }}
             >
               No results
@@ -185,7 +185,7 @@ export function CommandPalette({
                   cursor: 'pointer',
                   textAlign: 'left',
                   color: i === idx ? 'var(--foreground)' : 'var(--muted)',
-                  fontSize: 13,
+                  fontSize: 14,
                 }}
               >
                 <span style={{ flexShrink: 0, color: 'var(--muted)' }}>{item.icon}</span>
@@ -206,7 +206,7 @@ export function CommandPalette({
             borderTop: '1px solid var(--border)',
             display: 'flex',
             gap: 14,
-            fontSize: 11,
+            fontSize: 12,
             color: 'var(--muted)',
           }}
         >

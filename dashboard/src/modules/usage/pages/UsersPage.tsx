@@ -86,9 +86,9 @@ function Kpi({ label, value, delta, deltaTone = "neutral", hint, last = false }:
       paddingRight: last ? 0 : 24,
       borderRight: last ? "none" : "1px solid color-mix(in srgb, var(--border) 45%, transparent)",
     }}>
-      <div style={{ fontSize: 11.5, color: "var(--muted)", marginBottom: 8, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</div>
+      <div style={{ fontSize: 12.5, color: "var(--muted)", marginBottom: 8, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</div>
       <div style={{ fontSize: 24, fontWeight: 500, letterSpacing: "-0.02em", color: "var(--foreground)", fontVariantNumeric: "tabular-nums", lineHeight: 1, marginBottom: 6 }}>{value}</div>
-      <div style={{ fontSize: 11.5, display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 8 }}>
         {delta && <span style={{ color: deltaColor, fontWeight: 500 }}>{delta}</span>}
         <span style={{ color: "var(--muted)" }}>{hint}</span>
       </div>
@@ -115,7 +115,7 @@ function ShareBar({ users, totalCost }: { users: User[]; totalCost: number }) {
           const pct = totalCost > 0 ? (t.cost / totalCost) * 100 : 0;
           if (pct < 0.5) return null;
           return (
-            <div key={t.id} title={`${t.name} — $${t.cost.toFixed(2)} (${pct.toFixed(1)}%)`} style={{
+            <div key={t.id} title={`${t.name}: $${t.cost.toFixed(2)} (${pct.toFixed(1)}%)`} style={{
               width: pct + "%",
               background: SHARE_PALETTE[i % SHARE_PALETTE.length],
               opacity: 0.85,
@@ -125,7 +125,7 @@ function ShareBar({ users, totalCost }: { users: User[]; totalCost: number }) {
           );
         })}
       </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "10px 18px", marginTop: 14, fontSize: 11.5 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "10px 18px", marginTop: 14, fontSize: 12.5 }}>
         {users.slice(0, 6).map((t, i) => {
           const pct = totalCost > 0 ? (t.cost / totalCost) * 100 : 0;
           return (
@@ -170,18 +170,18 @@ const COLUMNS: ColDef[] = [
     key: "name", label: "Client", width: "minmax(180px, 1.4fr)", align: "left", sortKey: "name",
     cell: t => (
       <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}>
-        <span style={{ fontSize: 13.5, fontWeight: 500, color: "var(--foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.name}</span>
-        <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--muted)" }}>{t.id}</span>
+        <span style={{ fontSize: 14.5, fontWeight: 500, color: "var(--foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.name}</span>
+        <span style={{ fontSize: 12, fontFamily: "var(--font-mono)", color: "var(--muted)" }}>{t.id}</span>
       </div>
     ),
   },
   {
     key: "region", label: "Region", width: "84px", align: "left", sortKey: "region", meta: true,
-    cell: t => <div style={{ fontSize: 12, color: "var(--muted)", fontFamily: "var(--font-mono)" }}>{t.region}</div>,
+    cell: t => <div style={{ fontSize: 13, color: "var(--muted)", fontFamily: "var(--font-mono)" }}>{t.region}</div>,
   },
   {
     key: "runs", label: "Runs", width: "80px", align: "right", sortKey: "runs",
-    cell: t => <div style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontSize: 13, color: "var(--foreground)" }}>{fmtNum(t.runs)}</div>,
+    cell: t => <div style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontSize: 14, color: "var(--foreground)" }}>{fmtNum(t.runs)}</div>,
   },
   {
     key: "trend", label: "Trend", width: "78px", align: "left",
@@ -189,19 +189,19 @@ const COLUMNS: ColDef[] = [
   },
   {
     key: "cost", label: "Cost", width: "90px", align: "right", sortKey: "cost",
-    cell: t => <div style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontSize: 13, color: "var(--foreground)", fontWeight: 500 }}>${t.cost.toFixed(2)}</div>,
+    cell: t => <div style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontSize: 14, color: "var(--foreground)", fontWeight: 500 }}>${t.cost.toFixed(2)}</div>,
   },
   {
     key: "avg", label: "Avg cost", width: "96px", align: "right", sortKey: "avg",
-    cell: t => <div style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontSize: 12, color: "var(--muted)" }}>${t.avg.toFixed(6)}</div>,
+    cell: t => <div style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontSize: 13, color: "var(--muted)" }}>${t.avg.toFixed(6)}</div>,
   },
   {
     key: "success", label: "Success", width: "76px", align: "right", sortKey: "success", meta: true,
-    cell: t => <div style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontSize: 12.5, color: successColor(t.success ?? 0) }}>{(t.success ?? 0).toFixed(1)}%</div>,
+    cell: t => <div style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontSize: 13.5, color: successColor(t.success ?? 0) }}>{(t.success ?? 0).toFixed(1)}%</div>,
   },
   {
     key: "lastSeen", label: "Last seen", width: "84px", align: "right", sortKey: "lastSeen", meta: true,
-    cell: t => <div style={{ textAlign: "right", fontSize: 11.5, color: "var(--muted)", fontVariantNumeric: "tabular-nums" }}>{t.lastSeen}</div>,
+    cell: t => <div style={{ textAlign: "right", fontSize: 12.5, color: "var(--muted)", fontVariantNumeric: "tabular-nums" }}>{t.lastSeen}</div>,
   },
 ];
 
@@ -216,11 +216,11 @@ function SortableHeader({ label, sortKey, current, onSort, align }: {
       width: "100%",
       padding: 0, border: "none", background: "transparent",
       color: active ? "var(--foreground)" : "var(--muted)",
-      fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase",
+      fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase",
       cursor: "pointer",
     }}>
       <span>{label}</span>
-      <span style={{ opacity: active ? 1 : 0, fontSize: 9, color: "var(--accent)" }}>{current.dir === "desc" ? "▼" : "▲"}</span>
+      <span style={{ opacity: active ? 1 : 0, fontSize: 10, color: "var(--accent)" }}>{current.dir === "desc" ? "▼" : "▲"}</span>
     </button>
   );
 }
@@ -230,7 +230,7 @@ function HeaderCell({ col, sort, onSort }: { col: ColDef; sort: SortState; onSor
     return <SortableHeader label={col.label} sortKey={col.sortKey} current={sort} onSort={onSort} align={col.align} />;
   }
   return (
-    <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--muted)" }}>{col.label}</span>
+    <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--muted)" }}>{col.label}</span>
   );
 }
 
@@ -300,7 +300,7 @@ export function UsersPage({ users, periodLabel, comparison, updatedAt, setView, 
       <header style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 24, paddingBottom: 28, flexWrap: "wrap" }}>
         <div style={{ minWidth: 0 }}>
           <h1 style={{ fontSize: 28, fontWeight: 600, letterSpacing: "-0.02em", margin: 0, color: "var(--foreground)" }}>Clients</h1>
-          <p style={{ fontSize: 13.5, color: "var(--muted)", margin: "2px 0 0" }}>
+          <p style={{ fontSize: 14.5, color: "var(--muted)", margin: "2px 0 0" }}>
             {periodLabel} · {users.length} active clients · ${totalCost.toFixed(2)} this period
           </p>
         </div>
@@ -333,8 +333,8 @@ export function UsersPage({ users, periodLabel, comparison, updatedAt, setView, 
         borderBottom: "1px solid color-mix(in srgb, var(--border) 50%, transparent)",
       }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 20 }}>
-          <h2 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: "var(--foreground)" }}>Cost share</h2>
-          <p style={{ fontSize: 12.5, color: "var(--muted)", margin: 0 }}>Top 3 clients drive {totalCost > 0 ? ((sortedByCost.slice(0, 3).reduce((s, t) => s + t.cost, 0) / totalCost) * 100).toFixed(0) : "0"}% of spend this period.</p>
+          <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0, color: "var(--foreground)" }}>Cost share</h2>
+          <p style={{ fontSize: 13.5, color: "var(--muted)", margin: 0 }}>Top 3 clients drive {totalCost > 0 ? ((sortedByCost.slice(0, 3).reduce((s, t) => s + t.cost, 0) / totalCost) * 100).toFixed(0) : "0"}% of spend this period.</p>
         </div>
         <ShareBar users={sortedByCost} totalCost={totalCost} />
       </div>
@@ -344,7 +344,7 @@ export function UsersPage({ users, periodLabel, comparison, updatedAt, setView, 
         <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 24, paddingBottom: 18, flexWrap: "wrap" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
             <h2 style={{ fontSize: 19, fontWeight: 600, letterSpacing: "-0.018em", margin: 0, color: "var(--foreground)" }}>All clients</h2>
-            <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>{sorted.length} of {users.length} shown · click a row to drill in.</p>
+            <p style={{ fontSize: 14, color: "var(--muted)", margin: 0 }}>{sorted.length} of {users.length} shown · click a row to drill in.</p>
           </div>
           {/* Search */}
           <div style={{
@@ -361,12 +361,12 @@ export function UsersPage({ users, periodLabel, comparison, updatedAt, setView, 
               placeholder="Search client name or ID…"
               style={{
                 flex: 1, background: "transparent", border: "none", outline: "none",
-                color: "var(--foreground)", fontSize: 12.5,
+                color: "var(--foreground)", fontSize: 13.5,
                 fontFamily: "inherit",
               }}
             />
             {search && (
-              <button onClick={() => setSearch("")} style={{ background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", padding: 0, fontSize: 14, lineHeight: 1 }}>×</button>
+              <button onClick={() => setSearch("")} style={{ background: "transparent", border: "none", color: "var(--muted)", cursor: "pointer", padding: 0, fontSize: 15, lineHeight: 1 }}>×</button>
             )}
           </div>
         </header>
@@ -384,7 +384,7 @@ export function UsersPage({ users, periodLabel, comparison, updatedAt, setView, 
 
           {/* Rows */}
           {sorted.length === 0 ? (
-            <div style={{ padding: "60px 0", textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
+            <div style={{ padding: "60px 0", textAlign: "center", color: "var(--muted)", fontSize: 14 }}>
               No clients match this filter.
             </div>
           ) : sorted.map(t => (
@@ -407,7 +407,7 @@ export function UsersPage({ users, periodLabel, comparison, updatedAt, setView, 
         </div>
 
         {/* Footer */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 16, fontSize: 12, color: "var(--muted)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 16, fontSize: 13, color: "var(--muted)" }}>
           <span>Showing {sorted.length} of {users.length} clients</span>
         </div>
       </section>

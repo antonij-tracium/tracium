@@ -62,7 +62,7 @@ export function LastUpdated({ at, label, tone = 'live' }: LastUpdatedProps) {
         display: 'flex',
         alignItems: 'center',
         gap: 7,
-        fontSize: 12,
+        fontSize: 13,
         color: textColor,
         flexShrink: 0,
         whiteSpace: 'nowrap',

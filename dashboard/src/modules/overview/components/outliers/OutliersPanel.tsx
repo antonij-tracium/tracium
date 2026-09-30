@@ -141,7 +141,7 @@ export function OutliersPanel({
 
       {dismissedCount > 0 && onRestoreAll && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
-          <span style={{ fontSize: 12, color: 'var(--muted)' }}>{dismissedCount} dismissed this session</span>
+          <span style={{ fontSize: 13, color: 'var(--muted)' }}>{dismissedCount} dismissed this session</span>
           <button onClick={onRestoreAll} style={linkBtn}>
             Undo all
           </button>
@@ -174,7 +174,7 @@ function Header({
   return (
     <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <span style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+        <span style={{ fontSize: 12, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--muted)' }}>
           Outliers · {grouped ? 'incidents' : 'triage'}
         </span>
         <span style={{ fontSize: 18, fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--foreground)' }}>
@@ -182,7 +182,7 @@ function Header({
             ? `${incidentCount} incident${incidentCount === 1 ? '' : 's'}`
             : `${count} beyond baseline`}
         </span>
-        <span style={{ fontSize: 13, color: 'var(--muted)' }}>
+        <span style={{ fontSize: 14, color: 'var(--muted)' }}>
           {grouped
             ? `Flags for the same target on the same day, grouped. Most severe first.`
             : `Each row is a flagged day, most severe first. Distance from the ${baselineLabel} baseline is shown per row.`}
@@ -198,7 +198,7 @@ function Header({
 
 function Legend() {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, color: 'var(--muted)' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: 'var(--muted)' }}>
       {(['critical', 'warning', 'info'] as const).map((s) => (
         <span key={s} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <SeverityDot severity={s} />
@@ -217,7 +217,7 @@ function ViewToggle({ view, onView }: { view: ViewMode; onView: (v: ViewMode) =>
         key={v}
         onClick={() => onView(v)}
         style={{
-          fontSize: 12,
+          fontSize: 13,
           fontWeight: active ? 600 : 500,
           padding: '5px 12px',
           borderRadius: 7,
@@ -300,20 +300,20 @@ function OutlierRow({
 
         {/* what / where / when */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 150, flex: narrow ? '1 1 100%' : '0 0 auto' }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--foreground)' }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--foreground)' }}>
             {m.kind} {dirWord}
           </span>
-          <span style={{ fontFamily: MONO, fontSize: 12, color: 'var(--muted)' }}>
+          <span style={{ fontFamily: MONO, fontSize: 13, color: 'var(--muted)' }}>
             {target} · {bucketLabel(a.bucket_ms, range)}
           </span>
         </div>
 
         {/* observed vs baseline */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 120, flex: narrow ? '1 1 auto' : '0 0 auto', textAlign: narrow ? 'left' : 'right', marginLeft: narrow ? 0 : 'auto' }}>
-          <span style={{ fontSize: 15, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: 'var(--foreground)' }}>
+          <span style={{ fontSize: 16, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: 'var(--foreground)' }}>
             {anomalyValue(a.metric, a.observed)}
           </span>
-          <span style={{ fontSize: 11, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>
+          <span style={{ fontSize: 12, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>
             from {anomalyValue(a.metric, a.expected)}
             {ratio && <> · <span style={{ color: meta.color, fontWeight: 600 }}>{ratio}</span></>}
           </span>
@@ -322,7 +322,7 @@ function OutlierRow({
         {/* magnitude + z */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: narrow ? '1 1 100%' : '0 0 auto', minWidth: narrow ? 0 : 150 }}>
           <MagnitudeBar score={a.score} color={meta.color} />
-          <span style={{ fontFamily: MONO, fontSize: 12, fontWeight: 600, color: meta.color, fontVariantNumeric: 'tabular-nums', width: 44, textAlign: 'right' }}>
+          <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 600, color: meta.color, fontVariantNumeric: 'tabular-nums', width: 44, textAlign: 'right' }}>
             {zLabel(a.score)}
           </span>
           <Chevron open={expanded} />
@@ -334,7 +334,7 @@ function OutlierRow({
           <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'flex-start', paddingTop: 14 }}>
             <WhyFlagged anomaly={a} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: '1 1 220px', minWidth: 200 }}>
-              <span style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5 }}>{a.summary}</span>
+              <span style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.5 }}>{a.summary}</span>
               <RowActions anomaly={a} onDismiss={onDismiss} onInspect={onInspect} />
             </div>
           </div>
@@ -399,8 +399,8 @@ function IncidentCard({
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: '1 1 auto', minWidth: 160 }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--foreground)' }}>{target}</span>
-          <span style={{ fontFamily: MONO, fontSize: 12, color: 'var(--muted)' }}>{bucketLabel(incident.bucket_ms, range)}</span>
+          <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--foreground)' }}>{target}</span>
+          <span style={{ fontFamily: MONO, fontSize: 13, color: 'var(--muted)' }}>{bucketLabel(incident.bucket_ms, range)}</span>
         </div>
 
         {/* per-metric summary chips */}
@@ -410,7 +410,7 @@ function IncidentCard({
           ))}
         </div>
 
-        <span style={{ fontSize: 12, color: 'var(--muted)', marginLeft: narrow ? 0 : 'auto' }}>
+        <span style={{ fontSize: 13, color: 'var(--muted)', marginLeft: narrow ? 0 : 'auto' }}>
           {n} flag{n === 1 ? '' : 's'}
         </span>
         <Chevron open={expanded} />
@@ -421,12 +421,12 @@ function IncidentCard({
           {incident.anomalies.map((a) => (
             <div key={anomalyKey(a)} style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'flex-start', paddingTop: 14, borderTop: `1px solid ${meta.border}` }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: '0 0 auto' }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: SEVERITY_META[a.severity].color }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: SEVERITY_META[a.severity].color }}>
                   {METRIC_META[a.metric].kind} {a.direction === 'spike' ? 'spike' : 'drop'}
                 </span>
                 <WhyFlagged anomaly={a} />
               </div>
-              <span style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5, flex: '1 1 200px', minWidth: 180 }}>{a.summary}</span>
+              <span style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.5, flex: '1 1 200px', minWidth: 180 }}>{a.summary}</span>
             </div>
           ))}
           {/* one action bar for the whole incident */}
@@ -504,7 +504,7 @@ function MetricChip({ anomaly: a }: { anomaly: Anomaly }) {
         display: 'inline-flex',
         alignItems: 'baseline',
         gap: 5,
-        fontSize: 11,
+        fontSize: 12,
         padding: '4px 9px',
         borderRadius: 20,
         background: meta.tint,
@@ -526,7 +526,7 @@ function WhyFlagged({ anomaly: a }: { anomaly: Anomaly }) {
   const signedDev = `${a.deviation >= 0 ? '+' : '−'}${anomalyValue(a.metric, Math.abs(a.deviation))}`;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 7, padding: 12, borderRadius: 8, background: 'var(--surface-alt)', minWidth: 200 }}>
-      <span style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)' }}>Why flagged</span>
+      <span style={{ fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)' }}>Why flagged</span>
       <DetailStat k="observed" v={anomalyValue(a.metric, a.observed)} color={meta.color} />
       <DetailStat k="baseline" v={anomalyValue(a.metric, a.expected)} />
       <DetailStat k="deviation" v={signedDev} />
@@ -537,7 +537,7 @@ function WhyFlagged({ anomaly: a }: { anomaly: Anomaly }) {
 
 function DetailStat({ k, v, color }: { k: string; v: string; color?: string }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, fontSize: 12 }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, fontSize: 13 }}>
       <span style={{ color: 'var(--muted)' }}>{k}</span>
       <span style={{ fontFamily: MONO, fontVariantNumeric: 'tabular-nums', color: color ?? 'var(--foreground)' }}>{v}</span>
     </div>
@@ -592,7 +592,7 @@ function useScrollIntoView<T extends HTMLElement>(active: boolean) {
 }
 
 const primaryBtn: React.CSSProperties = {
-  fontSize: 12,
+  fontSize: 13,
   padding: '8px 14px',
   borderRadius: 8,
   border: '1px solid var(--accent-border)',
@@ -602,7 +602,7 @@ const primaryBtn: React.CSSProperties = {
 };
 
 const ghostBtn: React.CSSProperties = {
-  fontSize: 12,
+  fontSize: 13,
   padding: '8px 14px',
   borderRadius: 8,
   border: '1px solid var(--border-strong)',
@@ -612,7 +612,7 @@ const ghostBtn: React.CSSProperties = {
 };
 
 const linkBtn: React.CSSProperties = {
-  fontSize: 12,
+  fontSize: 13,
   color: 'var(--muted)',
   background: 'transparent',
   border: 'none',

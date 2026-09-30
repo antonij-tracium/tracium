@@ -108,7 +108,7 @@ function TdSectionHead({ title, hint, right, first = false }: TdSectionHeadProps
     }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0, paddingTop: first ? 0 : 28 }}>
         <h2 style={{ fontSize: 19, fontWeight: 600, letterSpacing: "-0.018em", margin: 0, color: "var(--foreground)" }}>{title}</h2>
-        {hint && <p style={{ fontSize: 13, color: "var(--muted)", margin: 0, maxWidth: 620, lineHeight: 1.55 }}>{hint}</p>}
+        {hint && <p style={{ fontSize: 14, color: "var(--muted)", margin: 0, maxWidth: 620, lineHeight: 1.55 }}>{hint}</p>}
       </div>
       {right && <div style={{ paddingTop: first ? 0 : 28, flexShrink: 0 }}>{right}</div>}
     </header>
@@ -140,12 +140,12 @@ function TdHeader({ user, setView }: TdHeaderProps) {
   return (
     <div>
       {/* Back breadcrumb */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--muted)", marginBottom: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--muted)", marginBottom: 16 }}>
         <button
           onClick={() => setView("users")}
           style={{
             padding: 0, background: "transparent", border: "none",
-            color: "var(--muted)", fontSize: 12, fontFamily: "inherit",
+            color: "var(--muted)", fontSize: 13, fontFamily: "inherit",
             cursor: "pointer", fontWeight: 500,
           }}
           onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = "var(--foreground)"; }}
@@ -171,13 +171,13 @@ function TdHeader({ user, setView }: TdHeaderProps) {
             <h1 style={{ fontSize: 26, fontWeight: 600, color: "var(--foreground)", margin: 0, letterSpacing: "-0.02em", lineHeight: 1.15 }}>{user.name}</h1>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <span style={{
-                fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--muted)",
+                fontFamily: "var(--font-mono)", fontSize: 13, color: "var(--muted)",
                 padding: "2px 7px", background: "var(--surface-alt)",
                 border: "1px solid var(--border)", borderRadius: 5,
               }}>{user.id}</span>
-              <span style={{ fontSize: 12, color: "var(--muted)", fontFamily: "var(--font-mono)" }}>{user.region ?? "us-west-2"}</span>
-              <span style={{ fontSize: 12, color: "var(--muted)" }}>·</span>
-              <span style={{ fontSize: 12, color: "var(--muted)" }}>
+              <span style={{ fontSize: 13, color: "var(--muted)", fontFamily: "var(--font-mono)" }}>{user.region ?? "us-west-2"}</span>
+              <span style={{ fontSize: 13, color: "var(--muted)" }}>·</span>
+              <span style={{ fontSize: 13, color: "var(--muted)" }}>
                 <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: 999, background: "var(--accent)", marginRight: 6, verticalAlign: "1px" }}/>
                 Active · last seen <span style={{ color: "var(--foreground)" }}>2 minutes ago</span>
               </span>
@@ -190,7 +190,7 @@ function TdHeader({ user, setView }: TdHeaderProps) {
             padding: "7px 12px", background: "var(--accent)",
             border: "1px solid var(--accent)",
             borderRadius: 7, color: "var(--accent-contrast)",
-            fontSize: 13, fontWeight: 600, fontFamily: "inherit", cursor: "pointer",
+            fontSize: 14, fontWeight: 600, fontFamily: "inherit", cursor: "pointer",
           }}>Configure</button>
         </div>
       </div>
@@ -221,9 +221,9 @@ function TdKpiStrip({ user }: TdKpiStripProps) {
           paddingLeft: i === 0 ? 0 : 20,
           borderRight: i < cells.length - 1 ? "1px solid color-mix(in srgb, var(--border) 45%, transparent)" : "none",
         }}>
-          <div style={{ fontSize: 11.5, color: "var(--muted)", marginBottom: 10, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.04em" }}>{c.label}</div>
+          <div style={{ fontSize: 12.5, color: "var(--muted)", marginBottom: 10, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.04em" }}>{c.label}</div>
           <div style={{ fontSize: 26, fontWeight: 500, letterSpacing: "-0.02em", color: "var(--foreground)", fontVariantNumeric: "tabular-nums", lineHeight: 1, marginBottom: 8 }}>{c.value}</div>
-          <div style={{ fontSize: 11.5, display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ color: c.good ? "var(--accent)" : "var(--warning)", fontWeight: 500, fontVariantNumeric: "tabular-nums" }}>{c.delta}</span>
             <span style={{ color: "var(--muted)" }}>{c.sub}</span>
           </div>
@@ -255,7 +255,7 @@ function TdCostChart({ series, height = 200 }: TdCostChartProps) {
       <div style={{
         position: "absolute", left: 0, top: 0, bottom: 24,
         width: 56, display: "flex", flexDirection: "column", justifyContent: "space-between",
-        fontSize: 10.5, color: "var(--muted)", fontVariantNumeric: "tabular-nums", textAlign: "right", paddingRight: 8,
+        fontSize: 11.5, color: "var(--muted)", fontVariantNumeric: "tabular-nums", textAlign: "right", paddingRight: 8,
       }}>
         <span>${maxVal.toFixed(2)}</span>
         <span>${(maxVal * 0.5).toFixed(2)}</span>
@@ -282,7 +282,7 @@ function TdCostChart({ series, height = 200 }: TdCostChartProps) {
           ) : null)}
           {([0, 7, 14, 21, 29] as const).map(i => (
             <text key={i} x={i * xStep} y={h + 16}
-              fontSize="10.5" fill="var(--muted)"
+              fontSize="11.5" fill="var(--muted)"
               textAnchor={i === 0 ? "start" : i === 29 ? "end" : "middle"}
               fontFamily="var(--font-mono)">{series[i] ? "Day " + series[i].day : ""}</text>
           ))}
@@ -357,13 +357,13 @@ function TdWorkflowTable() {
           <button key={c.key} onClick={() => onSort(c.key)} style={{
             padding: 0, background: "transparent", border: "none",
             color: sortKey === c.key ? "var(--foreground)" : "var(--muted)",
-            fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em",
+            fontSize: 12, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em",
             fontFamily: "inherit", cursor: "pointer", textAlign: c.align,
             display: "inline-flex", alignItems: "center", gap: 4,
             justifyContent: c.align === "right" ? "flex-end" : "flex-start",
           }}>
             {c.label}
-            {sortKey === c.key && <span style={{ fontSize: 8, opacity: 0.7 }}>{sortDir === "asc" ? "▲" : "▼"}</span>}
+            {sortKey === c.key && <span style={{ fontSize: 9, opacity: 0.7 }}>{sortDir === "asc" ? "▲" : "▼"}</span>}
           </button>
         ))}
       </div>
@@ -386,7 +386,7 @@ function TdWorkflowTable() {
             const color = c.color ? c.color(row) : c.muted ? "var(--muted)" : "var(--foreground)";
             return (
               <div key={c.key} style={{
-                fontSize: 13, color,
+                fontSize: 14, color,
                 textAlign: c.align,
                 fontFamily: c.mono ? "var(--font-mono)" : "inherit",
                 fontVariantNumeric: "tabular-nums",
@@ -443,12 +443,12 @@ function TdTracesTable({ setView, setSelected }: TdTracesTableProps) {
                 background: active ? "var(--surface)" : "transparent",
                 border: "1px solid " + (active ? "var(--border)" : "transparent"),
                 borderRadius: 999, color: active ? "var(--foreground)" : "var(--muted)",
-                fontSize: 12, fontWeight: 500, fontFamily: "inherit", cursor: "pointer",
+                fontSize: 13, fontWeight: 500, fontFamily: "inherit", cursor: "pointer",
                 display: "inline-flex", alignItems: "center", gap: 6,
               }}>
                 {o.label}
                 <span style={{
-                  fontSize: 10.5, color: "var(--muted)", fontVariantNumeric: "tabular-nums",
+                  fontSize: 11.5, color: "var(--muted)", fontVariantNumeric: "tabular-nums",
                   padding: "0 5px", background: active ? "var(--surface-alt)" : "transparent",
                   borderRadius: 4,
                 }}>{o.n}</span>
@@ -460,7 +460,7 @@ function TdTracesTable({ setView, setSelected }: TdTracesTableProps) {
           padding: "5px 11px", background: "transparent",
           border: "1px solid var(--border-strong)",
           borderRadius: 7, color: "var(--muted)",
-          fontSize: 12, fontWeight: 500, fontFamily: "inherit", cursor: "pointer",
+          fontSize: 13, fontWeight: 500, fontFamily: "inherit", cursor: "pointer",
           display: "inline-flex", alignItems: "center", gap: 6,
         }}>View all traces →</button>
       </div>
@@ -470,7 +470,7 @@ function TdTracesTable({ setView, setSelected }: TdTracesTableProps) {
         display: "grid", gridTemplateColumns: cols, minWidth: 640, gap: 14,
         padding: "12px 0",
         borderBottom: "1px solid color-mix(in srgb, var(--border) 70%, transparent)",
-        fontSize: 11, color: "var(--muted)", textTransform: "uppercase",
+        fontSize: 12, color: "var(--muted)", textTransform: "uppercase",
         letterSpacing: "0.06em", fontWeight: 500,
       }}>
         <div>Trace</div>
@@ -481,7 +481,7 @@ function TdTracesTable({ setView, setSelected }: TdTracesTableProps) {
       </div>
 
       {filtered.length === 0 ? (
-        <div style={{ padding: "40px 20px", textAlign: "center", color: "var(--muted)", fontSize: 13 }}>No traces for this filter.</div>
+        <div style={{ padding: "40px 20px", textAlign: "center", color: "var(--muted)", fontSize: 14 }}>No traces for this filter.</div>
       ) : filtered.map((t, i) => (
         <div key={t.id}
           onClick={() => {
@@ -498,14 +498,14 @@ function TdTracesTable({ setView, setSelected }: TdTracesTableProps) {
           onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}>
-            <span style={{ fontSize: 13, fontWeight: 500, color: "var(--foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.workflow}</span>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--muted)" }}>{t.id}{t.msg ? " · " + t.msg : ""}</span>
+            <span style={{ fontSize: 14, fontWeight: 500, color: "var(--foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.workflow}</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--muted)" }}>{t.id}{t.msg ? " · " + t.msg : ""}</span>
           </div>
           <div>
             <span style={{
               display: "inline-flex", alignItems: "center", gap: 5,
               padding: "2px 8px 2px 6px", borderRadius: 999,
-              fontSize: 11.5, fontWeight: 500,
+              fontSize: 12.5, fontWeight: 500,
               color: statusColor(t.status),
               background: `color-mix(in srgb, ${statusColor(t.status)} 10%, transparent)`,
               border: `1px solid color-mix(in srgb, ${statusColor(t.status)} 22%, transparent)`,
@@ -515,9 +515,9 @@ function TdTracesTable({ setView, setSelected }: TdTracesTableProps) {
               {t.status}
             </span>
           </div>
-          <div style={{ fontSize: 12.5, color: "var(--muted)", fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{t.started}</div>
-          <div style={{ fontSize: 13, color: "var(--foreground)", fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", textAlign: "right" }}>${t.cost.toFixed(4)}</div>
-          <div style={{ fontSize: 13, color: "var(--muted)", fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", textAlign: "right" }}>
+          <div style={{ fontSize: 13.5, color: "var(--muted)", fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{t.started}</div>
+          <div style={{ fontSize: 14, color: "var(--foreground)", fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", textAlign: "right" }}>${t.cost.toFixed(4)}</div>
+          <div style={{ fontSize: 14, color: "var(--muted)", fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", textAlign: "right" }}>
             {t.latency === 0 ? "—" : t.latency < 1000 ? t.latency + "ms" : (t.latency / 1000).toFixed(1) + "s"}
           </div>
         </div>
@@ -547,8 +547,8 @@ function TdConnection({ user }: TdConnectionProps) {
           paddingLeft: i === 0 ? 0 : 20,
           borderRight: i < fields.length - 1 ? "1px solid color-mix(in srgb, var(--border) 45%, transparent)" : "none",
         }}>
-          <div style={{ fontSize: 11.5, color: "var(--muted)", marginBottom: 6, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.04em" }}>{f.label}</div>
-          <div style={{ fontSize: 13, color: "var(--foreground)", fontFamily: f.mono ? "var(--font-mono)" : "inherit", fontVariantNumeric: "tabular-nums" }}>{f.value}</div>
+          <div style={{ fontSize: 12.5, color: "var(--muted)", marginBottom: 6, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.04em" }}>{f.label}</div>
+          <div style={{ fontSize: 14, color: "var(--foreground)", fontFamily: f.mono ? "var(--font-mono)" : "inherit", fontVariantNumeric: "tabular-nums" }}>{f.value}</div>
         </div>
       ))}
     </div>
@@ -602,7 +602,7 @@ export function UserDetailPage({ selected, setView }: UserDetailPageProps) {
             {rangeOptions.map(o => (
               <button key={o.id} onClick={() => setRange(o.id)} style={{
                 padding: "5px 10px",
-                fontSize: 12, fontWeight: 500, fontFamily: "inherit",
+                fontSize: 13, fontWeight: 500, fontFamily: "inherit",
                 background: range === o.id ? "var(--surface)" : "transparent",
                 color: range === o.id ? "var(--foreground)" : "var(--muted)",
                 border: "1px solid " + (range === o.id ? "var(--border)" : "transparent"),

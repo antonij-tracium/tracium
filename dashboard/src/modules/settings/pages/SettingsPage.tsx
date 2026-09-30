@@ -129,7 +129,7 @@ function SectionHead({ title, hint, right, first = false, headingRef, style }: S
     }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0, paddingTop: first ? 0 : 28 }}>
         <h2 ref={headingRef} tabIndex={headingRef ? -1 : undefined} style={{ fontSize: 19, fontWeight: 600, letterSpacing: '-0.018em', margin: 0, color: 'var(--foreground)' }}>{title}</h2>
-        {hint && <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0, maxWidth: 620, lineHeight: 1.55 }}>{hint}</p>}
+        {hint && <p style={{ fontSize: 14, color: 'var(--muted)', margin: 0, maxWidth: 620, lineHeight: 1.55 }}>{hint}</p>}
       </div>
       {right && <div style={{ paddingTop: first ? 0 : 28, flexShrink: 0 }}>{right}</div>}
     </header>
@@ -157,8 +157,8 @@ function Field({ label, hint, children, right, last = false }: FieldProps) {
       borderBottom: last ? 'none' : '1px solid color-mix(in srgb, var(--border) 50%, transparent)',
     }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--foreground)' }}>{label}</span>
-        {hint && <span style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>{hint}</span>}
+        <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--foreground)' }}>{label}</span>
+        {hint && <span style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5 }}>{hint}</span>}
       </div>
       <div style={{ minWidth: 0 }}>{children}</div>
       <div style={{ justifySelf: stacked ? 'start' : 'end', display: 'flex', alignItems: 'center', gap: 8 }}>{right}</div>
@@ -189,7 +189,7 @@ function Btn({ children, variant = 'secondary', onClick, disabled, type = 'butto
     <button type={type} title={title} onClick={onClick} disabled={disabled} style={{
       display: 'inline-flex', alignItems: 'center', gap: 6,
       padding: '7px 13px', borderRadius: 7,
-      fontSize: 13, fontFamily: 'inherit',
+      fontSize: 14, fontFamily: 'inherit',
       cursor: disabled ? 'not-allowed' : 'pointer',
       opacity: disabled ? 0.5 : 1,
       ...variantStyles[variant], ...style,
@@ -223,7 +223,7 @@ function Input({ value, onChange, placeholder, type = 'text', mono = false, pref
       onFocusCapture={e => { e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--accent) 50%, transparent)'; }}
       onBlurCapture={e => { e.currentTarget.style.borderColor = 'var(--border-strong, rgba(255,255,255,0.12))'; }}
     >
-      {prefix && <span style={{ fontSize: 13, color: 'var(--muted)', flexShrink: 0 }}>{prefix}</span>}
+      {prefix && <span style={{ fontSize: 14, color: 'var(--muted)', flexShrink: 0 }}>{prefix}</span>}
       <input
         aria-label={label}
         value={value}
@@ -235,7 +235,7 @@ function Input({ value, onChange, placeholder, type = 'text', mono = false, pref
           flex: 1, minWidth: 0, padding: '9px 0',
           background: 'transparent', border: 'none', outline: 'none',
           color: 'var(--foreground)',
-          fontSize: 13,
+          fontSize: 14,
           fontFamily: mono ? 'var(--font-mono)' : 'inherit',
         }}
       />
@@ -293,7 +293,7 @@ function Segmented({ value, onChange, options }: SegmentedProps) {
       {options.map(o => (
         <button type="button" aria-pressed={value === o.id} key={o.id} onClick={() => onChange(o.id)} style={{
           padding: '5px 11px',
-          fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
+          fontSize: 13, fontWeight: 500, fontFamily: 'inherit',
           background: value === o.id ? 'var(--surface)' : 'transparent',
           color: value === o.id ? 'var(--foreground)' : 'var(--muted)',
           border: '1px solid ' + (value === o.id ? 'var(--border)' : 'transparent'),
@@ -331,7 +331,7 @@ function TabRail({ sections, tab, setTab, horizontal = false, demo = false }: Ta
       paddingTop: 4,
     }}>
       {!horizontal && (
-        <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 500, padding: '0 10px 10px' }}>Settings</div>
+        <div style={{ fontSize: 12, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 500, padding: '0 10px 10px' }}>Settings</div>
       )}
       <nav style={{ display: 'flex', flexDirection: horizontal ? 'row' : 'column', gap: horizontal ? 4 : 1 }}>
         {[...SET_TABS.filter(t => demo ? t.id !== 'members' : t.id !== 'danger'), ...sections.map(t => ({...t, icon: t.icon ?? null, count: undefined}))].map(t => {
@@ -345,7 +345,7 @@ function TabRail({ sections, tab, setTab, horizontal = false, demo = false }: Ta
               style={{
                 display: 'flex', alignItems: 'center', gap: 9,
                 padding: '8px 10px',
-                fontSize: 13, fontWeight: 500, fontFamily: 'inherit',
+                fontSize: 14, fontWeight: 500, fontFamily: 'inherit',
                 color: active ? (danger ? 'var(--error)' : 'var(--foreground)') : 'var(--muted)',
                 background: active ? 'var(--surface)' : 'transparent',
                 border: '1px solid ' + (active ? 'var(--border)' : 'transparent'),
@@ -362,7 +362,7 @@ function TabRail({ sections, tab, setTab, horizontal = false, demo = false }: Ta
               <span style={{ flex: 1 }}>{t.label}</span>
               {count != null && (
                 <span style={{
-                  fontSize: 11, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums',
+                  fontSize: 12, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums',
                   padding: '1px 6px', background: 'var(--surface-alt)', border: '1px solid var(--border)', borderRadius: 4,
                 }}>{count}</span>
               )}
@@ -430,7 +430,7 @@ function ChangePasswordField() {
         right={<Btn variant="secondary" onClick={() => { setJustChanged(false); setEditing(true); }}>Change</Btn>}
         last
       >
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--muted)', letterSpacing: '0.2em' }}>•••••••••••</span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--muted)', letterSpacing: '0.2em' }}>•••••••••••</span>
       </Field>
     );
   }
@@ -448,7 +448,7 @@ function ChangePasswordField() {
           <Input label="Confirm new password" type="password" value={confirm} onChange={e => setConfirm(e.target.value)} />
         </Field>
       </fieldset>
-      {error && <p role="alert" style={{ color: 'var(--error)', fontSize: 13 }}>{error}</p>}
+      {error && <p role="alert" style={{ color: 'var(--error)', fontSize: 14 }}>{error}</p>}
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 18 }}>
         <Btn variant="ghost" disabled={saving} onClick={reset}>Cancel</Btn>
         <Btn variant="primary" type="submit" disabled={saving || !current || !next || !confirm}>
@@ -501,7 +501,7 @@ function AccountView({ user, demo }: AccountViewProps) {
       <SectionHead title="Security" hint="Sign-in factors, active sessions, and recent activity on your account." />
       <div>
         <Field label="Password" hint={demo ? 'Last changed 84 days ago.' : 'Set when you created your account.'} right={<Btn variant="secondary">Change</Btn>} last>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--muted)', letterSpacing: '0.2em' }}>•••••••••••</span>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--muted)', letterSpacing: '0.2em' }}>•••••••••••</span>
         </Field>
       </div>
 
@@ -559,7 +559,7 @@ function CreateWorkspaceView({ onCreate, onCancel }: CreateWorkspaceViewProps) {
 
   return (
     <form onSubmit={submit} aria-busy={pending}>
-      <p style={{ color: 'var(--muted)', fontSize: 12, margin: '0 0 16px' }}>Step 1 of 2 · Workspace details</p>
+      <p style={{ color: 'var(--muted)', fontSize: 13, margin: '0 0 16px' }}>Step 1 of 2 · Workspace details</p>
       <SectionHead
         first
         title="Create workspace"
@@ -588,7 +588,7 @@ function CreateWorkspaceView({ onCreate, onCancel }: CreateWorkspaceViewProps) {
           ]} />
         </Field>
       </fieldset>
-      {error && <p role="alert" style={{ color: 'var(--error)', fontSize: 13 }}>{error}</p>}
+      {error && <p role="alert" style={{ color: 'var(--error)', fontSize: 14 }}>{error}</p>}
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 18 }}>
         <Btn variant="ghost" disabled={pending} onClick={onCancel}>Cancel</Btn>
@@ -638,7 +638,7 @@ function CopyButton({ value, label }: { value: string; label: string }) {
       {status === 'copied' ? <IconCheck size={13} /> : <IconCopy size={13} />}
       {status === 'copied' ? 'Copied' : label}
     </Btn>
-    <span role="status" style={{ fontSize: 12, color: status === 'error' ? 'var(--error)' : 'var(--muted)' }}>
+    <span role="status" style={{ fontSize: 13, color: status === 'error' ? 'var(--error)' : 'var(--muted)' }}>
       {message}
     </span>
   </span>;
@@ -657,26 +657,26 @@ function WorkspaceConnection({ ws, justCreated, onOpenOverview, onOpenApiKeys }:
   }, [justCreated]);
   const divider = '1px solid color-mix(in srgb, var(--border) 50%, transparent)';
   return <div>
-    {justCreated && <p role="status" style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent)', fontSize: 13, margin: '0 0 16px' }}>
+    {justCreated && <p role="status" style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent)', fontSize: 14, margin: '0 0 16px' }}>
       <IconCheck size={14} /> {ws.name} created · Step 2 of 2
     </p>}
     <SectionHead first title="Connect your application" headingRef={heading} style={{ paddingBottom: 8 }} />
-    <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, margin: '0 0 24px', maxWidth: 620 }}>
+    <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6, margin: '0 0 24px', maxWidth: 620 }}>
       Applications send traces with an API key. Each key belongs to one workspace, so traces sent with a key from <strong style={{ color: 'var(--foreground)' }}>{ws.name}</strong> land here.
     </p>
-    <h3 style={{ fontSize: 14, fontWeight: 600, margin: '0 0 8px' }}>1. Create an API key</h3>
-    <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, margin: '0 0 12px' }}>Create a key for this workspace and copy its <code>trc_…</code> token. It is shown only once. Use a separate key for each application so you can revoke them independently.</p>
+    <h3 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 8px' }}>1. Create an API key</h3>
+    <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6, margin: '0 0 12px' }}>Create a key for this workspace and copy its <code>trc_…</code> token. It is shown only once. Use a separate key for each application so you can revoke them independently.</p>
     {onOpenApiKeys && <div style={{ marginBottom: 12 }}><Btn onClick={onOpenApiKeys}>Create API key</Btn></div>}
     <div style={{ paddingBottom: 12, borderBottom: divider }} />
-    <h3 style={{ fontSize: 14, fontWeight: 600, margin: '24px 0 8px' }}>2. Configure your OpenTelemetry exporter</h3>
-    <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, margin: '0 0 12px' }}>Set these environment variables where your application runs, replacing <code>YOUR_API_KEY</code> with the token. The endpoint shown is for an application on the host of a local Docker installation; for other deployments, use the collector address provided by your operator.</p>
+    <h3 style={{ fontSize: 15, fontWeight: 600, margin: '24px 0 8px' }}>2. Configure your OpenTelemetry exporter</h3>
+    <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6, margin: '0 0 12px' }}>Set these environment variables where your application runs, replacing <code>YOUR_API_KEY</code> with the token. The endpoint shown is for an application on the host of a local Docker installation; for other deployments, use the collector address provided by your operator.</p>
     <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px 24px', flexWrap: 'wrap', padding: '8px 0 24px', borderBottom: divider }}>
-      <pre style={{ minWidth: 0, flex: '1 1 280px', margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: 12, lineHeight: 1.7, fontFamily: 'var(--font-mono)' }}>{EXPORTER_CONFIG}</pre>
+      <pre style={{ minWidth: 0, flex: '1 1 280px', margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: 13, lineHeight: 1.7, fontFamily: 'var(--font-mono)' }}>{EXPORTER_CONFIG}</pre>
       <CopyButton value={EXPORTER_CONFIG} label="Copy configuration" />
     </div>
-    <h3 style={{ fontSize: 14, fontWeight: 600, margin: '24px 0 8px' }}>3. Send your first trace</h3>
-    <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, margin: 0 }}>Restart your instrumented application and run a request. Requests without a valid key are rejected with <code>401</code> and nothing is stored.</p>
-    <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6, margin: '16px 0 0' }}>You can always find these instructions in <strong style={{ color: 'var(--foreground)' }}>Settings → Workspace</strong>.</p>
+    <h3 style={{ fontSize: 15, fontWeight: 600, margin: '24px 0 8px' }}>3. Send your first trace</h3>
+    <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6, margin: 0 }}>Restart your instrumented application and run a request. Requests without a valid key are rejected with <code>401</code> and nothing is stored.</p>
+    <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, margin: '16px 0 0' }}>You can always find these instructions in <strong style={{ color: 'var(--foreground)' }}>Settings → Workspace</strong>.</p>
     {onOpenOverview && <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 24 }}>
       <Btn variant="primary" onClick={onOpenOverview}>Go to overview</Btn>
     </div>}
@@ -691,7 +691,7 @@ function WorkspaceView({ ws, demo = false, justCreated = false, onOpenOverview, 
     {ws.id ? <WorkspaceConnection ws={ws} justCreated={justCreated} onOpenOverview={onOpenOverview} onOpenApiKeys={onOpenApiKeys} /> : <SectionHead first title="Workspace" hint="Create a workspace to get its connection instructions." />}
     {!justCreated && <>
       <SectionHead title="Retention" hint="Retention is configured by the deployment operator. Expired spans are deleted; daily aggregates are retained separately." />
-      <p style={{ fontSize: 13, color: 'var(--muted)' }}>Workspace editing and retention controls are not yet available.</p>
+      <p style={{ fontSize: 14, color: 'var(--muted)' }}>Workspace editing and retention controls are not yet available.</p>
     </>}
   </div>;
 
@@ -796,7 +796,7 @@ function MembersView({ workspace, account }: MembersViewProps) {
 
   const divider = '1px solid color-mix(in srgb, var(--border) 50%, transparent)';
   const row: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px 24px', flexWrap: 'wrap', padding: '14px 0', borderBottom: divider };
-  const meta: React.CSSProperties = { fontSize: 12, color: 'var(--muted)' };
+  const meta: React.CSSProperties = { fontSize: 13, color: 'var(--muted)' };
   const self = account?.email.toLowerCase();
 
   return <div>
@@ -815,33 +815,33 @@ function MembersView({ workspace, account }: MembersViewProps) {
           <Input label="Invite email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="teammate@example.com" />
         </Field>
       </fieldset>
-      {inviteError && <p role="alert" style={{ color: 'var(--error)', fontSize: 13, margin: '0 0 12px' }}>{inviteError}</p>}
+      {inviteError && <p role="alert" style={{ color: 'var(--error)', fontSize: 14, margin: '0 0 12px' }}>{inviteError}</p>}
     </form>}
 
     {created && <div role="status" style={{ padding: '14px 16px', margin: '4px 0 8px', borderRadius: 8, border: '1px solid color-mix(in srgb, var(--accent) 35%, transparent)', background: 'color-mix(in srgb, var(--accent) 8%, transparent)' }}>
-      <p style={{ fontSize: 13, margin: '0 0 10px', lineHeight: 1.55 }}>
+      <p style={{ fontSize: 14, margin: '0 0 10px', lineHeight: 1.55 }}>
         {created.email_sent
           ? <>We emailed an invite to <strong>{created.email}</strong>. You can also send them this link. They need to sign in or sign up with that address to accept it. The link is shown only once.</>
           : <>Send this link to <strong>{created.email}</strong>. They need to sign in or sign up with that address to accept it. The link is shown only once.</>}
       </p>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px 16px', flexWrap: 'wrap' }}>
-        <code style={{ flex: '1 1 280px', minWidth: 0, overflowWrap: 'anywhere', fontSize: 12, fontFamily: 'var(--font-mono)' }}>{inviteLink(created.token)}</code>
+        <code style={{ flex: '1 1 280px', minWidth: 0, overflowWrap: 'anywhere', fontSize: 13, fontFamily: 'var(--font-mono)' }}>{inviteLink(created.token)}</code>
         <CopyButton value={inviteLink(created.token)} label="Copy invite link" />
       </div>
       <div style={{ marginTop: 4 }}><Btn variant="ghost" onClick={() => setCreated(null)}>Done</Btn></div>
     </div>}
 
-    {actionError && <p role="alert" style={{ color: 'var(--error)', fontSize: 13 }}>{actionError}</p>}
+    {actionError && <p role="alert" style={{ color: 'var(--error)', fontSize: 14 }}>{actionError}</p>}
 
     <SectionHead title="People" />
     {members.isLoading && <p style={meta}>Loading members…</p>}
-    {members.isError && <p role="alert" style={{ color: 'var(--error)', fontSize: 13 }}>{errorMessage(members.error, 'Could not load members.')}</p>}
+    {members.isError && <p role="alert" style={{ color: 'var(--error)', fontSize: 14 }}>{errorMessage(members.error, 'Could not load members.')}</p>}
     {members.data && <ul aria-label="Members" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
       {members.data.map((m: WorkspaceMember) => {
         const you = m.email.toLowerCase() === self;
         return <li key={m.user_id} style={row}>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 13.5, fontWeight: 500, overflowWrap: 'anywhere' }}>{m.email}{you && <span style={{ ...meta, marginLeft: 8 }}>You</span>}</div>
+            <div style={{ fontSize: 14.5, fontWeight: 500, overflowWrap: 'anywhere' }}>{m.email}{you && <span style={{ ...meta, marginLeft: 8 }}>You</span>}</div>
             <div style={meta}>{m.role === 'owner' ? 'Owner' : 'Member'} · joined {formatDate(m.joined_at)}</div>
           </div>
           {isOwner && m.role !== 'owner' && <Btn variant="ghost" disabled={busyId === m.user_id} title={`Remove ${m.email}`}
@@ -854,12 +854,12 @@ function MembersView({ workspace, account }: MembersViewProps) {
 
     {isOwner && <>
       <SectionHead title="Pending invites" hint="Invite links aren’t stored, so they can’t be copied again. Create a new link to replace a lost one." />
-      {invites.isError && <p role="alert" style={{ color: 'var(--error)', fontSize: 13 }}>{errorMessage(invites.error, 'Could not load invites.')}</p>}
+      {invites.isError && <p role="alert" style={{ color: 'var(--error)', fontSize: 14 }}>{errorMessage(invites.error, 'Could not load invites.')}</p>}
       {invites.data && invites.data.length === 0 && <p style={meta}>No pending invites.</p>}
       {invites.data && invites.data.length > 0 && <ul aria-label="Pending invites" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
         {invites.data.map(inv => <li key={inv.id} style={row}>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 13.5, fontWeight: 500, overflowWrap: 'anywhere' }}>{inv.email}</div>
+            <div style={{ fontSize: 14.5, fontWeight: 500, overflowWrap: 'anywhere' }}>{inv.email}</div>
             <div style={meta}>Invited {formatDate(inv.created_at)} · expires {formatDate(inv.expires_at)}</div>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -927,8 +927,8 @@ function DangerView() {
           borderBottom: i < DANGER_ITEMS.length - 1 ? '1px solid color-mix(in srgb, var(--border) 50%, transparent)' : 'none',
         }}>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 500, color: item.variant === 'danger' ? 'var(--error)' : 'var(--foreground)', marginBottom: 4 }}>{item.title}</div>
-            <div style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.55, maxWidth: 580 }}>{item.hint}</div>
+            <div style={{ fontSize: 15, fontWeight: 500, color: item.variant === 'danger' ? 'var(--error)' : 'var(--foreground)', marginBottom: 4 }}>{item.title}</div>
+            <div style={{ fontSize: 13.5, color: 'var(--muted)', lineHeight: 1.55, maxWidth: 580 }}>{item.hint}</div>
           </div>
           <Btn variant={item.variant}>{item.cta}</Btn>
         </div>
@@ -1018,7 +1018,7 @@ export default function SettingsPage({
       {/* Page header */}
       <div style={{ marginBottom: 36 }}>
         <h1 style={{ fontSize: 26, fontWeight: 600, color: 'var(--foreground)', margin: 0, letterSpacing: '-0.02em', lineHeight: 1.15 }}>Settings</h1>
-        <p style={{ fontSize: 13, color: 'var(--muted)', margin: '6px 0 0', maxWidth: 620, lineHeight: 1.55 }}>
+        <p style={{ fontSize: 14, color: 'var(--muted)', margin: '6px 0 0', maxWidth: 620, lineHeight: 1.55 }}>
           Account and workspace settings for <span style={{ color: 'var(--foreground)', fontWeight: 500 }}>{ws.name || 'this workspace'}</span>.
           Select a workspace to view its connection instructions.
         </p>

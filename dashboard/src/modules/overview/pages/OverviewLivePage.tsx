@@ -189,7 +189,7 @@ export function OverviewLivePage({ range, setView, setSelected, tweaks }: Overvi
           description="Create an API key for this workspace, add it to your OpenTelemetry exporter, then send your first trace."
         />
         <div style={{ display: 'flex', justifyContent: 'center', padding: '0 24px 40px' }}>
-          <button onClick={() => setView('settings')} style={{ padding: '9px 16px', borderRadius: 7, border: '1px solid var(--accent)', background: 'var(--accent)', color: 'var(--accent-contrast)', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>View setup instructions</button>
+          <button onClick={() => setView('settings')} style={{ padding: '9px 16px', borderRadius: 7, border: '1px solid var(--accent)', background: 'var(--accent)', color: 'var(--accent-contrast)', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>View setup instructions</button>
         </div>
       </div>
     );

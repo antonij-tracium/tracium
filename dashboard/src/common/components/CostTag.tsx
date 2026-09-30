@@ -6,7 +6,7 @@ interface CostTagProps {
 
 export function CostTag({ usd }: CostTagProps) {
   return (
-    <span style={{ fontFamily: 'monospace', fontSize: '13px' }}>
+    <span style={{ fontFamily: 'monospace', fontSize: '14px' }}>
       {costFormatter.format(usd)}
     </span>
   );

@@ -71,7 +71,7 @@ export function WorkspaceSwitcher({
         <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
           <div
             style={{
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 600,
               color: 'var(--foreground)',
               lineHeight: 1.2,
@@ -84,7 +84,7 @@ export function WorkspaceSwitcher({
           </div>
           <div
             style={{
-              fontSize: 11,
+              fontSize: 12,
               color: 'var(--muted)',
               display: 'flex',
               alignItems: 'center',
@@ -98,7 +98,7 @@ export function WorkspaceSwitcher({
                   style={{
                     padding: '1px 5px',
                     borderRadius: 3,
-                    fontSize: 9.5,
+                    fontSize: 10.5,
                     fontWeight: 600,
                     letterSpacing: '0.08em',
                     background: `color-mix(in srgb, ${envColor} 14%, transparent)`,
@@ -144,7 +144,7 @@ export function WorkspaceSwitcher({
           <div
             style={{
               padding: '8px 10px 6px',
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: 600,
               color: 'var(--muted)',
               textTransform: 'uppercase',
@@ -154,7 +154,7 @@ export function WorkspaceSwitcher({
             Workspaces
           </div>
           {workspaces.length === 0 && (
-            <div style={{ padding: '4px 10px 8px', fontSize: 12, color: 'var(--muted)' }}>
+            <div style={{ padding: '4px 10px 8px', fontSize: 13, color: 'var(--muted)' }}>
               No workspaces yet.
             </div>
           )}
@@ -197,7 +197,7 @@ export function WorkspaceSwitcher({
                     placeItems: 'center',
                     color:
                       ws.env === 'development' ? '#000' : 'var(--accent-contrast)',
-                    fontSize: 8.5,
+                    fontSize: 9.5,
                     fontWeight: 700,
                     flexShrink: 0,
                   }}
@@ -207,14 +207,14 @@ export function WorkspaceSwitcher({
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div
                     style={{
-                      fontSize: 12.5,
+                      fontSize: 13.5,
                       fontWeight: 500,
                       color: 'var(--foreground)',
                     }}
                   >
                     {ws.name}
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>
                     {ws.role} · {ws.members} members
                   </div>
                 </div>
@@ -273,7 +273,7 @@ export function WorkspaceSwitcher({
                 border: 'none',
                 cursor: 'pointer',
                 color: 'var(--muted)',
-                fontSize: 12,
+                fontSize: 13,
               }}
             >
               <IconPlus size={12} />

@@ -85,7 +85,7 @@ export function LatencyChart({ series, height = 220 }: LatencyChartProps) {
                 x={pad.left - 10}
                 y={y + 4}
                 fill="var(--muted)"
-                fontSize="11"
+                fontSize="12"
                 textAnchor="end"
               >
                 {v.toFixed(1)}s
@@ -180,7 +180,7 @@ export function LatencyChart({ series, height = 220 }: LatencyChartProps) {
                   y={height - 10}
                   textAnchor="middle"
                   fill="var(--muted)"
-                  fontSize="11"
+                  fontSize="12"
                 >
                   {d.label}
                 </text>
@@ -215,10 +215,10 @@ export function LatencyChart({ series, height = 220 }: LatencyChartProps) {
                   fill="var(--chart-tooltip-bg)"
                   stroke="var(--border)"
                 />
-                <text x="-68" y="18" fill="var(--muted)" fontSize="11">
+                <text x="-68" y="18" fill="var(--muted)" fontSize="12">
                   {d.label}
                 </text>
-                <g fontSize="12">
+                <g fontSize="13">
                   <text x="-68" y="36" fill="var(--muted)">
                     p50
                   </text>
