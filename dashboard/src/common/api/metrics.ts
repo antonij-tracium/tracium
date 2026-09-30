@@ -22,22 +22,22 @@ import type { Workflow, WorkflowDetail } from '../../modules/workflows/interface
 // MetricsAPI reads the aggregated overview metrics. Each section is its own
 // endpoint so the dashboard can load and refresh them independently.
 export class MetricsAPI extends BaseAPIClient {
-  getKpis(range: string): Promise<KpiSet> {
-    return this.get('/metrics/kpis', { range });
+  getKpis(range: string, userId?: string): Promise<KpiSet> {
+    return this.get('/metrics/kpis', { range, user_id: userId });
   }
 
   // The series accept an optional `workflow` to scope the chart to one workflow (the
   // detail page). Omitted, they return the workspace-wide series as before.
-  getCostSeries(range: string, workflow?: string): Promise<PaginatedResponse<CostBucket>> {
-    return this.get('/metrics/cost-series', { range, workflow });
+  getCostSeries(range: string, workflow?: string, userId?: string): Promise<PaginatedResponse<CostBucket>> {
+    return this.get('/metrics/cost-series', { range, workflow, user_id: userId });
   }
 
   getLatencySeries(range: string, workflow?: string): Promise<PaginatedResponse<LatencyBucket>> {
     return this.get('/metrics/latency-series', { range, workflow });
   }
 
-  getErrorSeries(range: string, workflow?: string): Promise<PaginatedResponse<ErrorBucket>> {
-    return this.get('/metrics/error-series', { range, workflow });
+  getErrorSeries(range: string, workflow?: string, userId?: string): Promise<PaginatedResponse<ErrorBucket>> {
+    return this.get('/metrics/error-series', { range, workflow, user_id: userId });
   }
 
   getTopWorkflows(range: string): Promise<PaginatedResponse<WorkflowCost>> {
@@ -70,16 +70,16 @@ export class MetricsAPI extends BaseAPIClient {
   }
 
   // Usage-page breakdowns. cost-series / kpis feed the rest of the page.
-  getModelCosts(range: string): Promise<PaginatedResponse<ModelCost>> {
-    return this.get('/metrics/model-costs', { range });
+  getModelCosts(range: string, userId?: string): Promise<PaginatedResponse<ModelCost>> {
+    return this.get('/metrics/model-costs', { range, user_id: userId });
   }
 
   getUserUsage(range: string, userId?: string): Promise<PaginatedResponse<UserUsage>> {
     return this.get('/metrics/usage-users', { range, user_id: userId });
   }
 
-  getWorkflowUsage(range: string): Promise<PaginatedResponse<WorkflowUsage>> {
-    return this.get('/metrics/usage-workflows', { range });
+  getWorkflowUsage(range: string, userId?: string): Promise<PaginatedResponse<WorkflowUsage>> {
+    return this.get('/metrics/usage-workflows', { range, user_id: userId });
   }
 
   // Custom-attribute allocation. attribute-keys lists the dimensions present in

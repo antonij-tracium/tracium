@@ -297,11 +297,11 @@ export function Dashboard({ embedded = false, onLogout, extensions = EMPTY_EXTEN
       : [{ label: 'Workflows' }];
     if (view === 'usage')      return [{ label: 'Usage' }];
     if (view === 'users')    return [{ label: 'Clients' }];
-    if (view === 'user')     return [{ label: 'Clients', onClick: () => setView('users') }, { label: 'Client detail' }];
+    if (view === 'user')     return [{ label: 'Clients', onClick: () => setView('users') }, { label: selected.user || 'Client detail' }];
     if (view === 'keys')       return [{ label: 'Settings', onClick: () => setView('settings') }, { label: 'API Keys' }];
     if (view === 'settings')   return [{ label: 'Settings' }];
     return [{ label: 'Overview' }];
-  }, [view, selected.traceId, selected.workflow]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [view, selected.traceId, selected.workflow, selected.user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCommandSelect = (action: CommandAction | undefined) => {
     if (!action) return;
@@ -392,7 +392,7 @@ export function Dashboard({ embedded = false, onLogout, extensions = EMPTY_EXTEN
               : <EmptyState message="No trace selected" description="Open a trace from an workflow or the overview to see its detail." />)}
           {view === 'usage'       && (embedded
             ? <UsagePage range={range} />
-            : <UsageLivePage range={range} />)}
+            : <UsageLivePage range={range} setView={setView} setSelected={setSelected} />)}
           {view === 'keys'        && <ApiKeysPage demo={embedded} workspaceId={workspace?.id} />}
           {view === 'settings'    && <SettingsPage sections={extensions.settingsSections} createWorkspace={embedded ? undefined : createWorkspace} createMode={createWsIntent} onCancelCreate={() => setCreateWsIntent(false)} onOpenOverview={() => setView('overview')} onOpenApiKeys={() => setView('keys')} demo={embedded} workspace={workspace} account={embedded ? null : readAccount()} />}
           {view === 'users'     && (embedded

@@ -12,8 +12,7 @@ export function isLongRange(range: string): boolean {
 }
 
 // RANGE_LABEL is the lowercase, mid-sentence label for a range ("last 7 days"),
-// used in chart/section subtitles. The usage masthead renders its own capitalized
-// standalone variant ("Last 7 days").
+// used in chart/section subtitles.
 export const RANGE_LABEL: Record<string, string> = {
   '24h': 'last 24 hours',
   '7d': 'last 7 days',

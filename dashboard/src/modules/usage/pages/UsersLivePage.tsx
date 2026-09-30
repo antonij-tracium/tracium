@@ -12,6 +12,7 @@
 import type { ReactNode } from 'react';
 import { EmptyState, Spinner } from '../../../common';
 import { useUserUsage } from '../hooks/useUsage';
+import { periodLabel } from '../mappers';
 import { UsersPage, type User } from './UsersPage';
 
 interface UsersLivePageProps {
@@ -19,14 +20,6 @@ interface UsersLivePageProps {
   setView: (v: string) => void;
   setSelected: (updater: (prev: Record<string, string>) => Record<string, string>) => void;
 }
-
-const RANGE_LABEL: Record<string, string> = {
-  '24h': 'Last 24 hours',
-  '7d': 'Last 7 days',
-  '30d': 'Last 30 days',
-  '90d': 'Last 90 days',
-  '1y': 'Last year',
-};
 
 function Centered({ children }: { children: ReactNode }) {
   return (
@@ -86,7 +79,7 @@ export function UsersLivePage({ range, setView, setSelected }: UsersLivePageProp
   return (
     <UsersPage
       users={users}
-      periodLabel={RANGE_LABEL[range] ?? RANGE_LABEL['7d']}
+      periodLabel={periodLabel(range)}
       comparison={comparison}
       updatedAt={dataUpdatedAt}
       setView={setView}

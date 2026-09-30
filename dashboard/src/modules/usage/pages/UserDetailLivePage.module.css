@@ -1,0 +1,156 @@
+.page {
+  padding: clamp(20px, 4vw, 32px) clamp(16px, 4vw, 40px) 96px;
+  max-width: 1480px;
+  margin: 0 auto;
+}
+
+.back {
+  padding: 0;
+  margin-bottom: 18px;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.back:hover {
+  color: var(--foreground);
+}
+
+.masthead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding-bottom: 36px;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--foreground);
+  overflow-wrap: anywhere;
+}
+
+.subtitle {
+  margin: 2px 0 0;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+.sep {
+  margin: 0 8px;
+}
+
+.strong {
+  color: var(--foreground);
+}
+
+.panels {
+  margin-top: 28px;
+}
+
+.none {
+  padding: 24px 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.tableScroll {
+  overflow-x: auto;
+}
+
+.traceHead,
+.traceRow {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.6fr) 120px minmax(90px, 0.8fr) 70px 90px 90px;
+  gap: 14px;
+  align-items: center;
+  min-width: 720px;
+}
+
+.traceHead {
+  padding: 0 4px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.traceRow {
+  width: 100%;
+  padding: 12px 4px;
+  border: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 30%, transparent);
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.traceRow:last-child {
+  border-bottom: none;
+}
+
+.traceRow:hover {
+  background: color-mix(in srgb, var(--surface) 50%, transparent);
+}
+
+.traceName {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.traceTitle,
+.traceId {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.traceTitle {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.traceId {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.muted {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.num,
+.right {
+  text-align: right;
+}
+
+.num {
+  font-size: 12.5px;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}

@@ -158,9 +158,10 @@ interface BreakdownRowProps {
   isTop: boolean;
   isLast: boolean;
   tmpl: string;
+  onClick?: () => void;
 }
 
-function BreakdownRow({ row, kind, sharePct, isTop, isLast, tmpl }: BreakdownRowProps) {
+function BreakdownRow({ row, kind, sharePct, isTop, isLast, tmpl, onClick }: BreakdownRowProps) {
   const user = isUserSummary(row) ? row : null;
 
   // Per-column change vs the previous period
@@ -176,6 +177,7 @@ function BreakdownRow({ row, kind, sharePct, isTop, isLast, tmpl }: BreakdownRow
     <div
       className={`${styles.row} ${isLast ? styles.last : ''}`}
       style={{ gridTemplateColumns: tmpl } as CSSProperties}
+      onClick={onClick}
     >
       {/* Name column */}
       <div className={styles.nameCell}>
@@ -236,9 +238,10 @@ export interface BreakdownProps {
   // For kind="attribute", the header label of the name column — the chosen
   // attribute key (e.g. "team"). Ignored for the user/workflow tabs.
   nameLabel?: string;
+  onRowClick?: (row: BreakdownRowData) => void;
 }
 
-export function Breakdown({ rows, totalCost, kind, sortBy, setSortBy, nameLabel }: BreakdownProps) {
+export function Breakdown({ rows, totalCost, kind, sortBy, setSortBy, nameLabel, onRowClick }: BreakdownProps) {
   const sorted = useMemo(() => {
     return [...rows].sort((a, b) => {
       if (sortBy === 'name') return a.name.localeCompare(b.name);
@@ -298,6 +301,7 @@ export function Breakdown({ rows, totalCost, kind, sortBy, setSortBy, nameLabel 
             isTop={top75Set.has(rowId)}
             isLast={i === sorted.length - 1}
             tmpl={tmpl}
+            onClick={onRowClick && (() => onRowClick(row))}
           />
         );
       })}

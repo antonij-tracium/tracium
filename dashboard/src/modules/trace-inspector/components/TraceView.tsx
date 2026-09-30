@@ -49,11 +49,18 @@ interface MetaRowProps {
   label: string;
   value: string | number | boolean | undefined;
   mono?: boolean;
+  onClick?: () => void;
 }
 
 /** Renders nothing when the value is absent, so the live view can drop fields it lacks. */
-function MetaRow({ label, value, mono }: MetaRowProps) {
+function MetaRow({ label, value, mono, onClick }: MetaRowProps) {
   if (value == null || value === '') return null;
+  const valueStyle: React.CSSProperties = {
+    fontSize: 12.5, color: onClick ? 'var(--accent)' : 'var(--foreground)', fontWeight: 500,
+    fontFamily: mono ? 'var(--font-mono)' : 'inherit',
+    textAlign: 'right', whiteSpace: 'nowrap', overflow: 'hidden',
+    textOverflow: 'ellipsis', maxWidth: '70%',
+  };
   return (
     <div style={{
       display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
@@ -61,12 +68,15 @@ function MetaRow({ label, value, mono }: MetaRowProps) {
       borderBottom: '1px solid color-mix(in srgb, var(--border) 55%, transparent)',
     }}>
       <span style={{ fontSize: 12, color: 'var(--muted)' }}>{label}</span>
-      <span style={{
-        fontSize: 12.5, color: 'var(--foreground)', fontWeight: 500,
-        fontFamily: mono ? 'var(--font-mono)' : 'inherit',
-        textAlign: 'right', whiteSpace: 'nowrap', overflow: 'hidden',
-        textOverflow: 'ellipsis', maxWidth: '70%',
-      }} title={String(value)}>{String(value)}</span>
+      {onClick ? (
+        <button
+          onClick={onClick}
+          title={String(value)}
+          style={{ ...valueStyle, padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
+        >{String(value)}</button>
+      ) : (
+        <span style={valueStyle} title={String(value)}>{String(value)}</span>
+      )}
     </div>
   );
 }
@@ -671,7 +681,7 @@ export function TraceView({ trace: t, setView, onOpenUser }: TraceViewProps) {
             <MetaRow label="workflow" value={t.workflow} />
             <MetaRow label="workflow.version" value={t.version} />
             <MetaRow label="session.id" value={t.sessionId} mono />
-            <MetaRow label="user.id" value={t.user} mono />
+            <MetaRow label="user.id" value={t.user} mono onClick={t.user && onOpenUser ? () => onOpenUser(t.user!) : undefined} />
             <SectionLabel style={{ margin: '24px 0 8px' }}>Timing</SectionLabel>
             <MetaRow label="started_at" value={t.startedAt} />
             <MetaRow label="ended_at" value={t.endedAt} />
