@@ -9,6 +9,16 @@ Breaking changes require a `schema_version` bump. Additive changes do not.
 
 ---
 
+## [1.0.2] - 2026-10-01
+
+### Added
+- Release images are published for `linux/arm64` as well as `linux/amd64`, so they pull natively on Apple Silicon and ARM nodes
+
+### Changed
+- Dashboard text is one step larger throughout, and secondary text uses a lighter gray for higher contrast
+
+---
+
 ## [1.0.1] - 2026-10-01
 
 ### Added
