@@ -11,7 +11,7 @@ require (
 	go.opentelemetry.io/collector/component v0.116.0
 	go.opentelemetry.io/collector/extension v0.116.0
 	go.opentelemetry.io/collector/extension/auth v0.116.0
-	go.uber.org/zap v1.27.0
+	go.uber.org/zap v1.28.0
 )
 
 require google.golang.org/grpc v1.68.1
