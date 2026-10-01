@@ -16,7 +16,6 @@ Breaking changes require a `schema_version` bump. Additive changes do not.
 
 ### Changed
 - Dashboard text is one step larger throughout, and secondary text uses a lighter gray for higher contrast
-- Dashboard copy no longer uses em dashes
 
 ---
 
