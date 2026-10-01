@@ -22,7 +22,7 @@ jobs:
       spec: ${{ steps.f.outputs.spec }}
       helm: ${{ steps.f.outputs.helm }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v4
         id: f
         with:
@@ -47,7 +47,7 @@ jobs:
     if: ${{ needs.changes.outputs.go == 'true' || needs.changes.outputs.spec == 'true' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.work
@@ -72,7 +72,7 @@ jobs:
       run:
         working-directory: dashboard
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 20
@@ -90,7 +90,7 @@ jobs:
     if: ${{ needs.changes.outputs.spec == 'true' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 20
@@ -103,7 +103,7 @@ jobs:
     if: ${{ needs.changes.outputs.helm == 'true' || needs.changes.outputs.spec == 'true' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: azure/setup-helm@v5
       - run: make sync-generated   # single-source pricing/schema into the chart
       - run: helm lint deploy/helm/tracium
@@ -116,6 +116,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build and exercise a fresh isolated stack
         run: bash deploy/tests/smoke.sh
