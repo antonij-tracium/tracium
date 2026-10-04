@@ -14,14 +14,25 @@ deploy/
 
 ## Kubernetes (Helm)
 
-Create the secrets the chart references, then install:
+Each release attaches a packaged chart (`tracium-<version>.tgz`) that requests
+that release's images from `ghcr.io/antonij-tracium`. Create the secrets the
+chart references, then install it:
 
 ```bash
 kubectl create secret generic tracium-clickhouse-secret --from-literal=password=$(openssl rand -hex 16)
 kubectl create secret generic tracium-postgres-secret   --from-literal=password=$(openssl rand -hex 16)
 kubectl create secret generic tracium-api-jwt           --from-literal=jwt-secret=$(openssl rand -hex 32)
-helm install tracium ./helm/tracium
+VERSION=1.0.3
+helm install tracium "https://github.com/antonij-tracium/tracium/releases/download/v$VERSION/tracium-$VERSION.tgz"
 ```
+
+Don't pass `--wait`: schema migrations run as a post-install hook, and the API
+and collector only become ready once they finish. The API and collector restart a
+few times while the migration job runs; that is expected.
+
+To install from a checkout instead, run `make sync-generated` and pass
+`--set global.imageTag=<version>`; the source chart's `appVersion` is not a
+release.
 
 Every tunable is documented in [`helm/tracium/values.yaml`](helm/tracium/values.yaml).
 Ingress exposes the API and dashboard. OTLP and database services stay internal.

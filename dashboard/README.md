@@ -72,12 +72,12 @@ npm run seed
 ```
 
 It (1) registers `demo@tracium.ai` / `tracium-demo-1234` and makes it **owner**
-of three workspaces (Production, Staging, Development), then (2) sends ~520
+of three workspaces (Production, Staging, Development), then (2) sends ~1,500
 complex multi-step agent traces (tool-calling ReAct loops, parallel fan-out,
 nested sub-agents, retries, successes and failures, full prompt/completion
 content and custom business attributes) over OTLP so the collector prices and
-stores them. Timestamps are relative to now, spread over the last ~14 days, so
-the data always lands in the dashboard's 24h/7d/30d windows. Sign in with the
+stores them. Timestamps are relative to now, spread over the last 42 days, so
+the data covers the 24h/7d/30d windows and the 28-day anomaly baseline. Sign in with the
 credentials above and switch workspaces to see reads re-scope.
 
 | command | does |

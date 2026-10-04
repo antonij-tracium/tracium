@@ -87,7 +87,7 @@ API requests, so it also works through a reverse proxy without rebuilding the
 frontend.
 
 **Want data to look at right away?** With the stack up, seed a demo account,
-workspaces, and ~520 realistic traces in one command (requires Node.js 20+):
+workspaces, and ~1,500 realistic traces in one command (requires Node.js 18+):
 
 ```bash
 cd dashboard && npm run seed

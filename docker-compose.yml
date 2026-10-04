@@ -42,7 +42,7 @@ services:
   # ── Migrations ───────────────────────────────────────────────────────────────
 
   migrate:
-    image: ghcr.io/antonij-tracium/migrate:${TRACIUM_VERSION:-1.0.2}
+    image: ghcr.io/antonij-tracium/migrate:${TRACIUM_VERSION:-1.0.3}
     environment:
       CLICKHOUSE_HTTP: http://clickhouse:8123
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?set CLICKHOUSE_PASSWORD in .env}
@@ -67,7 +67,7 @@ services:
     # Generic OpenTelemetry Collector distribution assembled by OCB
     # (see collector/builder/oss.builder.yaml). All Tracium-specific
     # behaviour lives in the `tracium` processor + `clickhousespan` exporter.
-    image: ghcr.io/antonij-tracium/collector:${TRACIUM_VERSION:-1.0.2}
+    image: ghcr.io/antonij-tracium/collector:${TRACIUM_VERSION:-1.0.3}
     ports:
       - "127.0.0.1:4317:4317"   # OTLP gRPC
       - "127.0.0.1:4318:4318"   # OTLP HTTP
@@ -95,7 +95,7 @@ services:
     restart: unless-stopped
 
   api:
-    image: ghcr.io/antonij-tracium/api:${TRACIUM_VERSION:-1.0.2}
+    image: ghcr.io/antonij-tracium/api:${TRACIUM_VERSION:-1.0.3}
     ports:
       - "127.0.0.1:8090:8090"   # REST API
     environment:
@@ -116,7 +116,7 @@ services:
     restart: unless-stopped
 
   dashboard:
-    image: ghcr.io/antonij-tracium/dashboard:${TRACIUM_VERSION:-1.0.2}
+    image: ghcr.io/antonij-tracium/dashboard:${TRACIUM_VERSION:-1.0.3}
     ports:
       - "127.0.0.1:3000:3000"   # Dashboard UI
     depends_on:

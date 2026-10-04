@@ -7,14 +7,34 @@ Breaking changes require a `schema_version` bump. Additive changes do not.
 
 ## [Unreleased]
 
+---
+
+## [1.0.3] - 2026-10-04
+
 ### Added
 - Node.js example that sends a GenAI-semconv trace without an LLM provider key (`examples/node`)
+- README dashboard GIF and a "Works with" section listing supported instrumentation
 
 ### Changed
 - `docker compose up` pulls the release images pinned by `TRACIUM_VERSION`; `compose.build.yaml` (used by `make up`) builds from source
 - The collector health check is published on host port `13133` instead of `8080`
 - ClickHouse and Postgres are no longer published on the host by default; `make up` publishes them through `compose.dev.yaml`
+- Helm installs use the chart attached to each release; installing with `--wait` is not supported
 - The dashboard package is marked `"type": "module"`
+- Go workspace requires Go 1.26
+- Dependencies: `golang.org/x/crypto` 0.57.0, `go.uber.org/zap` 1.28.0, `@tanstack/react-query` 5.104.0, `jsdom` 30.1.1, `@vitejs/plugin-react` 5.2.0
+- Dashboard image builds on `node:26-alpine`; CI runs Node 24
+- CI actions: `actions/checkout` v7, `actions/setup-go` v7, `docker/build-push-action` v7, `docker/login-action` v4, `docker/setup-qemu-action` v4
+
+### Fixed
+- The Helm chart requests images from `ghcr.io/antonij-tracium`, where releases publish them
+- The workspace upgrade guide checks out the new release before migrating, and configures exporters with an ingest key
+- Demo seed numbers in the READMEs match what the seed script sends
+
+### Removed
+- One-off review reports and harnesses under `deploy/reports` and `deploy/tests`
+- Unused `deploy/config/`, `deploy/.env.example`, `deploy/scripts/wait-for-db.sh`, `spec/codegen/gen-go-models.sh` and pnpm files
+- Enterprise and PII references from the documentation
 
 ---
 
