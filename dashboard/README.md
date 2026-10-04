@@ -72,7 +72,7 @@ npm run seed
 ```
 
 It (1) registers `demo@tracium.ai` / `tracium-demo-1234` and makes it **owner**
-of three workspaces (Production, Staging, Development), then (2) sends ~1,400
+of three workspaces (Production, Staging, Development), then (2) sends ~1,500
 complex multi-step agent traces (tool-calling ReAct loops, parallel fan-out,
 nested sub-agents, retries, successes and failures, full prompt/completion
 content and custom business attributes) over OTLP so the collector prices and
