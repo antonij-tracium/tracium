@@ -25,7 +25,8 @@ upgrading and keep the old images until validation completes.
    LEGACY_INGESTION_PAUSED=true
    ```
 
-4. Set `TRACIUM_VERSION` in `.env` to the new release, run
+4. Check out the new release's source (migrations run from its
+   `collector/schema/`), set `TRACIUM_VERSION` in `.env` to that release, run
    `docker compose pull`, then `docker compose run --rm migrate`. On failure, leave ingestion stopped and
    rerun the migration with the **same workspace ID**. The migration checks its
    saved mapping and rebuilds the new rollup from the retained old states so a
