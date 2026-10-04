@@ -26,6 +26,10 @@ VERSION=1.0.3
 helm install tracium "https://github.com/antonij-tracium/tracium/releases/download/v$VERSION/tracium-$VERSION.tgz"
 ```
 
+Don't pass `--wait`: schema migrations run as a post-install hook, and the API
+and collector only become ready once they finish. The API and collector restart a
+few times while the migration job runs; that is expected.
+
 To install from a checkout instead, run `make sync-generated` and pass
 `--set global.imageTag=<version>`; the source chart's `appVersion` is not a
 release.
