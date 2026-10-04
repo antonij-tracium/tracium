@@ -7,6 +7,10 @@ Breaking changes require a `schema_version` bump. Additive changes do not.
 
 ## [Unreleased]
 
+---
+
+## [1.0.3] - 2026-10-04
+
 ### Added
 - Node.js example that sends a GenAI-semconv trace without an LLM provider key (`examples/node`)
 
