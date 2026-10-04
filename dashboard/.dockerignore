@@ -1,5 +1,5 @@
 # Dependencies are installed inside the image via `npm ci`; never copy the
-# host's node_modules (a pnpm symlink farm here) over it — the overlay can't
+# host's node_modules over it — the overlay can't
 # replace the image's real directories with the host's symlinks.
 node_modules
 

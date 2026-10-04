@@ -84,7 +84,6 @@ jobs:
       - run: npm run build:library
 
   # The pinned TypeScript generator makes contract drift a release-blocking error.
-  # Go models remain hand-written; gen-go-models.sh is not run.
   codegen-sync:
     needs: changes
     if: ${{ needs.changes.outputs.spec == 'true' }}
