@@ -17,7 +17,7 @@ collector:
   # StatefulSet rather than a Deployment.
   replicaCount: 2
   image:
-    repository: ghcr.io/tracium/collector
+    repository: ghcr.io/antonij-tracium/collector
     # tag: overrides global.imageTag if set. Leave empty to use global.imageTag.
     tag: ""
   resources:
@@ -55,7 +55,7 @@ api:
   # replicaCount: number of API pods. Stateless — safe to scale horizontally.
   replicaCount: 2
   image:
-    repository: ghcr.io/tracium/api
+    repository: ghcr.io/antonij-tracium/api
     # tag: overrides global.imageTag if set. Leave empty to use global.imageTag.
     tag: ""
   resources:
@@ -85,7 +85,7 @@ dashboard:
   # replicaCount: number of dashboard pods. Serves static assets — scale as needed.
   replicaCount: 1
   image:
-    repository: ghcr.io/tracium/dashboard
+    repository: ghcr.io/antonij-tracium/dashboard
     # tag: overrides global.imageTag if set. Leave empty to use global.imageTag.
     tag: ""
   resources:
@@ -111,7 +111,7 @@ migrate:
     # repository: image bundling run-migrations.sh plus the psql/curl tooling it
     # needs. Built from deploy/docker/migrate/Dockerfile. The schema SQL
     # is supplied at runtime via a ConfigMap mounted at /migrations.
-    repository: ghcr.io/tracium/migrate
+    repository: ghcr.io/antonij-tracium/migrate
     # tag: overrides global.imageTag if set. Leave empty to use global.imageTag.
     tag: ""
   resources:
