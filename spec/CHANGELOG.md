@@ -7,6 +7,15 @@ Breaking changes require a `schema_version` bump. Additive changes do not.
 
 ## [Unreleased]
 
+### Added
+- Node.js example that sends a GenAI-semconv trace without an LLM provider key (`examples/node`)
+
+### Changed
+- `docker compose up` pulls the release images pinned by `TRACIUM_VERSION`; `docker compose up --build` still builds from source
+- The collector health check is published on host port `13133` instead of `8080`
+- ClickHouse and Postgres are no longer published on the host by default; `make up` publishes them through `compose.dev.yaml`
+- The dashboard package is marked `"type": "module"`
+
 ---
 
 ## [1.0.2] - 2026-10-01
