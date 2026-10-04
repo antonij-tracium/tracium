@@ -26,7 +26,8 @@ docker compose up
 ```
 
 This pulls the release images (amd64 and arm64) pinned by `TRACIUM_VERSION` in
-`.env`. To build from your checkout instead, run `docker compose up --build`.
+`.env`. To build from your checkout instead, run
+`docker compose -f docker-compose.yml -f compose.build.yaml up --build` (or `make up`).
 Schema migrations run automatically before the app services start.
 
 | Service | URL / port | Purpose |

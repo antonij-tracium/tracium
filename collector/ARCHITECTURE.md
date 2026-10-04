@@ -69,7 +69,7 @@ builder --config builder/oss.builder.yaml
 ./_build/collector --config config/collector.yaml
 ```
 
-Or via Docker: `docker compose up collector` (the [Dockerfile](Dockerfile) runs
+Or via Docker: `docker build collector` (the [Dockerfile](Dockerfile) runs
 OCB during the image build). Both require network access to download the
 collector framework.
 

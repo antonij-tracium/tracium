@@ -20,10 +20,10 @@ sync-generated: ## Copy the source-of-truth pricing + schema into the Helm chart
 	cp collector/schema/*.sql collector/schema/*.sh $(CHART_FILES)/schema/
 
 up: ## Build + start the full stack from source, databases exposed on localhost (needs .env)
-	docker compose -f docker-compose.yml -f compose.dev.yaml up --build
+	docker compose -f docker-compose.yml -f compose.build.yaml -f compose.dev.yaml up --build
 
 down: ## Stop the stack
-	docker compose -f docker-compose.yml -f compose.dev.yaml down
+	docker compose -f docker-compose.yml -f compose.build.yaml -f compose.dev.yaml down
 
 helm-lint: sync-generated ## Lint the Helm chart
 	helm lint deploy/helm/tracium

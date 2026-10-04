@@ -28,6 +28,7 @@ const tracer = trace.getTracer("node-example");
 function chat(model, prompt, usage) {
   tracer.startActiveSpan(`chat ${model}`, (span) => {
     span.setAttributes({
+      "traceloop.workflow.name": "summarize-feedback",
       "gen_ai.operation.name": "chat",
       "gen_ai.request.model": model,
       "gen_ai.response.model": model,
