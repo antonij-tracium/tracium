@@ -52,5 +52,3 @@ images. It tests installation with the documented secrets, then applies diagnost
 workarounds in the disposable cluster and attempts PVC persistence. Those
 workarounds do not constitute a successful installation of the unchanged chart.
 The cluster is deleted on exit. Existing user clusters and kubeconfig are untouched.
-
-See [the September 6 findings](../../reports/production-2026-09-06/README.md).

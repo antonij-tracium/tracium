@@ -45,7 +45,7 @@ cached authorization, even with this option enabled.
 
 ## Configuration
 
-Auth is on by default in the shipped [`config/collector.yaml`](../config/collector.yaml):
+Auth is on by default in the shipped [`collector/config/collector.yaml`](../../collector/config/collector.yaml):
 `traciumauth` is listed under `service.extensions` and referenced by both
 receiver protocols, and the `tracium` processor drops any span that somehow
 reaches it unauthenticated. The one setting a deployment must supply is where the

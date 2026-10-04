@@ -48,7 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.work
           cache-dependency-path: |
@@ -75,7 +75,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
           cache-dependency-path: dashboard/package-lock.json
       - run: npm ci --no-audit
@@ -84,7 +84,6 @@ jobs:
       - run: npm run build:library
 
   # The pinned TypeScript generator makes contract drift a release-blocking error.
-  # Go models remain hand-written; gen-go-models.sh is not run.
   codegen-sync:
     needs: changes
     if: ${{ needs.changes.outputs.spec == 'true' }}
@@ -93,7 +92,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 24
       - run: bash spec/codegen/gen-ts-types.sh
       - name: Fail if generated types are stale
         run: git diff --exit-code -- dashboard/src/types

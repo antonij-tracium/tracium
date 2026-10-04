@@ -1,16 +1,18 @@
 # Tracium
 
-**Open-source LLM observability.** Tracium is an OpenTelemetry-native backend for
-LLM apps: point any OTel-instrumented app at it and get accurate cost, token,
+**Open-source, self-hosted LLM observability.** Tracium is an OpenTelemetry-native
+backend for LLM apps: point any OTel-instrumented app at it and get accurate cost, token,
 latency, and error analytics per model, workflow, and end-client, built to stay
 fast from the first span to hundreds of millions.
+
+![Tracium dashboard: overview, workflows, usage and clients](docs/assets/tracium-readme.gif)
 
 It doesn't wrap the OTel SDK, it *is* an OTel backend: any app already exporting
 OTLP can send to Tracium with no code changes.
 
-- **License:** Apache 2.0. Enterprise features (SSO, RBAC, PII redaction, budget
-  controls) ship separately under a commercial license, never in this repo.
-- **Self-hostable:** one `docker compose up` brings up the whole stack.
+- **License:** Apache 2.0.
+- **Self-hosted:** runs on your infrastructure; one `docker compose up` brings up
+  the whole stack, and your prompts and traces never leave it.
 
 ## Quickstart
 
@@ -22,11 +24,13 @@ cd tracium
 cp .env.example .env
 # Fill in JWT_SECRET, CLICKHOUSE_PASSWORD, and POSTGRES_PASSWORD in .env.
 # Generate a separate value for each with: openssl rand -hex 32
-docker compose up --build
+docker compose up
 ```
 
-Everything builds from source; no published images required. Schema migrations
-run automatically before the app services start.
+This pulls the release images (amd64 and arm64) pinned by `TRACIUM_VERSION` in
+`.env`. To build from your checkout instead, run
+`docker compose -f docker-compose.yml -f compose.build.yaml up --build` (or `make up`).
+Schema migrations run automatically before the app services start.
 
 | Service | URL / port | Purpose |
 |---|---|---|
@@ -34,7 +38,7 @@ run automatically before the app services start.
 | API | http://localhost:8090 | REST API (`/v1/...`) the dashboard reads |
 | Collector (OTLP gRPC) | `localhost:4317` | Point your app's OTLP exporter here |
 | Collector (OTLP HTTP) | `localhost:4318` | Same, HTTP/protobuf |
-| Collector (health) | http://localhost:8080/ | Liveness / readiness |
+| Collector (health) | http://localhost:13133/ | Liveness / readiness |
 
 Open the dashboard, create an account, and create your first workspace. Open the
 workspace's **API keys** screen, create a key, and copy the `trc_…` token; it is
@@ -49,8 +53,34 @@ OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer YOUR_API_KEY"
 The key both authenticates the sender and decides which workspace the telemetry
 lands in, so you do not set a workspace attribute. Ingest is key-only: a request
 with no key, or an unknown or revoked one, is rejected with 401 and nothing is
-stored. Runnable Python senders are in [`examples/`](examples/); set
-`TRACIUM_API_KEY` when using those examples.
+stored.
+
+### Works with
+
+Tracium reads the [OpenTelemetry GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/)
+(`gen_ai.request.model`, `gen_ai.usage.input_tokens`, …) and the attributes
+[OpenLLMetry](https://github.com/traceloop/openllmetry) emits, so these work
+without code changes beyond the exporter settings above:
+
+- **OpenLLMetry** (Python and JS/TS): auto-instruments OpenAI, Anthropic,
+  Bedrock, Vertex AI, LangChain, LlamaIndex and more, and its
+  `workflow`/`task`/`agent`/`tool` decorators become Tracium workflows.
+- **OpenTelemetry GenAI instrumentations**, such as
+  `opentelemetry-instrumentation-openai-v2`.
+- **Your own spans**: set the `gen_ai.*` attributes on any OTel span.
+
+Runnable senders are in [`examples/`](examples/); each needs `TRACIUM_API_KEY`:
+
+| Example | What it sends |
+|---|---|
+| [`node/genai-span.mjs`](examples/node/genai-span.mjs) | A two-call workflow with hand-set GenAI attributes; no LLM key needed |
+| [`openai_to_tracium.py`](examples/openai_to_tracium.py) | A multi-step OpenAI agent with tool calls, via OpenLLMetry |
+| [`failed_span_to_tracium.py`](examples/failed_span_to_tracium.py) | A batch job whose last OpenAI call fails |
+
+```bash
+cd examples/node && npm install
+TRACIUM_API_KEY=trc_... npm start
+```
 
 Compose binds published ports to loopback. The dashboard uses its own origin for
 API requests, so it also works through a reverse proxy without rebuilding the
@@ -80,8 +110,7 @@ your app ──OTLP──▶ collector ──▶ ClickHouse ◀── api ◀─
 ```
 
 The collector is a generic OpenTelemetry Collector distribution plus two Tracium
-components; all domain logic sits behind an `enrich.Enricher` seam, so OSS and
-Enterprise differ by exactly one processor module. **Storage split:** ClickHouse
+components; all domain logic sits behind an `enrich.Enricher` seam. **Storage split:** ClickHouse
 holds span/trace data (time-partitioned, daily rollup so query cost tracks the
 window, not total rows); Postgres holds config and accounts.
 
@@ -110,8 +139,7 @@ Each directory has its own `README.md` with the details.
   models, workflows and recent traces. It's a metering label, not an access
   boundary.
 - **Prompt/completion capture is ON by default** (`capture_content: true`) so the
-  viewer can show inputs/outputs; set it off if you don't want that text stored;
-  PII redaction is an Enterprise feature.
+  viewer can show inputs/outputs; set it off if you don't want that text stored.
 
 ## Kubernetes
 

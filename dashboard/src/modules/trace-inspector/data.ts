@@ -87,7 +87,7 @@ export const TRACE_DETAIL: TraceDetail = {
         { name: "users.lookup",      used: false, description: "Resolves a Slack user ID to a profile (name, role, timezone) for personalisation." },
         { name: "memory.recall",     used: false, description: "Searches long-term workflow memory for prior interactions with this user." },
         { name: "rate_limit.check",  used: false, description: "Returns the user's remaining rewrite quota and reset time." },
-        { name: "pii.redact",        used: false, description: "Strips emails, phone numbers, and SSNs from a string before logging." },
+        { name: "links.expand",      used: false, description: "Resolves shortened URLs in the source message to their full targets." },
       ],
     },
     {

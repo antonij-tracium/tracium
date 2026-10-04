@@ -1,5 +1,6 @@
-# Root compose — builds the whole Tracium stack from source in this repo.
-# No pre-published images needed. `cp .env.example .env`, set JWT_SECRET, then up.
+# Root compose — runs the whole Tracium stack from the published release images
+# (TRACIUM_VERSION). Add `-f compose.build.yaml` to build from this checkout.
+# `cp .env.example .env`, fill it in, then up.
 # Schema migrations run automatically: the `migrate` one-shot is a
 # service_completed_successfully dependency of every app service, so `docker
 # compose up` re-runs it (and applies any new migrations) before the collector
@@ -15,10 +16,6 @@ services:
     environment:
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?set CLICKHOUSE_PASSWORD in .env}
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
-    ports:
-      - "127.0.0.1:8123:8123"   # HTTP — for dev tools and health checks
-      # 9000 (native TCP) is intentionally not exposed on the host;
-      # internal services reach it via the Docker network.
     volumes:
       - clickhouse_data:/var/lib/clickhouse
     healthcheck:
@@ -34,8 +31,6 @@ services:
       POSTGRES_USER: tracium
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: tracium
-    ports:
-      - "127.0.0.1:5432:5432"   # exposed so the API can run natively against it during local dev
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -47,8 +42,7 @@ services:
   # ── Migrations ───────────────────────────────────────────────────────────────
 
   migrate:
-    build:
-      context: ./deploy/docker/migrate
+    image: ghcr.io/antonij-tracium/migrate:${TRACIUM_VERSION:-1.0.2}
     environment:
       CLICKHOUSE_HTTP: http://clickhouse:8123
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?set CLICKHOUSE_PASSWORD in .env}
@@ -73,13 +67,11 @@ services:
     # Generic OpenTelemetry Collector distribution assembled by OCB
     # (see collector/builder/oss.builder.yaml). All Tracium-specific
     # behaviour lives in the `tracium` processor + `clickhousespan` exporter.
-    build:
-      context: ./collector
-      dockerfile: Dockerfile
+    image: ghcr.io/antonij-tracium/collector:${TRACIUM_VERSION:-1.0.2}
     ports:
       - "127.0.0.1:4317:4317"   # OTLP gRPC
       - "127.0.0.1:4318:4318"   # OTLP HTTP
-      - "127.0.0.1:8080:8080"   # Health (health_check extension)
+      - "127.0.0.1:13133:8080"  # Health (health_check extension)
     environment:
       CLICKHOUSE_DSN: clickhouse://default:${CLICKHOUSE_PASSWORD:?set CLICKHOUSE_PASSWORD in .env}@clickhouse:9000/tracium
       PRICING_STATIC_PATH: /etc/tracium/pricing.json
@@ -103,9 +95,7 @@ services:
     restart: unless-stopped
 
   api:
-    build:
-      context: ./api
-      dockerfile: Dockerfile
+    image: ghcr.io/antonij-tracium/api:${TRACIUM_VERSION:-1.0.2}
     ports:
       - "127.0.0.1:8090:8090"   # REST API
     environment:
@@ -126,9 +116,7 @@ services:
     restart: unless-stopped
 
   dashboard:
-    build:
-      context: ./dashboard
-      dockerfile: Dockerfile
+    image: ghcr.io/antonij-tracium/dashboard:${TRACIUM_VERSION:-1.0.2}
     ports:
       - "127.0.0.1:3000:3000"   # Dashboard UI
     depends_on:

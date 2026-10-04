@@ -1,16 +1,14 @@
 # deploy/
 
 Infrastructure for running Tracium: the Helm chart, the schema-migration runner,
-and default service configs. **The Docker Compose quickstart lives at the repo
-root** (`docker compose up --build`, see the top-level [README](../README.md));
+and runbooks. **The Docker Compose quickstart lives at the repo
+root** (`docker compose up`, see the top-level [README](../README.md));
 this directory is the Kubernetes/production side plus the shared pieces both use.
 
 ```
 deploy/
   helm/tracium/     Helm chart (StatefulSets, PVCs, ConfigMaps, Ingress)
   docker/migrate/   migration-runner image (also used by the root compose)
-  config/           default collector.yaml / api.yaml
-  scripts/          wait-for-db (rollup repair is now the repair-rollup command in the API image)
   docs/             collector-auth, rollup-repair runbooks
 ```
 

@@ -6,9 +6,7 @@
 // bad span from tracium.spans corrects the short-window (raw-span) reads but
 // leaves the span's contribution baked into the rollups the long windows read.
 // Remediation must clean both: delete the span, then rebuild the affected days
-// here. This is the Go, unit-tested successor to deploy/scripts/repair-rollup.sh;
-// it covers both rollups (the script covered only metrics_daily) and keeps the
-// same safety guards.
+// here. It covers both rollups.
 //
 // The rebuild is delete-then-insert per day, bounded to that day's spans, so it
 // is idempotent (re-running a day converges) and its cost tracks the days asked

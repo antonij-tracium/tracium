@@ -25,18 +25,19 @@ upgrading and keep the old images until validation completes.
    LEGACY_INGESTION_PAUSED=true
    ```
 
-4. With the new source checked out, run `docker compose build`, then
-   `docker compose run --rm migrate`. On failure, leave ingestion stopped and
+4. Check out the new release's source (migrations run from its
+   `collector/schema/`), set `TRACIUM_VERSION` in `.env` to that release, run
+   `docker compose pull`, then `docker compose run --rm migrate`. On failure, leave ingestion stopped and
    rerun the migration with the **same workspace ID**. The migration checks its
    saved mapping and rebuilds the new rollup from the retained old states so a
    retry does not duplicate totals.
 5. Start the new services with `docker compose up -d`. Existing workspace owners
    receive owner memberships automatically. Sign in as the chosen owner and
    verify both recent traces and long-range totals before resuming exporters.
-6. Configure every exporter with
-   `OTEL_RESOURCE_ATTRIBUTES=tracium.workspace.id=THE_WORKSPACE_ID` (append it to
-   any existing attributes). Remove the two `LEGACY_*` settings and resume
-   ingestion. New spans with no workspace ID remain inaccessible in the UI.
+6. Create an API key for the workspace (its **API keys** screen) and configure
+   every exporter to send it as `Authorization: Bearer <key>`. The key decides
+   the workspace, so exporters set no workspace attribute. Remove the two
+   `LEGACY_*` settings and resume ingestion.
 
 Do not restart the old collector after migrating: it still writes `tenant_id`.
 Rollback requires restoring the pre-upgrade databases and old images together.

@@ -38,7 +38,6 @@ spec/
     tracium.yaml          ← tracium.* attributes written by the collector
   codegen/
     gen-ts-types.sh       ← generates TypeScript types in dashboard
-    gen-go-models.sh      ← generates Go model types in api
   CHANGELOG.md            ← all schema and API changes, version-tagged
   README.md               ← this file
 ```
@@ -102,14 +101,12 @@ If your change is breaking, increment the `schema_version` minimum in the
 relevant JSON Schema file. Update any example values and comments referencing
 the version number.
 
-### Step 4: Run the codegen scripts
+### Step 4: Run the codegen script
 
 ```bash
 # Generate TypeScript types for dashboard
 ./codegen/gen-ts-types.sh
 
-# Generate Go model types for api
-./codegen/gen-go-models.sh
 ```
 
 Commit the generated output changes alongside your schema changes.
@@ -135,21 +132,8 @@ Prerequisites: Node.js and `npx` available on your `$PATH`.
 This runs `openapi-typescript` against `api/openapi.yaml` and writes the output
 to `dashboard/src/types/openapi.d.ts`.
 
-### Go model types (api)
-
-Prerequisites: `oapi-codegen` installed.
-
-```bash
-go install github.com/deepmap/oapi-codegen/cmd/oapi-codegen@latest
-```
-
-Then:
-
-```bash
-./codegen/gen-go-models.sh
-```
-
-This writes `api/internal/model/openapi_types.go`.
+The Go models in `api/internal/model` are hand-written; keep them in step with
+the spec by hand.
 
 ---
 
