@@ -16,6 +16,9 @@ Breaking changes require a `schema_version` bump. Additive changes do not.
 - ClickHouse and Postgres are no longer published on the host by default; `make up` publishes them through `compose.dev.yaml`
 - The dashboard package is marked `"type": "module"`
 
+### Fixed
+- The Helm chart requests images from `ghcr.io/antonij-tracium`, where releases publish them
+
 ---
 
 ## [1.0.2] - 2026-10-01
