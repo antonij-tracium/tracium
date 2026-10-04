@@ -3,8 +3,7 @@
 // resolution, per-span cost, model filtering).
 //
 // It is a thin adapter: all domain behaviour lives in the framework-free
-// github.com/tracium/collector/enrich package behind the Enricher seam, so the
-// Enterprise edition can extend enrichment without forking this plumbing.
+// github.com/tracium/collector/enrich package behind the Enricher seam.
 package traciumprocessor
 
 import (
@@ -48,13 +47,12 @@ func createDefaultConfig() component.Config {
 	}
 }
 
-// buildResolvers constructs the OSS pricing and user resolvers from config.
+// buildResolvers constructs the pricing and user resolvers from config.
 // Both the traces enrichment chain and the metrics processor share them, so a
 // single price table and user policy govern spans and metric-derived rows
-// alike. This is the seam the Enterprise edition swaps to inject its own
-// resolvers.
+// alike.
 func buildResolvers(cfg *Config, logger *zap.Logger) (pricing.Resolver, user.Resolver, error) {
-	// Pricing source (OSS: static).
+	// Pricing source: static.
 	prices := pricing.DefaultPrices()
 	if cfg.Pricing.StaticFilePath != "" {
 		loaded, err := pricing.LoadStaticFile(cfg.Pricing.StaticFilePath)
@@ -73,11 +71,11 @@ func buildResolvers(cfg *Config, logger *zap.Logger) (pricing.Resolver, user.Res
 	}
 	pricingResolver := pricing.NewStaticResolver(prices)
 
-	// User source (OSS: passthrough — the attribute value is the user ID).
+	// User source: passthrough, the attribute value is the user ID.
 	// Passthrough is a no-op lookup, so it is used directly, never wrapped in the
 	// cache: caching an identity operation keyed by a sender-supplied label would
 	// grow memory without bound for no benefit. NewCachedResolver (bounded LRU) is
-	// for the Enterprise resolver that performs a costly external lookup.
+	// for resolvers that perform a costly external lookup.
 	var userResolver user.Resolver
 	if cfg.User.Source == "passthrough" || cfg.User.Source == "" {
 		userResolver = user.Passthrough{}
@@ -86,8 +84,7 @@ func buildResolvers(cfg *Config, logger *zap.Logger) (pricing.Resolver, user.Res
 	return pricingResolver, userResolver, nil
 }
 
-// buildChain turns the validated Config into the OSS enrichment chain. This is
-// the function the Enterprise edition overrides/wraps to inject its enrichers.
+// buildChain turns the validated Config into the enrichment chain.
 func buildChain(cfg *Config, logger *zap.Logger) (*enrich.Chain, error) {
 	pricingResolver, userResolver, err := buildResolvers(cfg, logger)
 	if err != nil {
@@ -132,8 +129,7 @@ func createTracesProcessor(
 
 // buildDeadLetter selects the dead-letter store: an NDJSON file when the
 // operator configured a path (drops are then recoverable), otherwise the log
-// store, which keeps every drop visible with zero configuration. This is the
-// seam the Enterprise edition swaps to persist drops elsewhere.
+// store, which keeps every drop visible with zero configuration.
 func buildDeadLetter(cfg *Config, logger *zap.Logger) (deadletter.Store, error) {
 	if path := cfg.DeadLetter.Path; path != "" {
 		return deadletter.NewFileStore(path)

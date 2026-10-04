@@ -15,11 +15,10 @@ OTLP (gRPC/HTTP)  →  [otlp receiver]  →  [tracium processor]  →  [batch]  
    upstream              upstream            Tracium             upstream          Tracium
 ```
 
-## The open-core seam
+## The enrichment seam
 
-The whole point of this layout is a clean OSS / Enterprise split. **All domain
-logic is expressed as `enrich.Enricher` implementations** in the framework-free
-[`enrich/`](enrich/) package:
+**All domain logic is expressed as `enrich.Enricher` implementations** in the
+framework-free [`enrich/`](enrich/) package:
 
 ```go
 type Enricher interface {
@@ -28,16 +27,11 @@ type Enricher interface {
 }
 ```
 
-- **OSS** registers [`enrich.DefaultChain`](enrich/enrichers.go): static pricing,
-  pass-through user, optional model allow-list.
-- **Enterprise** ships a second processor that composes on top of the OSS chain
-  with its own enrichers (dynamic per-user pricing, real user-store lookups,
-  quotas, PII redaction) behind the *same* interface. It lives in a separate
-  private repo; none of it is in this repo.
+The processor registers [`enrich.DefaultChain`](enrich/enrichers.go): static
+pricing, pass-through user, optional model allow-list. New behaviour is a new
+`Enricher` added to that chain; the collector plumbing doesn't change.
 
-This OSS edition is assembled by [`builder/oss.builder.yaml`](builder/oss.builder.yaml).
-The Enterprise edition uses its own OCB manifest (in the private enterprise repo)
-that is identical except it adds that one processor module.
+The distribution is assembled by [`builder/oss.builder.yaml`](builder/oss.builder.yaml).
 
 Because `enrich/` has **no dependency on the collector framework**, it compiles
 and unit-tests without network access (`go test ./enrich/...`). The framework
@@ -49,15 +43,15 @@ own Go module (the standard OTel component layout).
 
 ```
 collector/
-├── enrich/                       # ← domain logic + open-core seam (framework-free, tested)
+├── enrich/                       # ← domain logic + enrichment seam (framework-free, tested)
 ├── internal/
-│   ├── pricing/  user/         # resolvers used by the OSS enrichers
+│   ├── pricing/  user/         # resolvers used by the enrichers
 │   ├── writer/                   # ClickHouse writer reused by the exporter
 │   └── errors/                   # span/transient error taxonomy
 ├── pkg/spanmodel/                # the plain Span struct the chain operates on
 ├── processor/traciumprocessor/   # OTel processor adapter (own module)
 ├── exporter/clickhousespanexporter/  # OTel exporter adapter (own module)
-├── builder/                      # OCB manifests: oss + ee
+├── builder/                      # OCB manifest
 ├── config/collector.yaml         # generic collector runtime config
 └── schema/                       # ClickHouse DDL (unchanged)
 ```
@@ -68,7 +62,7 @@ collector/
 # Install the builder, pinned to the manifest's otelcol_version.
 go install go.opentelemetry.io/collector/cmd/builder@v0.116.0
 
-# OSS distribution → ./_build/collector
+# Collector distribution → ./_build/collector
 builder --config builder/oss.builder.yaml
 
 # Run it

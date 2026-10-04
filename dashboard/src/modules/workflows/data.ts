@@ -31,7 +31,7 @@ export const WORKFLOW_META: Record<string, WorkflowMeta> = {
     tools: [
       { name: "thread.fetch",    used: true,  description: "Loads the full comment thread with author and timestamp metadata." },
       { name: "sentiment.score", used: true,  description: "Returns per-comment sentiment for the digest header." },
-      { name: "pii.redact",      used: true,  description: "Strips emails and phone numbers before summarisation." },
+      { name: "quote.trim",      used: true,  description: "Drops quoted replies so each comment is summarised once." },
       { name: "glossary.lookup", used: false, description: "Expands workspace-specific acronyms found in the thread." },
     ],
   },

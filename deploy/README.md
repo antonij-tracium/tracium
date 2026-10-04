@@ -2,7 +2,7 @@
 
 Infrastructure for running Tracium: the Helm chart, the schema-migration runner,
 and default service configs. **The Docker Compose quickstart lives at the repo
-root** (`docker compose up --build`, see the top-level [README](../README.md));
+root** (`docker compose up`, see the top-level [README](../README.md));
 this directory is the Kubernetes/production side plus the shared pieces both use.
 
 ```

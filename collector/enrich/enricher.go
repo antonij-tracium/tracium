@@ -1,15 +1,10 @@
 // Package enrich holds Tracium's domain-specific span enrichment logic,
 // deliberately kept free of any OpenTelemetry Collector framework imports.
 //
-// This is the open-core seam. The generic collector plumbing (receiving OTLP,
-// batching, retry/queue, exporting) lives in upstream OTel components; the only
-// Tracium-specific behaviour is expressed here as a chain of Enrichers that
-// operate on the plain spanmodel.Span struct.
-//
-//   - The OSS edition registers DefaultEnrichers (see enrichers.go).
-//   - The Enterprise edition registers the same chain plus its own Enrichers
-//     (dynamic pricing, multi-user resolution, quotas, …) behind this same
-//     interface — no fork of the plumbing required.
+// The generic collector plumbing (receiving OTLP, batching, retry/queue,
+// exporting) lives in upstream OTel components; the only Tracium-specific
+// behaviour is expressed here as a chain of Enrichers that operate on the plain
+// spanmodel.Span struct. DefaultChain (see enrichers.go) assembles the chain.
 //
 // Because nothing here depends on the collector framework, the whole package
 // compiles and is unit-tested without network access; the framework adapter
@@ -51,8 +46,7 @@ func NewChain(enrichers ...Enricher) *Chain {
 	return &Chain{enrichers: enrichers}
 }
 
-// Enrichers returns the underlying enrichers in execution order. Useful for the
-// Enterprise edition to compose on top of the OSS defaults.
+// Enrichers returns the underlying enrichers in execution order.
 func (c *Chain) Enrichers() []Enricher { return c.enrichers }
 
 // Result reports what Apply decided to do with a span.

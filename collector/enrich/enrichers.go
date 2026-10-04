@@ -11,13 +11,8 @@ import (
 	"github.com/tracium/collector/pkg/spanmodel"
 )
 
-// DefaultChain assembles the OSS enrichment chain in the canonical order:
+// DefaultChain assembles the enrichment chain in the canonical order:
 // validate → normalize model → resolve user → resolve pricing → filter.
-//
-// The Enterprise edition can call this and wrap or extend the result, e.g.
-//
-//	base := enrich.DefaultChain(cfg)
-//	chain := enrich.NewChain(append(base.Enrichers(), ee.QuotaEnricher{}, ee.PIIRedactor{})...)
 //
 // pricingResolver and userResolver may be nil; the corresponding step is then
 // skipped (useful in local dev). allowedModels may be empty to allow all models.
@@ -156,7 +151,7 @@ func (e UserEnricher) Enrich(ctx context.Context, span *spanmodel.Span) error {
 
 // PricingEnricher sets span.CostUSD from token usage via the Resolver. A missing
 // price is non-fatal: the cost is recorded as 0 rather than dropping the span,
-// matching the OSS pricing policy.
+// matching the pricing policy.
 //
 // A cost the instrumentation reported itself (gen_ai.usage.cost) is ignored
 // unless TrustReportedCost is set. A valid ingest key authenticates the sender

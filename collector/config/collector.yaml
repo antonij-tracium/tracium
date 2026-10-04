@@ -23,8 +23,7 @@ receivers:
         auth: { authenticator: traciumauth }
 
 processors:
-  # Tracium LLM-span enrichment. OSS sources only; the Enterprise build accepts
-  # additional pricing/user sources here.
+  # Tracium LLM-span enrichment.
   tracium:
     pricing:
       source: static

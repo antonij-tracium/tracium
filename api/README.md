@@ -52,6 +52,8 @@ go test ./...
 Config comes from env vars and is validated at startup: a missing DSN or
 `JWT_SECRET` exits the process with a listed error rather than starting in a
 degraded state. Copy [`.env.example`](.env.example) to `.env` for local dev.
+`make up` from the repo root publishes ClickHouse (8123) and Postgres (5432) on
+localhost for this.
 
 | Env | Required | Notes |
 |---|---|---|
