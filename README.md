@@ -5,6 +5,8 @@ backend for LLM apps: point any OTel-instrumented app at it and get accurate cos
 latency, and error analytics per model, workflow, and end-client, built to stay
 fast from the first span to hundreds of millions.
 
+![Tracium dashboard: overview, workflows, usage and clients](docs/assets/tracium-readme.gif)
+
 It doesn't wrap the OTel SDK, it *is* an OTel backend: any app already exporting
 OTLP can send to Tracium with no code changes.
 
