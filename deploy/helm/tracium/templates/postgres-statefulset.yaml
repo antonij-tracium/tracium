@@ -1,10 +1,3 @@
-{{- $sts := lookup "apps/v1" "StatefulSet" .Release.Namespace (printf "%s-postgres" (include "tracium.fullname" .)) }}
-{{- $pgdataSubdir := not $sts }}
-{{- range (dig "spec" "template" "spec" "containers" list $sts) }}
-{{- range (.env | default list) }}
-{{- if eq .name "PGDATA" }}{{ $pgdataSubdir = true }}{{ end }}
-{{- end }}
-{{- end }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -29,6 +22,18 @@ spec:
       containers:
         - name: postgres
           image: postgres:16-alpine
+          # New volumes keep data in a subdirectory, since a block volume's root
+          # holds lost+found; volumes already initialized at the root stay there.
+          command:
+            - sh
+            - -c
+            - |
+              if [ -s /var/lib/postgresql/data/PG_VERSION ]; then
+                export PGDATA=/var/lib/postgresql/data
+              else
+                export PGDATA=/var/lib/postgresql/data/pgdata
+              fi
+              exec docker-entrypoint.sh postgres
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
           ports:
             - name: postgres
@@ -44,11 +49,6 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.postgres.existingSecret }}
                   key: {{ .Values.postgres.existingSecretKey }}
-            {{- if $pgdataSubdir }}
-            # A subdirectory, because a fresh block volume's root holds lost+found.
-            - name: PGDATA
-              value: /var/lib/postgresql/data/pgdata
-            {{- end }}
           readinessProbe:
             exec:
               command: ["pg_isready", "-U", "tracium"]
