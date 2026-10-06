@@ -5,10 +5,11 @@
 #   builder --config builder/oss.builder.yaml
 #
 # This assembles a *generic* OpenTelemetry Collector from upstream components
-# (OTLP receiver, batch processor, health-check extension) plus the two Tracium
-# components that carry all domain logic:
+# (OTLP receiver, health-check and file-storage extensions) plus the Tracium
+# components:
 #   - processors.tracium       — LLM-span enrichment (cost, user, filter)
 #   - exporters.clickhousespan — writes the tracium.spans schema to ClickHouse
+#   - extensions.traciumauth   — verifies per-workspace ingest API keys
 
 dist:
   name: tracium-collector
@@ -20,7 +21,6 @@ receivers:
   - gomod: go.opentelemetry.io/collector/receiver/otlpreceiver v0.116.0
 
 processors:
-  - gomod: go.opentelemetry.io/collector/processor/batchprocessor v0.116.0
   - gomod: github.com/tracium/collector/processor/traciumprocessor v0.0.0
     path: ./processor/traciumprocessor
 

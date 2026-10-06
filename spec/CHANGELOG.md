@@ -14,6 +14,12 @@ Breaking changes require a `schema_version` bump. Additive changes do not.
 
 ### Changed
 - A span rejected for a missing ingest key is no longer attributed to the workspace its sender claimed
+- `tracium.rejected_spans` rows expire after `RETENTION_DAYS`, like spans (migration 013)
+- The collector no longer bundles the unused `batch` processor; batching runs inside the `clickhousespan` exporter
+
+### Fixed
+- `span.json` documents `workspace_id` as set from the verified ingest key and `model_normalized` as lower-cased only, with no alias resolution
+- `span.json` lists `workflow_name`, `service_name`, `source` and `attributes`, and `available_tools` names `gen_ai.tool.definitions` as a source
 
 ---
 
