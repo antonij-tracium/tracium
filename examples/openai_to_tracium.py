@@ -34,7 +34,7 @@ strictly additive: set TRACIUM_ENABLE_METRICS=0 — or just run against a
 collector with no metrics pipeline — and everything falls back to span-only,
 exactly as before.
 
-Run the stack first:   docker compose up -d collector clickhouse postgres api
+Run the stack first:   docker compose up -d
 Create an ingest key in the dashboard (or POST /v1/workspaces/{id}/api-keys), then:
                        export OPENAI_API_KEY=sk-...
                        export TRACIUM_API_KEY=trc_...   # authenticates ingest + picks the workspace

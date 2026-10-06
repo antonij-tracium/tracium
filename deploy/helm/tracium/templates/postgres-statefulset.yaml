@@ -22,6 +22,18 @@ spec:
       containers:
         - name: postgres
           image: postgres:16-alpine
+          # New volumes keep data in a subdirectory, since a block volume's root
+          # holds lost+found; volumes already initialized at the root stay there.
+          command:
+            - sh
+            - -c
+            - |
+              if [ -s /var/lib/postgresql/data/PG_VERSION ]; then
+                export PGDATA=/var/lib/postgresql/data
+              else
+                export PGDATA=/var/lib/postgresql/data/pgdata
+              fi
+              exec docker-entrypoint.sh postgres
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
           ports:
             - name: postgres
