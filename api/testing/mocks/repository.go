@@ -99,22 +99,22 @@ func (m *MockTraceRepository) GetSpans(_ context.Context, traceID string, worksp
 // tests. Each method returns its preset field (and the shared Err), so tests
 // can assert serialization without a database.
 type MockMetricsRepository struct {
-	KPIs          model.KPISet
-	Cost          []model.CostPoint
-	Latency       []model.LatencyPoint
-	Errors        []model.ErrorPoint
-	Workflows        []model.WorkflowCost
-	WorkflowRows     []model.Workflow
-	WorkflowDetailV  model.WorkflowDetail
-	FailureItems  []model.Failure
-	FailuresTotal int64
-	Models        []model.ModelCost
-	Users         []model.UserUsage
-	WorkflowUsages   []model.WorkflowUsage
-	AttrKeys      []string
-	AttrUsage     []model.AttributeUsage
-	AnomalyItems  []model.Anomaly
-	Checks        []model.SetupCheck
+	KPIs            model.KPISet
+	Cost            []model.CostPoint
+	Latency         []model.LatencyPoint
+	Errors          []model.ErrorPoint
+	Workflows       []model.WorkflowCost
+	WorkflowRows    []model.Workflow
+	WorkflowDetailV model.WorkflowDetail
+	FailureItems    []model.Failure
+	FailuresTotal   int64
+	Models          []model.ModelCost
+	Users           []model.UserUsage
+	WorkflowUsages  []model.WorkflowUsage
+	AttrKeys        []string
+	AttrUsage       []model.AttributeUsage
+	AnomalyItems    []model.Anomaly
+	Checks          []model.SetupCheck
 
 	Err error
 }

@@ -1,4 +1,3 @@
-// ---------------------------------------------------------------------------
 // WorkflowDetailPage — single-workflow detail (from the workflow.html design).
 //
 // Pure presentational component: it renders exactly the props it is handed. The
@@ -9,7 +8,6 @@
 // Health/status and anomaly detection are intentionally omitted: no workflow
 // status pill, no "needs attention" banner, no anomaly markers on the charts.
 // Run-level completed/failed (a trace outcome, not workflow health) is kept.
-// ---------------------------------------------------------------------------
 
 import React from 'react';
 import {
@@ -24,10 +22,6 @@ import {
 } from '../../../common';
 import type { RunRow } from '../../../common';
 import type { CostPoint, LatencyPoint, ErrorPoint } from '../../../common/interfaces';
-
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
 
 /** One row in the Configuration panel. Callers supply whatever they can source. */
 export interface WorkflowConfigRow {
@@ -78,11 +72,7 @@ const ERR_WARN = 0.005;
 
 type Tone = 'bad' | 'warn' | 'good' | undefined;
 
-// ---------------------------------------------------------------------------
-// Stat tile
-// ---------------------------------------------------------------------------
-
-function ADStat({
+function DetailStat({
   label,
   value,
   sub,
@@ -120,11 +110,7 @@ function ADStat({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Config key/value row
-// ---------------------------------------------------------------------------
-
-function ADMetaRow({ label, value, mono, accent }: WorkflowConfigRow) {
+function DetailMetaRow({ label, value, mono, accent }: WorkflowConfigRow) {
   return (
     <div
       style={{
@@ -157,10 +143,6 @@ function ADMetaRow({ label, value, mono, accent }: WorkflowConfigRow) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// WorkflowDetailPage
-// ---------------------------------------------------------------------------
-
 export function WorkflowDetailPage(props: WorkflowDetailPageProps) {
   const {
     name, version, description, range,
@@ -181,7 +163,6 @@ export function WorkflowDetailPage(props: WorkflowDetailPageProps) {
 
   return (
     <div style={{ padding: '32px 40px 64px', maxWidth: 1480, margin: '0 auto' }}>
-      {/* ── Header ─────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24, marginBottom: 22 }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
@@ -210,7 +191,6 @@ export function WorkflowDetailPage(props: WorkflowDetailPageProps) {
         </div>
       </div>
 
-      {/* ── Stats strip ────────────────────────────────────────────────── */}
       <div
         style={{
           display: 'grid',
@@ -220,15 +200,14 @@ export function WorkflowDetailPage(props: WorkflowDetailPageProps) {
           margin: '4px 0 32px',
         }}
       >
-        <ADStat isFirst label="Total runs" value={fmtNum(calls)} sub={rangeLabel} />
-        <ADStat label="Completed" value={fmtNum(completed)} />
-        <ADStat label="Failed" value={fmtNum(failed)} tone={failed > 0 ? errTone : undefined} />
-        <ADStat label="Success rate" value={calls > 0 ? fmtPct((completed / calls) * 100) : '—'} tone={calls > 0 ? errTone : undefined} />
-        <ADStat label="Total cost" value={fmtCost(cost)} sub={calls > 0 ? `${fmtCost(cost / calls)} / run avg` : undefined} />
-        <ADStat label="p95 latency" value={p95Ms == null ? '—' : `${(p95Ms / 1000).toFixed(1)}s`} tone={p95Ms != null && p95Ms > 8000 ? 'warn' : undefined} />
+        <DetailStat isFirst label="Total runs" value={fmtNum(calls)} sub={rangeLabel} />
+        <DetailStat label="Completed" value={fmtNum(completed)} />
+        <DetailStat label="Failed" value={fmtNum(failed)} tone={failed > 0 ? errTone : undefined} />
+        <DetailStat label="Success rate" value={calls > 0 ? fmtPct((completed / calls) * 100) : '—'} tone={calls > 0 ? errTone : undefined} />
+        <DetailStat label="Total cost" value={fmtCost(cost)} sub={calls > 0 ? `${fmtCost(cost / calls)} / run avg` : undefined} />
+        <DetailStat label="p95 latency" value={p95Ms == null ? '—' : `${(p95Ms / 1000).toFixed(1)}s`} tone={p95Ms != null && p95Ms > 8000 ? 'warn' : undefined} />
       </div>
 
-      {/* ── Charts row — single frame split by divider ─────────────────── */}
       <div
         className="ad-charts"
         style={{ borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', marginBottom: 44 }}
@@ -259,7 +238,6 @@ export function WorkflowDetailPage(props: WorkflowDetailPageProps) {
         </div>
       </div>
 
-      {/* ── Failed runs strip ──────────────────────────────────────────── */}
       <div style={{ marginBottom: 44 }}>
         <div
           style={{
@@ -284,7 +262,6 @@ export function WorkflowDetailPage(props: WorkflowDetailPageProps) {
         <HorizonStrip data={errorSeries} height={44} />
       </div>
 
-      {/* ── Recent runs + config ─────────────────────────────────── */}
       <div className="ad-split">
         {/* Recent runs */}
         <div style={{ minWidth: 0 }}>
@@ -300,7 +277,7 @@ export function WorkflowDetailPage(props: WorkflowDetailPageProps) {
             Configuration
           </div>
           {configRows.map((row) => (
-            <ADMetaRow key={row.label} {...row} />
+            <DetailMetaRow key={row.label} {...row} />
           ))}
         </div>
       </div>

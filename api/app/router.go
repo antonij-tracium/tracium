@@ -21,14 +21,11 @@ func newRouter(cfg Config, repo query.Repository, wsStore workspace.Store, invit
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService, wsStore)
 	inviteHandler := handler.NewInviteHandler(inviteStore, wsStore, opts.Entitlements, opts.Invites)
 	services := extension.Services{Mail: opts.Mail, Entitlements: opts.Entitlements, Workspaces: wsStore}
-	// ── Handlers ─────────────────────────────────────────────────────────────
 
 	traceHandler := handler.NewTraceHandler(repo, wsStore)
 	spanHandler := handler.NewSpanHandler(repo, wsStore)
 	metricsHandler := handler.NewMetricsHandler(repo, wsStore)
 	healthHandler := handler.NewHealthHandler(healthChecks...)
-
-	// ── Router ────────────────────────────────────────────────────────────────
 
 	r := chi.NewRouter()
 

@@ -30,10 +30,6 @@ export const durationFormatter = new DurationFormatter();
 export const costFormatter = new CostFormatter();
 export const tokenFormatter = new TokenFormatter();
 
-// ---------------------------------------------------------------------------
-// Quick inline helpers — used in JSX
-// ---------------------------------------------------------------------------
-
 export const fmtCost = (n: number): string => {
   if (n === 0) return '$0.00';
   if (n < 0.01) return '$' + n.toFixed(4);

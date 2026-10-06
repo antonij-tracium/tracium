@@ -19,10 +19,6 @@ export interface TraceViewProps {
   onOpenUser?: (user: string) => void;
 }
 
-// ---------------------------------------------------------------------------
-// MiniStat
-// ---------------------------------------------------------------------------
-
 interface MiniStatProps {
   label: string;
   value: string | number;
@@ -41,10 +37,6 @@ function MiniStat({ label, value, sub, tone, isFirst }: MiniStatProps) {
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// MetaRow
-// ---------------------------------------------------------------------------
 
 interface MetaRowProps {
   label: string;
@@ -82,10 +74,6 @@ function MetaRow({ label, value, mono, onClick }: MetaRowProps) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// CodeBlock
-// ---------------------------------------------------------------------------
-
 function CodeBlock({ children, maxHeight = 220 }: { children: string; maxHeight?: number }) {
   return (
     <pre style={{
@@ -101,10 +89,6 @@ function CodeBlock({ children, maxHeight = 220 }: { children: string; maxHeight?
   );
 }
 
-// ---------------------------------------------------------------------------
-// EmptyBlock — dashed placeholder for absent input/output
-// ---------------------------------------------------------------------------
-
 function EmptyBlock({ children }: { children: string }) {
   return (
     <div style={{ padding: '28px 18px', border: '1px dashed var(--border)', borderRadius: 10, color: 'var(--muted)', fontSize: 14, textAlign: 'center' }}>
@@ -112,10 +96,6 @@ function EmptyBlock({ children }: { children: string }) {
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// SectionLabel
-// ---------------------------------------------------------------------------
 
 function SectionLabel({ children, tone, style }: { children: string; tone?: 'error'; style?: React.CSSProperties }) {
   return (
@@ -125,10 +105,6 @@ function SectionLabel({ children, tone, style }: { children: string; tone?: 'err
     }}>{children}</div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// SpanTypeTag
-// ---------------------------------------------------------------------------
 
 // Tag/dot colour per span role. Shared by SpanTypeTag, spanColor and the legend
 // so a role reads the same everywhere. agent/internal stay muted in the
@@ -183,10 +159,6 @@ function spanColor(span: SpanDetail): string {
   if (span.type === 'agent' || span.type === 'internal') return 'var(--muted)';
   return TYPE_COLORS[span.type] ?? 'var(--muted)';
 }
-
-// ---------------------------------------------------------------------------
-// AvailableToolsList
-// ---------------------------------------------------------------------------
 
 function AvailableToolsList({ tools }: { tools: AvailableTool[] }) {
   const [showAll, setShowAll] = useState(false);
@@ -245,10 +217,6 @@ function AvailableToolsList({ tools }: { tools: AvailableTool[] }) {
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// SpanInspector
-// ---------------------------------------------------------------------------
 
 function SpanInspector({ span, error }: { span: SpanDetail | undefined; error: TraceDetail['error'] }) {
   if (!span) return null;
@@ -350,10 +318,6 @@ function SpanInspector({ span, error }: { span: SpanDetail | undefined; error: T
   );
 }
 
-// ---------------------------------------------------------------------------
-// HeaderButton
-// ---------------------------------------------------------------------------
-
 function HeaderButton({ children, primary, onClick }: { children: React.ReactNode; primary?: boolean; onClick?: () => void }) {
   return (
     <button onClick={onClick} style={{
@@ -366,10 +330,6 @@ function HeaderButton({ children, primary, onClick }: { children: React.ReactNod
     }}>{children}</button>
   );
 }
-
-// ---------------------------------------------------------------------------
-// TraceView — the shared presentational trace detail page
-// ---------------------------------------------------------------------------
 
 export function TraceView({ trace: t, setView, onOpenUser }: TraceViewProps) {
   // Guard against zero-duration traces (single instantaneous span) so the
@@ -732,10 +692,6 @@ export function TraceView({ trace: t, setView, onOpenUser }: TraceViewProps) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// SpanRow — one timeline row (label, metrics, gantt bar)
-// ---------------------------------------------------------------------------
-
 interface SpanRowProps {
   span: SpanDetail;
   isLast: boolean;
@@ -846,10 +802,6 @@ function SpanRow({ span, isLast, isActive, isCollapsed, isHidden, totalDuration,
     </button>
   );
 }
-
-// ---------------------------------------------------------------------------
-// LegendDot
-// ---------------------------------------------------------------------------
 
 function LegendDot({ color, label }: { color: string; label: string }) {
   return (

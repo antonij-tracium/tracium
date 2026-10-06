@@ -1,7 +1,3 @@
-// ---------------------------------------------------------------------------
-// ApiKeysPage — API key management: list, create, reveal, revoke
-// Inline styles only (no CSS modules).
-// ---------------------------------------------------------------------------
 
 import React, { useState, useMemo, useEffect } from 'react';
 import {
@@ -20,20 +16,12 @@ import { useApiKeys, useDemoApiKeys } from '../hooks/useApiKeys';
 import type { UseApiKeysResult } from '../hooks/useApiKeys';
 import type { ApiKeyRecord, CreatedApiKey } from '../../../common/api';
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 export interface ApiKeysPageProps {
   /** Seed the demo keys (auth-page preview). A real workspace starts with none. */
   demo?: boolean;
   /** The workspace to manage keys for, in the live (non-demo) page. */
   workspaceId?: string;
 }
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 interface SectionHeadProps {
   title: string;
@@ -98,10 +86,6 @@ function SectionHead({ title, hint, right, first = false }: SectionHeadProps) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// KPI tile
-// ---------------------------------------------------------------------------
-
 function fmtDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
@@ -118,8 +102,6 @@ function fmtLastUsed(iso: string | null): string {
   if (Number.isNaN(d.getTime())) return '—';
   return relativeTime(d.getTime());
 }
-
-// --- Field label -----------------------------------------------------------
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -138,7 +120,6 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-// --- InlineCreateForm ------------------------------------------------------
 // Inline, flat create form shown in the page flow at all times (no modal).
 
 interface InlineCreateFormProps {
@@ -204,7 +185,6 @@ function InlineCreateForm({ onCreate, submitting, error }: InlineCreateFormProps
   );
 }
 
-// --- InlineReveal ----------------------------------------------------------
 // Inline, flat one-time token reveal. Shown in the page flow after a key is
 // created (no modal); the token box itself is a mono code field, not a card.
 
@@ -354,7 +334,6 @@ function InlineReveal({ created, onClose }: InlineRevealProps) {
   );
 }
 
-// --- RevokeConfirmRow ------------------------------------------------------
 // Inline, flat confirmation shown directly beneath the key being revoked (no
 // modal). A left accent rule in the error colour flags the danger.
 
@@ -440,8 +419,6 @@ function RevokeConfirmRow({ target, onCancel, onConfirm, submitting, error }: Re
     </div>
   );
 }
-
-// --- LiveKeyRow ------------------------------------------------------------
 
 const LIVE_COLS = [
   { label: 'Name',       w: 'minmax(200px,1.6fr)', align: 'left'  as const },
@@ -595,8 +572,6 @@ function LiveKeyRow({ k, isLast, confirming, onRevoke }: LiveKeyRowProps) {
     </div>
   );
 }
-
-// --- LiveApiKeysPage -------------------------------------------------------
 
 // ApiKeysView is the presentational page: it owns the create/reveal/revoke UI
 // state and renders whatever key data it is handed. The data source is injected

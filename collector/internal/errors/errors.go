@@ -2,11 +2,6 @@ package errors
 
 import "fmt"
 
-// ---------------------------------------------------------------------------
-// SpanError — permanent, unrecoverable problems with a single span.
-// Spans that produce a SpanError are sent to the dead-letter store.
-// ---------------------------------------------------------------------------
-
 // SpanErrorCode identifies what went wrong with a span.
 type SpanErrorCode string
 
@@ -43,11 +38,9 @@ func (e *SpanError) Error() string {
 
 func (e *SpanError) Unwrap() error { return e.Cause }
 
-// ---------------------------------------------------------------------------
 // TransientError — temporary infrastructure failures.
 // Retryable errors may be retried by the pipeline; non-retryable errors cause
 // the span to be dropped silently.
-// ---------------------------------------------------------------------------
 
 // TransientErrorCode identifies the nature of a transient failure.
 type TransientErrorCode string
@@ -55,7 +48,7 @@ type TransientErrorCode string
 const (
 	ErrDatabaseUnavailable TransientErrorCode = "database_unavailable"
 	ErrPricingUnavailable  TransientErrorCode = "pricing_unavailable"
-	ErrUserLookupFailed  TransientErrorCode = "user_lookup_failed"
+	ErrUserLookupFailed    TransientErrorCode = "user_lookup_failed"
 	ErrWriteTimeout        TransientErrorCode = "write_timeout"
 )
 
@@ -76,10 +69,6 @@ func (e *TransientError) Error() string {
 
 func (e *TransientError) Unwrap() error { return e.Cause }
 
-// ---------------------------------------------------------------------------
-// Constructors
-// ---------------------------------------------------------------------------
-
 // InvalidSpan creates a SpanError with no cause.
 func InvalidSpan(code SpanErrorCode, msg string) *SpanError {
 	return &SpanError{Code: code, Message: msg}
@@ -94,10 +83,6 @@ func InvalidSpanf(code SpanErrorCode, format string, args ...any) *SpanError {
 func TransientWrap(code TransientErrorCode, msg string, err error, retryable bool) *TransientError {
 	return &TransientError{Code: code, Message: msg, Cause: err, Retryable: retryable}
 }
-
-// ---------------------------------------------------------------------------
-// Inspectors
-// ---------------------------------------------------------------------------
 
 // IsSpanError reports whether err (or any in its chain) is a *SpanError.
 func IsSpanError(err error) bool {

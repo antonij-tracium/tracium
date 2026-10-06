@@ -1,4 +1,3 @@
-// ---------------------------------------------------------------------------
 // UsageLivePage — the signed-in usage view, fed by the metrics API. Mirrors
 // OverviewLivePage: each section loads independently (Section handles its
 // spinner / error), and an empty workspace shows the "No usage yet" state. The
@@ -7,7 +6,6 @@
 // Spend / Runs reuse the overview KPI + series endpoints; the three breakdowns
 // (models, users, workflows) have their own usage endpoints. Per-row change vs
 // the previous period comes straight from the *_prev fields the API returns.
-// ---------------------------------------------------------------------------
 
 import { useState } from 'react';
 import { EmptyState, periodLabel, useMaxWidth, BREAKPOINTS } from '../../../common';
@@ -75,8 +73,6 @@ const toAttributeSummaries = (rows: AttributeUsage[]): AttributeSummary[] =>
     runsPrev: 0,
     avg: r.runs > 0 ? r.cost / r.runs : 0,
   }));
-
-// ── Page ────────────────────────────────────────────────────────────────────
 
 export function UsageLivePage({ range, setView, setSelected }: UsageLivePageProps) {
   const [tab, setTab] = useState<BreakdownTab>('user');

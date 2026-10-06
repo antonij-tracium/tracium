@@ -438,7 +438,7 @@ func workflowNameFilter(workflow string) string {
 	return "\nWHERE name = ?"
 }
 
-// TopWorkflows returns the highest-spending workflows in the window. An workflow is the
+// TopWorkflows returns the highest-spending workflows in the window. A workflow is the
 // trace's derived workflow (see workflowExpr).
 func (r *ClickHouseRepository) TopWorkflows(ctx context.Context, f MetricsFilter, limit int) ([]model.WorkflowCost, error) {
 	ctx, cancel := r.withTimeout(ctx)
@@ -507,7 +507,7 @@ const workflowsCacheGrid = time.Minute
 
 // ListWorkflows returns the most active workflows in the window for the Workflows page:
 // per workflow its run count, total spend, mean run latency, error rate, last trace,
-// and a per-bucket call-count sparkline. An workflow is the trace's derived workflow
+// and a per-bucket call-count sparkline. A workflow is the trace's derived workflow
 // (see workflowExpr).
 //
 // Two efficiency measures (the page is read often, by many dashboards at once):
@@ -634,7 +634,7 @@ WHERE name = ?`, workflowExpr, modelExpr, clause)
 	if err != nil {
 		return model.WorkflowDetail{}, fmt.Errorf("clickhouse: workflow detail: %w", err)
 	}
-	// The outer aggregate always returns one row; an workflow with no runs in the
+	// The outer aggregate always returns one row; a workflow with no runs in the
 	// window comes back as zero calls, which is a 404, not an empty detail.
 	if d.Calls == 0 {
 		return model.WorkflowDetail{}, ErrNotFound

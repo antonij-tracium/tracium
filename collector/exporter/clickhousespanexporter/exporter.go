@@ -54,7 +54,7 @@ const (
 	// Dotted to match the key the tracium processor writes on enriched spans
 	// (writeBack → tracium.user.id). The underscore form left span rows with
 	// an empty user_id in the processor→exporter pipeline.
-	attrUserID        = "tracium.user.id"
+	attrUserID          = "tracium.user.id"
 	attrWorkspaceID     = "tracium.workspace.id"
 	attrCostUSD         = "tracium.cost_usd"
 	attrModelNormalized = "tracium.model_normalized"
@@ -128,7 +128,7 @@ func fromOTLP(s ptrace.Span, serviceName string, resourceAttrs pcommon.Map, trus
 		FinishReason:        finishReason(attrs),
 		Kind:                spanKind(attrs, model, usage.InputTokens, usage.OutputTokens),
 		CostUSD:             cost,
-		UserID:            strAttr(attrs, attrUserID),
+		UserID:              strAttr(attrs, attrUserID),
 		WorkspaceID:         workspaceID(attrs, resourceAttrs),
 		SchemaVersion:       int(intAttr(attrs, attrSchemaVersion)),
 		ErrorType:           errType,

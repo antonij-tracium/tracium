@@ -1,9 +1,7 @@
-// ---------------------------------------------------------------------------
 // WorkflowsLivePage — the signed-in Workflows view, fed by GET /v1/metrics/workflows.
 // It owns the data fetch (the page is the composition layer) and hands the
 // resolved list to the presentational WorkflowsPage. Loading / error / empty are
 // handled here so WorkflowsPage stays a pure renderer.
-// ---------------------------------------------------------------------------
 
 import type { ReactNode } from 'react';
 import { EmptyState, Spinner } from '../../../common';

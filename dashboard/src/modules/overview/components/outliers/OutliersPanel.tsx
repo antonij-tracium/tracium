@@ -7,7 +7,7 @@
 // Two views share the same rows:
 //   • List — one row per flagged bucket (design 1).
 //   • Grouped — flags for the same target on the same day collapse into one
-//     incident card (design 2); a single bad day for an workflow usually trips cost,
+//     incident card (design 2); a single bad day for a workflow usually trips cost,
 //     errors and volume together, and that reads as one event.
 //
 // Selection is controlled by the page so a chart flag and this panel stay in sync
@@ -150,10 +150,6 @@ export function OutliersPanel({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Header — title, live count, and the List / Grouped toggle + legend.
-// ---------------------------------------------------------------------------
-
 function Header({
   count,
   incidentCount,
@@ -238,11 +234,6 @@ function ViewToggle({ view, onView }: { view: ViewMode; onView: (v: ViewMode) =>
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// List row — one flagged bucket. Collapsed: severity, what/where/when, observed
-// vs baseline, magnitude bar, z. Expanded: the flag math + actions.
-// ---------------------------------------------------------------------------
 
 function OutlierRow({
   anomaly: a,
@@ -343,10 +334,6 @@ function OutlierRow({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Incident card (grouped view) — every flag for one target on one day.
-// ---------------------------------------------------------------------------
-
 function IncidentCard({
   incident,
   range,
@@ -444,10 +431,6 @@ function IncidentCard({
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Shared pieces
-// ---------------------------------------------------------------------------
 
 const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 

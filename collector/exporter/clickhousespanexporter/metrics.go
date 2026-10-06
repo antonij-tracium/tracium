@@ -16,14 +16,14 @@ import (
 // dotted tracium.user.id the processor writes, distinct from the legacy
 // underscore key fromOTLP reads for spans.
 const (
-	metricTokenUsage     = "gen_ai.client.token.usage"
-	attrMetricTokenType  = "gen_ai.token.type"
-	attrMetricModel      = "gen_ai.response.model"
-	attrMetricModelAlt   = "llm.response.model"
-	attrMetricUserID   = "tracium.user.id"
+	metricTokenUsage      = "gen_ai.client.token.usage"
+	attrMetricTokenType   = "gen_ai.token.type"
+	attrMetricModel       = "gen_ai.response.model"
+	attrMetricModelAlt    = "llm.response.model"
+	attrMetricUserID      = "tracium.user.id"
 	attrMetricWorkspaceID = "tracium.workspace.id"
-	attrMetricCostUSD    = "tracium.cost_usd"
-	attrMetricNormalized = "tracium.model_normalized"
+	attrMetricCostUSD     = "tracium.cost_usd"
+	attrMetricNormalized  = "tracium.model_normalized"
 )
 
 // pushMetrics turns each enriched gen_ai.client.token.usage data point into a

@@ -1,8 +1,4 @@
 import type { SettingsSection } from '../../../extensions';
-// ---------------------------------------------------------------------------
-// SettingsPage — Account, Workspace, Danger Zone
-// Inline styles only (no CSS modules).
-// ---------------------------------------------------------------------------
 
 import React, { useEffect, useRef, useState } from 'react';
 import type { TabId } from '../ids';
@@ -23,10 +19,6 @@ import {
 import { useAPIClient } from '../../../common/providers/APIProvider';
 import { APIError, inviteLink, type CreatedInvite, type WorkspaceMember } from '../../../common/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-
-// ---------------------------------------------------------------------------
-// Exported page props
-// ---------------------------------------------------------------------------
 
 export interface WorkspaceDraft {
   name: string;
@@ -51,10 +43,6 @@ export interface SettingsPageProps {
   /** The real signed-in account. Used when not in demo mode. */
   account?: Account | null;
 }
-
-// ---------------------------------------------------------------------------
-// Static mock data
-// ---------------------------------------------------------------------------
 
 interface SettingsUser {
   name: string;
@@ -86,10 +74,6 @@ const SET_WORKSPACE: SettingsWorkspace = {
   members: 12,
 };
 
-// ---------------------------------------------------------------------------
-// Tab definitions
-// ---------------------------------------------------------------------------
-
 interface TabDef {
   id: TabId;
   label: string;
@@ -103,10 +87,6 @@ const SET_TABS: TabDef[] = [
   { id: 'members',       label: 'Members',        icon: <IconUsers size={14} /> },
   { id: 'danger',        label: 'Danger zone',    icon: <IconTrash size={14} /> },
 ];
-
-// ---------------------------------------------------------------------------
-// Shared primitives
-// ---------------------------------------------------------------------------
 
 interface SectionHeadProps {
   title: string;
@@ -309,10 +289,6 @@ function Segmented({ value, onChange, options }: SegmentedProps) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Tab rail
-// ---------------------------------------------------------------------------
-
 interface TabRailProps {
   sections: readonly SettingsSection[];
   tab: TabId;
@@ -373,10 +349,6 @@ function TabRail({ sections, tab, setTab, horizontal = false, demo = false }: Ta
     </aside>
   );
 }
-
-// ---------------------------------------------------------------------------
-// VIEW: Account
-// ---------------------------------------------------------------------------
 
 interface AccountViewProps {
   user: SettingsUser;
@@ -516,10 +488,6 @@ function AccountView({ user, demo }: AccountViewProps) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// VIEW: Create workspace
-// ---------------------------------------------------------------------------
-
 function slugify(s: string): string {
   return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
@@ -600,10 +568,6 @@ function CreateWorkspaceView({ onCreate, onCancel }: CreateWorkspaceViewProps) {
     </form>
   );
 }
-
-// ---------------------------------------------------------------------------
-// VIEW: Workspace
-// ---------------------------------------------------------------------------
 
 interface WorkspaceViewProps {
   ws: SettingsWorkspace;
@@ -727,10 +691,6 @@ function WorkspaceView({ ws, demo = false, justCreated = false, onOpenOverview, 
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// VIEW: Members
-// ---------------------------------------------------------------------------
 
 function errorMessage(err: unknown, fallback: string): string {
   return err instanceof APIError ? err.message : fallback;
@@ -875,10 +835,6 @@ function MembersView({ workspace, account }: MembersViewProps) {
   </div>;
 }
 
-// ---------------------------------------------------------------------------
-// VIEW: Danger Zone
-// ---------------------------------------------------------------------------
-
 type DangerVariant = 'secondary' | 'danger';
 
 interface DangerItem {
@@ -936,10 +892,6 @@ function DangerView() {
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Page shell
-// ---------------------------------------------------------------------------
 
 export default function SettingsPage({
   sections = [],
