@@ -63,7 +63,7 @@ func (h *TraceHandler) ListTraces(w http.ResponseWriter, r *http.Request) {
 		filter.Model = model
 	}
 
-	// workflow restricts the listing to one derived workflow — powers an workflow's
+	// workflow restricts the listing to one derived workflow — powers a workflow's
 	// "recent runs". Bounded like any listing by the range window above.
 	if workflow := q.Get("workflow"); workflow != "" {
 		filter.Workflow = workflow

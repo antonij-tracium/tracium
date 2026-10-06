@@ -1,9 +1,5 @@
 import React from 'react';
 
-// ---------------------------------------------------------------------------
-// Icon base
-// ---------------------------------------------------------------------------
-
 export interface IconProps {
   d: string | React.ReactNode;
   size?: number;
@@ -30,10 +26,6 @@ export function Icon({ d, size = 16, stroke = 1.5, style }: IconProps) {
 }
 
 export type IconOnlyProps = Omit<IconProps, 'd'>;
-
-// ---------------------------------------------------------------------------
-// Named icon exports
-// ---------------------------------------------------------------------------
 
 export const IconHome         = (p: IconOnlyProps) => <Icon d="M3 10.5L12 3l9 7.5V20a1 1 0 01-1 1h-5v-7h-6v7H4a1 1 0 01-1-1v-9.5z" {...p} />;
 export const IconWorkflows       = (p: IconOnlyProps) => <Icon d="M4 6h7v7H4zM13 11h7v7h-7zM13 4h7M4 17h7" {...p} />;
@@ -62,10 +54,6 @@ export const IconUser         = (p: IconOnlyProps) => <Icon d="M20 21v-2a4 4 0 0
 export const IconClock        = (p: IconOnlyProps) => <Icon d="M12 22a10 10 0 100-20 10 10 0 000 20zM12 6v6l4 2" {...p} />;
 export const IconLogout       = (p: IconOnlyProps) => <Icon d="M15 3h4a1 1 0 011 1v16a1 1 0 01-1 1h-4M10 17l5-5-5-5M15 12H3" {...p} />;
 export const IconMenu         = (p: IconOnlyProps) => <Icon d="M4 6h16M4 12h16M4 18h16" {...p} />;
-
-// ---------------------------------------------------------------------------
-// IconDot
-// ---------------------------------------------------------------------------
 
 export function IconDot({ size = 6, color = 'currentColor' }: { size?: number; color?: string }) {
   return (

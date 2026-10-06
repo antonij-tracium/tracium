@@ -1,24 +1,10 @@
-// ---------------------------------------------------------------------------
-// UserDetailPage — per-user detail: cost chart, health, workflows, traces
-// Inline styles only (no CSS modules).
-// ---------------------------------------------------------------------------
-
 import React, { useState, useMemo } from 'react';
-import { USAGE_DATA } from '../data';
 import { USERS } from './UsersPage';
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 export interface UserDetailPageProps {
   selected: Record<string, string>;
   setView: (v: string) => void;
 }
-
-// ---------------------------------------------------------------------------
-// Local mock data
-// ---------------------------------------------------------------------------
 
 interface WorkflowRow {
   workflow: string;
@@ -68,10 +54,6 @@ const TD_RECENT_TRACES: RecentTrace[] = [
   { id: "t_d8f4b2bf", workflow: "classify-intent",     status: "completed", started: "Apr 18 · 09:40:50", cost: 0.0001, latency:  741 },
 ];
 
-// ---------------------------------------------------------------------------
-// Cost series generator (deterministic, derived from user trend)
-// ---------------------------------------------------------------------------
-
 interface CostSeriesPoint { day: number; cost: number; runs: number }
 
 function makeCostSeries(seed: number, weeklyTrend: number[]): CostSeriesPoint[] {
@@ -85,10 +67,6 @@ function makeCostSeries(seed: number, weeklyTrend: number[]): CostSeriesPoint[] 
     };
   });
 }
-
-// ---------------------------------------------------------------------------
-// Section header
-// ---------------------------------------------------------------------------
 
 interface TdSectionHeadProps {
   title: string;
@@ -114,10 +92,6 @@ function TdSectionHead({ title, hint, right, first = false }: TdSectionHeadProps
     </header>
   );
 }
-
-// ---------------------------------------------------------------------------
-// User header
-// ---------------------------------------------------------------------------
 
 interface User {
   id: string;
@@ -198,10 +172,6 @@ function TdHeader({ user, setView }: TdHeaderProps) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// KPI strip
-// ---------------------------------------------------------------------------
-
 interface TdKpiStripProps { user: User }
 
 function TdKpiStrip({ user }: TdKpiStripProps) {
@@ -232,10 +202,6 @@ function TdKpiStrip({ user }: TdKpiStripProps) {
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Cost over time chart
-// ---------------------------------------------------------------------------
 
 interface TdCostChartProps { series: CostSeriesPoint[]; height?: number }
 
@@ -291,10 +257,6 @@ function TdCostChart({ series, height = 200 }: TdCostChartProps) {
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Workflow breakdown table
-// ---------------------------------------------------------------------------
 
 type WorkflowSortKey = keyof Pick<WorkflowRow, 'workflow' | 'calls' | 'success' | 'failed' | 'p95' | 'cost' | 'avg' | 'growth'>;
 
@@ -400,10 +362,6 @@ function TdWorkflowTable() {
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Recent traces table
-// ---------------------------------------------------------------------------
 
 type TraceFilterKey = 'all' | TraceStatus;
 
@@ -526,10 +484,6 @@ function TdTracesTable({ setView, setSelected }: TdTracesTableProps) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Connection info
-// ---------------------------------------------------------------------------
-
 interface TdConnectionProps { user: User }
 
 function TdConnection({ user }: TdConnectionProps) {
@@ -555,22 +509,13 @@ function TdConnection({ user }: TdConnectionProps) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Page
-// ---------------------------------------------------------------------------
-
 export function UserDetailPage({ selected, setView }: UserDetailPageProps) {
   const userId = selected.user ?? "";
 
-  // Find user in the richer USERS array; fall back to first entry
   const userFull = useMemo(() => {
     return USERS.find(t => t.id === userId) ?? USERS[0];
   }, [userId]);
 
-  // Also satisfy USAGE_DATA import requirement from spec
-  void USAGE_DATA;
-
-  // Derive a User-compatible object from USERS data (already has all fields)
   const user: User = userFull;
 
   const series = useMemo(

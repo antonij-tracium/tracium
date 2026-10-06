@@ -1,8 +1,6 @@
-// ---------------------------------------------------------------------------
 // OverviewPage — the demo overview shown in the logged-out auth-page preview.
 // It renders the shared editorial sections from static demo data and a
 // simulated live feed. The live (signed-in) variant is OverviewLivePage.
-// ---------------------------------------------------------------------------
 
 import { useEffect, useState } from 'react';
 import {
@@ -89,11 +87,6 @@ function buildDemoOutliers(cost: { value: number }[]): { axisMs: number[]; anoma
   return { axisMs, anomalies };
 }
 
-// ---------------------------------------------------------------------------
-// Simulated live feed — ages existing rows and prepends a fresh event so the
-// activity list ticks like a real stream.
-// ---------------------------------------------------------------------------
-
 const FEED_WORKFLOWS = ['summarize-comments', 'classify-intent', 'detect-sentiment', 'moderate-content', 'extract-entities', 'rewrite-message'];
 const FEED_ERRORS = ['rate_limit_exceeded', 'timeout', 'context_length'];
 const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
@@ -123,10 +116,6 @@ function useSimulatedFeed(): ActivityItem[] {
 
   return items;
 }
-
-// ---------------------------------------------------------------------------
-// OverviewPage (demo)
-// ---------------------------------------------------------------------------
 
 export function OverviewPage({ range, setView, setSelected, tweaks }: OverviewPageProps) {
   const feedPosition = tweaks.feedPosition ?? 'right';

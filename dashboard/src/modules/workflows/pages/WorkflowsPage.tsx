@@ -1,4 +1,3 @@
-// ---------------------------------------------------------------------------
 // WorkflowsPage — sortable, filterable workflow list (from the workflows.html design).
 //
 // Pure presentational component: it renders whatever `workflows` it is handed. The
@@ -6,7 +5,6 @@
 // list via WorkflowsLivePage. Health/status and "needs attention" features are
 // intentionally omitted: no status column, no status filter pills, no "needs
 // attention" stat tile.
-// ---------------------------------------------------------------------------
 
 import React, { useMemo, useState } from 'react';
 import {
@@ -20,10 +18,6 @@ import {
   fmtMs,
 } from '../../../common';
 import type { Workflow } from '../interfaces';
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 export interface WorkflowsPageProps {
   workflows: Workflow[];
@@ -44,10 +38,6 @@ const GRID_COLS = '2fr 1fr 100px 100px 100px 80px';
 // Error-rate thresholds (fractions): above 2% reads as an error, above 0.5% as a warning.
 const ERR_BAD = 0.02;
 const ERR_WARN = 0.005;
-
-// ---------------------------------------------------------------------------
-// SmallStat — a single tile in the summary strip
-// ---------------------------------------------------------------------------
 
 function SmallStat({
   label,
@@ -92,10 +82,6 @@ function SmallStat({
   );
 }
 
-// ---------------------------------------------------------------------------
-// SortHeader — a clickable, sortable column header
-// ---------------------------------------------------------------------------
-
 function SortHeader({
   label,
   k,
@@ -133,10 +119,6 @@ function SortHeader({
     </button>
   );
 }
-
-// ---------------------------------------------------------------------------
-// WorkflowsPage
-// ---------------------------------------------------------------------------
 
 export function WorkflowsPage({ workflows, setView, setSelected, workspaceName, updatedAt }: WorkflowsPageProps) {
   const [sortKey, setSortKey] = useState<SortKey>('calls');
@@ -177,7 +159,6 @@ export function WorkflowsPage({ workflows, setView, setSelected, workspaceName, 
 
   return (
     <div style={{ padding: '32px 40px 64px', maxWidth: 1480, margin: '0 auto' }}>
-      {/* ── Header ─────────────────────────────────────────────────────── */}
       <div
         style={{
           display: 'flex',
@@ -206,7 +187,6 @@ export function WorkflowsPage({ workflows, setView, setSelected, workspaceName, 
         {updatedAt != null && <LastUpdated at={updatedAt} />}
       </div>
 
-      {/* ── Summary strip ──────────────────────────────────────────────── */}
       <div
         style={{
           display: 'grid',
@@ -221,7 +201,6 @@ export function WorkflowsPage({ workflows, setView, setSelected, workspaceName, 
         <SmallStat label="Most expensive" value={topCost?.name ?? '—'} sub={topCost ? fmtCost(topCost.cost) : undefined} />
       </div>
 
-      {/* ── Search ─────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
         <div
           style={{
@@ -253,7 +232,6 @@ export function WorkflowsPage({ workflows, setView, setSelected, workspaceName, 
         </div>
       </div>
 
-      {/* ── Table ──────────────────────────────────────────────────────── */}
       <div>
         <div
           style={{
@@ -290,10 +268,6 @@ export function WorkflowsPage({ workflows, setView, setSelected, workspaceName, 
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// WorkflowRow — isolated so hover state is per-row
-// ---------------------------------------------------------------------------
 
 function WorkflowRow({ workflow: a, isLast, onOpen }: { workflow: Workflow; isLast: boolean; onOpen: () => void }) {
   const [hovered, setHovered] = useState(false);

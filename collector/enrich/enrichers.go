@@ -34,10 +34,6 @@ func DefaultChain(
 // spans and token-usage metrics enforce identical limits. See that package for
 // the rationale behind each bound.
 
-// ---------------------------------------------------------------------------
-// ValidateEnricher — rejects spans missing required identity/timing fields.
-// ---------------------------------------------------------------------------
-
 // ValidateEnricher fails fast on structurally invalid spans. It must run first.
 type ValidateEnricher struct{}
 
@@ -89,10 +85,6 @@ func (ValidateEnricher) Enrich(_ context.Context, span *spanmodel.Span) error {
 	return nil
 }
 
-// ---------------------------------------------------------------------------
-// NormalizeModelEnricher — canonicalises the model name and schema version.
-// ---------------------------------------------------------------------------
-
 // NormalizeModelEnricher lower-cases, trims and sanitises the model name into
 // ModelNormalized, which downstream pricing and filtering rely on — and which
 // the daily rollup stores in a LowCardinality column.
@@ -109,10 +101,6 @@ func (NormalizeModelEnricher) Enrich(_ context.Context, span *spanmodel.Span) er
 	}
 	return nil
 }
-
-// ---------------------------------------------------------------------------
-// UserEnricher — resolves the user ID when not already set on the span.
-// ---------------------------------------------------------------------------
 
 // UserEnricher fills span.UserID via the configured Resolver. A nil Resolver
 // leaves any existing UserID untouched (e.g. when tenancy is carried in OTLP
@@ -144,10 +132,6 @@ func (e UserEnricher) Enrich(ctx context.Context, span *spanmodel.Span) error {
 	span.UserID = userID
 	return nil
 }
-
-// ---------------------------------------------------------------------------
-// PricingEnricher — computes USD cost from token counts.
-// ---------------------------------------------------------------------------
 
 // PricingEnricher sets span.CostUSD from token usage via the Resolver. A missing
 // price is non-fatal: the cost is recorded as 0 rather than dropping the span,
@@ -192,10 +176,6 @@ func (e PricingEnricher) Enrich(ctx context.Context, span *spanmodel.Span) error
 	span.CostUSD = cost
 	return nil
 }
-
-// ---------------------------------------------------------------------------
-// FilterEnricher — drops spans whose model is not in the allow-list.
-// ---------------------------------------------------------------------------
 
 // FilterEnricher discards spans from models outside allowedModels. An empty
 // allow-list permits every model.
