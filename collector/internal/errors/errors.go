@@ -23,6 +23,7 @@ const (
 )
 
 // SpanError represents a permanent validation or parsing failure for one span.
+// Spans that produce one are sent to the dead-letter store.
 type SpanError struct {
 	Code    SpanErrorCode
 	Message string
@@ -37,10 +38,6 @@ func (e *SpanError) Error() string {
 }
 
 func (e *SpanError) Unwrap() error { return e.Cause }
-
-// TransientError — temporary infrastructure failures.
-// Retryable errors may be retried by the pipeline; non-retryable errors cause
-// the span to be dropped silently.
 
 // TransientErrorCode identifies the nature of a transient failure.
 type TransientErrorCode string
