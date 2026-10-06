@@ -6,7 +6,7 @@ import { TopBar } from '../TopBar';
 import { CommandPalette } from '../CommandPalette';
 import { OverviewPage, OverviewLivePage } from '../../overview';
 import { WorkflowsPage, WorkflowsLivePage, WorkflowDetailDemoPage, WorkflowDetailLivePage, WORKFLOWS } from '../../workflows';
-import { TraceDetailDashPage, TRACE_DETAIL } from '../../trace-inspector';
+import { TraceDetailDashPage } from '../../trace-inspector';
 import { TraceDetailView } from '../../trace-explorer';
 import { UsersPage, UsersLivePage, UserDetailPage, UsagePage, UsageLivePage, USERS } from '../../usage';
 import { UserDetailLivePage } from '../../usage/pages/UserDetailLivePage';
@@ -291,7 +291,7 @@ export function Dashboard({ embedded = false, onLogout, extensions = EMPTY_EXTEN
   const breadcrumb = useMemo((): BreadcrumbItem[] => {
     const page = pages.find(p => p.id === view);
     if (page) return [{ label: page.label }];
-    if (view === 'trace')      return [{ label: 'Overview', onClick: () => setView('overview') }, { label: selected.traceId ?? TRACE_DETAIL.id }];
+    if (view === 'trace')      return [{ label: 'Overview', onClick: () => setView('overview') }, { label: selected.traceId ?? 'Trace' }];
     if (view === 'workflows')     return selected.workflow
       ? [{ label: 'Workflows', onClick: () => { setSelected(s => { const n = { ...s }; delete n.workflow; return n; }); setView('workflows'); } }, { label: selected.workflow }]
       : [{ label: 'Workflows' }];

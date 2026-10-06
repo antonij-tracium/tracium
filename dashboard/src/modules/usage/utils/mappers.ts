@@ -14,7 +14,7 @@ const MODEL_COLORS = ['var(--accent)', '#7aa5ff', '#c08aff', '#f5a524', '#6366f1
 function bucketLabel(ms: number, range: string): string {
   const d = new Date(ms);
   if (range === '24h') return `${String(d.getHours()).padStart(2, '0')}:00`;
-  return `${d.getMonth() + 1}/${d.getDate()}`;
+  return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
 }
 
 // Split a Kpi into the strip's display delta + tone. Neutral (no baseline) shows

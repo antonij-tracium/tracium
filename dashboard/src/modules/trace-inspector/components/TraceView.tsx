@@ -474,7 +474,7 @@ export function TraceView({ trace: t, setView, onOpenUser }: TraceViewProps) {
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24, flexWrap: 'wrap', marginBottom: 24 }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, fontSize: 13, flexWrap: 'wrap' }}>
-            <span onClick={() => setView('workflows')} style={{ color: 'var(--muted)', cursor: 'pointer' }}>Workflows</span>
+            <button type="button" onClick={() => setView('workflows')} style={{ all: 'unset', color: 'var(--muted)', cursor: 'pointer' }}>Workflows</button>
             <span style={{ color: 'var(--muted)', opacity: 0.4 }}>/</span>
             <span style={{ color: 'var(--muted)' }}>{t.workflow}</span>
             <span style={{ color: 'var(--muted)', opacity: 0.4 }}>/</span>
