@@ -56,4 +56,10 @@ describe('SetupChecks', () => {
     expect(screen.queryByText(unmetered.message)).toBeNull();
     expect(screen.getByText(rejected.message)).toBeTruthy();
   });
+
+  it('ignores corrupt muted-check storage', () => {
+    localStorage.setItem('tracium_muted_checks_ws-1', '{not json');
+    renderChecks([unmetered]);
+    expect(screen.getByText('1 potential setup issue in the last 24 hours')).toBeTruthy();
+  });
 });

@@ -21,10 +21,19 @@ const linkStyle = {
 
 const mutedKey = (workspaceId: string) => `tracium_muted_checks_${workspaceId}`;
 
+function readMuted(workspaceId: string): Set<string> {
+  try {
+    const codes: unknown = JSON.parse(localStorage.getItem(mutedKey(workspaceId)) ?? '[]');
+    return new Set(Array.isArray(codes) ? codes.filter((c): c is string => typeof c === 'string') : []);
+  } catch {
+    return new Set();
+  }
+}
+
 export function SetupChecks({ checks, workspaceId, onOpenTrace }: SetupChecksProps) {
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
-  const [muted, setMuted] = useState<Set<string>>(() => new Set(JSON.parse(localStorage.getItem(mutedKey(workspaceId)) ?? '[]')));
+  const [muted, setMuted] = useState(() => readMuted(workspaceId));
 
   const visible = checks.filter((c) => !dismissed.has(c.code) && !muted.has(c.code));
   if (visible.length === 0) return null;
@@ -32,7 +41,11 @@ export function SetupChecks({ checks, workspaceId, onOpenTrace }: SetupChecksPro
   const dismiss = (...codes: string[]) => setDismissed((s) => new Set([...s, ...codes]));
   const mute = (code: string) => {
     const next = new Set(muted).add(code);
-    localStorage.setItem(mutedKey(workspaceId), JSON.stringify([...next]));
+    try {
+      localStorage.setItem(mutedKey(workspaceId), JSON.stringify([...next]));
+    } catch {
+      // Storage unavailable: the mute still applies for this session.
+    }
     setMuted(next);
   };
   // Checks arrive most severe first.
@@ -45,7 +58,7 @@ export function SetupChecks({ checks, workspaceId, onOpenTrace }: SetupChecksPro
         <span style={{ flex: 1, color: 'var(--foreground)' }}>
           {visible.length} potential setup issue{visible.length === 1 ? '' : 's'} in the last 24 hours
         </span>
-        <button style={linkStyle} onClick={() => setOpen((o) => !o)}>{open ? 'Hide' : 'Review'}</button>
+        <button style={linkStyle} aria-expanded={open} onClick={() => setOpen((o) => !o)}>{open ? 'Hide' : 'Review'}</button>
         <button style={linkStyle} onClick={() => dismiss(...visible.map((c) => c.code))}>Dismiss</button>
       </div>
       {open && (
