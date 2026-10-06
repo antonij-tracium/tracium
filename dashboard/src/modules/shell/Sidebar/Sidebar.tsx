@@ -33,7 +33,7 @@ interface SidebarProps {
   workspaces: Workspace[];
   setWorkspace: (ws: Workspace) => void;
   createWorkspace: () => void;
-  deleteWorkspace: (id: string) => void;
+  deleteWorkspace: (id: string) => Promise<void>;
   embedded?: boolean;
   /** Logs the account out. Hidden when absent (e.g. the embedded preview). */
   onLogout?: () => void;

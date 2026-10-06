@@ -22,7 +22,7 @@ describe('deltaParts', () => {
 
 describe('toDailySeries', () => {
   it('pairs cost and run buckets by position', () => {
-    const day = new Date(2026, 8, 24).getTime();
+    const day = Date.UTC(2026, 8, 24);
     const series = toDailySeries([{ bucket_ms: day, value: 2 }], [{ bucket_ms: day, total: 7, errors: 1 }], '7d');
     expect(series).toEqual([{ day: 1, label: '9/24', cost: 2, runs: 7 }]);
   });

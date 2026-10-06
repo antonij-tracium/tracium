@@ -7,7 +7,7 @@ interface WorkspaceSwitcherProps {
   workspaces: Workspace[];
   setWorkspace: (ws: Workspace) => void;
   createWorkspace: () => void;
-  deleteWorkspace: (id: string) => void;
+  deleteWorkspace: (id: string) => Promise<void>;
 }
 
 const ENV_COLOR: Record<Workspace['env'], string> = {
@@ -221,14 +221,15 @@ export function WorkspaceSwitcher({
                 {active && (
                   <IconCheck size={13} style={{ color: 'var(--accent)', flexShrink: 0 }} />
                 )}
-                <button
+                {ws.role.toLowerCase() === 'owner' && <button
                   aria-label={`Delete ${ws.name} workspace`}
                   title={`Delete ${ws.name}`}
                   onClick={(e) => {
                     e.stopPropagation();
-                    deleteWorkspace(ws.id);
+                    if (!window.confirm(`Delete ${ws.name}? This can’t be undone.`)) return;
+                    deleteWorkspace(ws.id).catch(() => window.alert(`Could not delete ${ws.name}. Please try again.`));
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--danger, #f87171)')}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--error)')}
                   onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--muted)')}
                   style={{
                     display: 'grid',
@@ -245,7 +246,7 @@ export function WorkspaceSwitcher({
                   }}
                 >
                   <IconTrash size={13} />
-                </button>
+                </button>}
               </div>
             );
           })}

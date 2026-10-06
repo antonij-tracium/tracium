@@ -8,7 +8,6 @@ import {
   IconSettings,
   IconSearch,
   IconChevronRight,
-  IconAlert,
 } from '../../../common';
 import type { CommandAction } from '../interfaces';
 
@@ -31,11 +30,6 @@ const CMD_ITEMS: CmdItemData[] = [
   { label: 'Clients', icon: <IconUsers size={14} />, action: { view: 'users' } },
   { label: 'API Keys', icon: <IconKey size={14} />, action: { view: 'keys' } },
   { label: 'Settings', icon: <IconSettings size={14} />, action: { view: 'settings' } },
-  {
-    label: 'Failed trace: rewrite-message',
-    icon: <IconAlert size={14} />,
-    action: { view: 'trace', trace: 't_a9f2' },
-  },
 ];
 
 export function CommandPalette({
@@ -128,7 +122,7 @@ export function CommandPalette({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKey}
-            placeholder="Search views, traces, workflows…"
+            placeholder="Search views…"
             style={{
               flex: 1,
               background: 'transparent',

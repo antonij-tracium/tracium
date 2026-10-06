@@ -47,6 +47,10 @@ export function TraceDetailView({ traceId, setView, setSelected }: TraceDetailVi
     setSelected(s => ({ ...s, user }));
     setView('user');
   };
-  return <TraceView key={data.trace_id} trace={toTraceView(data)} setView={setView} onOpenUser={openUser} />;
+  const navigate = (v: string) => {
+    if (v === 'workflows') setSelected(s => { const n = { ...s }; delete n.workflow; return n; });
+    setView(v);
+  };
+  return <TraceView key={data.trace_id} trace={toTraceView(data)} setView={navigate} onOpenUser={openUser} />;
 }
 

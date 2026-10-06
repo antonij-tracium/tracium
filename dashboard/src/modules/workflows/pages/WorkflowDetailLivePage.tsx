@@ -83,7 +83,7 @@ export function WorkflowDetailLivePage({ workflowName, range, setView, setSelect
       </Centered>
     );
   }
-  if (detail.isError || !detail.data) {
+  if (!detail.data) {
     return <Centered>Failed to load workflow</Centered>;
   }
 

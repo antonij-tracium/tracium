@@ -12,6 +12,7 @@ export class DurationFormatter implements Formatter<number> {
 
 export class CostFormatter implements Formatter<number> {
   format(usd: number): string {
+    if (usd === 0) return '$0.00';
     if (usd < 0.001) return '< $0.001';
     if (usd < 0.01) return `$${usd.toFixed(4)}`;
     return `$${usd.toFixed(2)}`;
