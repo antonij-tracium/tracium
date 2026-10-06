@@ -15,12 +15,12 @@ type ClickHouseWriter struct {
 	conn clickhouse.Conn
 }
 
-// NewClickHouseWriter opens a connection to ClickHouse using the native
-// interface and verifies it with a ping.
 // ErrRowRejected marks a batch that failed because a row could not be encoded,
 // which retrying will not fix.
 var ErrRowRejected = errors.New("row rejected")
 
+// NewClickHouseWriter opens a connection to ClickHouse using the native
+// interface and verifies it with a ping.
 func NewClickHouseWriter(dsn string) (*ClickHouseWriter, error) {
 	opts, err := clickhouse.ParseDSN(dsn)
 	if err != nil {
