@@ -8,6 +8,7 @@
 import { useState } from 'react';
 import { EmptyState, fmtCost, fmtNum, fmtMs, fmtPct, isLongRange, RANGE_LABEL, toCostPoints, toLatencyPoints, toErrorPoints } from '../../../common';
 import type { CostPoint, LatencyPoint, ErrorPoint } from '../../../common/interfaces';
+import { useAPIClient } from '../../../common/providers/APIProvider';
 import type { Trace } from '../../trace-explorer/interfaces';
 import {
   Masthead,
@@ -20,6 +21,7 @@ import {
   Section,
   OutlierChips,
   OutliersPanel,
+  SetupChecks,
 } from '../components';
 import type { KpiItem, TopWorkflowRow, SyncStatus, SyncTone } from '../components';
 import {
@@ -30,6 +32,7 @@ import {
   useTopWorkflows,
   useFailures,
   useAnomalies,
+  useSetupChecks,
   useRecentActivity,
 } from '../hooks/useMetrics';
 import type { Kpi, KpiSet, WorkflowCost, FailureRow, ActivityItem, Anomaly } from '../interfaces';
@@ -154,12 +157,26 @@ export function OverviewLivePage({ range, setView, setSelected, tweaks }: Overvi
   const failures = useFailures(range);
   const errorSeries = useErrorSeries(range);
   const anomalies = useAnomalies(range);
+  const setupChecks = useSetupChecks();
+  const { workspaceId } = useAPIClient();
   const activity = useRecentActivity();
 
   // Outliers (design 1b + 1c). Dismissal is session-local (there is no dismiss
   // endpoint yet); selection is shared so a chart flag and the panel stay in sync.
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [selectedOutlier, setSelectedOutlier] = useState<string | null>(null);
+  // Also shown on the empty state: rejected spans leave a workspace looking empty.
+  const setupChecksBlock = setupChecks.data && workspaceId && (
+    <SetupChecks
+      key={workspaceId}
+      checks={setupChecks.data.items}
+      workspaceId={workspaceId}
+      onOpenTrace={(id) => {
+        setSelected((s) => ({ ...s, traceId: id }));
+        setView('trace');
+      }}
+    />
+  );
 
   // No runs in the window: either nothing has ever been ingested (onboarding
   // empty state) or there just weren't any traces in the selected range. The
@@ -177,20 +194,25 @@ export function OverviewLivePage({ range, setView, setSelected, tweaks }: Overvi
     activity.isSuccess
   ) {
     const hasAnyTraces = activity.data.items.length > 0;
-    return hasAnyTraces ? (
-      <EmptyState
-        message={`No traces in the ${RANGE_LABEL[range] ?? RANGE_LABEL['7d']}`}
-        description="Your workflows haven't reported any activity in this window. Try a wider time range to see earlier traces."
-      />
-    ) : (
+    return (
       <div>
-        <EmptyState
-          message="Connect your application to see data"
-          description="Create an API key for this workspace, add it to your OpenTelemetry exporter, then send your first trace."
-        />
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '0 24px 40px' }}>
-          <button onClick={() => setView('settings')} style={{ padding: '9px 16px', borderRadius: 7, border: '1px solid var(--accent)', background: 'var(--accent)', color: 'var(--accent-contrast)', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>View setup instructions</button>
-        </div>
+        <div style={{ maxWidth: 880, margin: '0 auto', padding: '32px 16px 0' }}>{setupChecksBlock}</div>
+        {hasAnyTraces ? (
+          <EmptyState
+            message={`No traces in the ${RANGE_LABEL[range] ?? RANGE_LABEL['7d']}`}
+            description="Your workflows haven't reported any activity in this window. Try a wider time range to see earlier traces."
+          />
+        ) : (
+          <>
+            <EmptyState
+              message="Connect your application to see data"
+              description="Create an API key for this workspace, add it to your OpenTelemetry exporter, then send your first trace."
+            />
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '0 24px 40px' }}>
+              <button onClick={() => setView('settings')} style={{ padding: '9px 16px', borderRadius: 7, border: '1px solid var(--accent)', background: 'var(--accent)', color: 'var(--accent-contrast)', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>View setup instructions</button>
+            </div>
+          </>
+        )}
       </div>
     );
   }
@@ -240,6 +262,7 @@ export function OverviewLivePage({ range, setView, setSelected, tweaks }: Overvi
           status={status}
         />
       }
+      setupChecks={setupChecksBlock}
       kpis={
         <Section isLoading={kpis.isLoading} isError={kpis.isError}>
           {kpis.data && <KpiStrip items={toKpiItems(kpis.data, costPoints, latencyPoints, errorPoints, range)} />}

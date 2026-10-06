@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/tracium/collector/internal/deadletter"
 	"github.com/tracium/collector/pkg/spanmodel"
 )
 
@@ -106,6 +107,23 @@ func (w *ClickHouseWriter) WriteBatch(ctx context.Context, spans []*spanmodel.Sp
 
 	if err := batch.Send(); err != nil {
 		return fmt.Errorf("clickhouse: send batch: %w", err)
+	}
+	return nil
+}
+
+// WriteRejected inserts rejection counts into tracium.rejected_spans.
+func (w *ClickHouseWriter) WriteRejected(ctx context.Context, tally map[deadletter.Rejection]uint64) error {
+	batch, err := w.conn.PrepareBatch(ctx, "INSERT INTO tracium.rejected_spans (workspace_id, code, spans)")
+	if err != nil {
+		return fmt.Errorf("clickhouse: prepare rejected batch: %w", err)
+	}
+	for r, n := range tally {
+		if err := batch.Append(r.WorkspaceID, r.Code, n); err != nil {
+			return fmt.Errorf("clickhouse: append rejected row: %w", err)
+		}
+	}
+	if err := batch.Send(); err != nil {
+		return fmt.Errorf("clickhouse: send rejected batch: %w", err)
 	}
 	return nil
 }

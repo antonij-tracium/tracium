@@ -221,11 +221,11 @@ func (r *ClickHouseRepository) GetTrace(ctx context.Context, traceID string, wor
 	return &t, nil
 }
 
-const spanSelect = `
+var spanSelect = `
 SELECT trace_id, span_id, parent_span_id, name, start_time_ms, end_time_ms, duration_ms,
        model, model_normalized, input_tokens, output_tokens, cost_usd, user_id, workspace_id,
        finish_reason, error_type, error_message, schema_version,
-       input, output, available_tools, kind
+       input, output, available_tools, kind, ` + spanIssuesSQL + `
 FROM tracium.calls`
 
 // GetSpans returns all spans for a given trace ID, ordered by start time.
@@ -244,12 +244,16 @@ func (r *ClickHouseRepository) GetSpans(ctx context.Context, traceID string, wor
 	for rows.Next() {
 		var s model.Span
 		var tools string // available_tools is stored as a JSON string column
+		var issues []string
 		if err := rows.Scan(&s.TraceID, &s.SpanID, &s.ParentSpanID, &s.Name,
 			&s.StartTimeMs, &s.EndTimeMs, &s.DurationMs, &s.Model, &s.ModelNormalized,
 			&s.InputTokens, &s.OutputTokens, &s.CostUSD, &s.UserID, &s.WorkspaceID, &s.FinishReason,
 			&s.ErrorType, &s.ErrorMessage, &s.SchemaVersion,
-			&s.Input, &s.Output, &tools, &s.Kind); err != nil {
+			&s.Input, &s.Output, &tools, &s.Kind, &issues); err != nil {
 			return nil, fmt.Errorf("clickhouse: scan span: %w", err)
+		}
+		for _, code := range issues {
+			s.SetupIssues = append(s.SetupIssues, setupIssueByCode[code])
 		}
 		if tools != "" {
 			if err := json.Unmarshal([]byte(tools), &s.AvailableTools); err != nil {

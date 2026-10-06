@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import { SEVERITY_META } from '../../../common';
 import type { Anomaly } from '../interfaces';
-import { anomalyChips, anomalyValue, bySeverity, groupIncidents, ratioLabel, toChartMarkers, SEVERITY_META } from './anomalies';
+import { anomalyChips, anomalyValue, bySeverity, groupIncidents, ratioLabel, toChartMarkers } from './anomalies';
 
 const DAY = 86_400_000;
 

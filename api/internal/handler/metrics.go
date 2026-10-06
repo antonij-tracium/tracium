@@ -114,6 +114,24 @@ func (h *MetricsHandler) Anomalies(w http.ResponseWriter, r *http.Request) {
 	respondPage(w, anomalies, len(anomalies), 1, len(anomalies))
 }
 
+// SetupChecks handles GET /v1/metrics/setup-checks.
+func (h *MetricsHandler) SetupChecks(w http.ResponseWriter, r *http.Request) {
+	f, ok := h.filter(w, r)
+	if !ok {
+		return
+	}
+	if f.UseRollup() {
+		respondError(w, http.StatusBadRequest, "BAD_REQUEST", "setup checks are available for ranges up to 30d")
+		return
+	}
+	checks, err := h.repo.SetupChecks(r.Context(), f)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "INTERNAL", "failed to run setup checks")
+		return
+	}
+	respondPage(w, checks, len(checks), 1, len(checks))
+}
+
 // KPIs handles GET /v1/metrics/kpis.
 func (h *MetricsHandler) KPIs(w http.ResponseWriter, r *http.Request) {
 	f, ok := h.filter(w, r)

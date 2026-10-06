@@ -61,6 +61,9 @@ func (p *traciumProcessor) processTraces(ctx context.Context, td ptrace.Traces) 
 				// the ingest hot path.
 				attrs := attrMap(otelSpan.Attributes())
 				model := toSpanModel(otelSpan, resourceAttrs, attrs)
+				// The ingest key decides the workspace: stamp its workspace onto
+				// the span, overriding any value the sender supplied.
+				scope.apply(model)
 				// Fail closed: a request with no verified ingest key never reaches
 				// the exporter. The receiver authenticator normally rejects it with
 				// 401 first; this drop is the backstop if that authenticator is
@@ -70,9 +73,6 @@ func (p *traciumProcessor) processTraces(ctx context.Context, td ptrace.Traces) 
 						customerrors.ErrUnauthenticated, "ingest requires a verified API key"))
 					return true
 				}
-				// The ingest key decides the workspace: stamp its workspace onto
-				// the span, overriding any value the sender supplied.
-				scope.apply(model)
 				res, err := applyChain(ctx, p.chain, model)
 				if res == enrich.ResultDrop {
 					// Permanently rejected: count it and dead-letter it before
@@ -137,12 +137,10 @@ func ingestScope(ctx context.Context) authScope {
 }
 
 // apply stamps the key's workspace onto the span, making the key — not the
-// sender-supplied attribute — authoritative for where the data lands. Callers
-// only reach this for an authenticated scope.
+// sender-supplied attribute — authoritative for where the data lands. An
+// unauthenticated scope clears it.
 func (s authScope) apply(span *spanmodel.Span) {
-	if s.authenticated {
-		span.WorkspaceID = s.workspace
-	}
+	span.WorkspaceID = s.workspace
 }
 
 // applyChain runs the enrichment chain like enrich.Chain.Apply, but preserves

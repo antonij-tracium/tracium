@@ -14,10 +14,9 @@
 // (clicking a marker on a chart expands the matching row / incident here).
 
 import React, { useEffect, useRef, useState } from 'react';
-import { EmptyState, useResize, bucketLabel } from '../../../../common';
+import { EmptyState, useResize, bucketLabel, SEVERITY_META } from '../../../../common';
 import type { Anomaly } from '../../interfaces';
 import {
-  SEVERITY_META,
   METRIC_META,
   anomalyValue,
   anomalyKey,

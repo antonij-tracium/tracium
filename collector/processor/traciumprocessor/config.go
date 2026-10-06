@@ -53,6 +53,9 @@ type DeadLetterConfig struct {
 	// (the default) uses the log store. A path that cannot be opened fails at
 	// startup, not on the first dropped span.
 	Path string `mapstructure:"path"`
+
+	// ClickHouseDSN, when set, counts rejections per workspace for setup checks.
+	ClickHouseDSN string `mapstructure:"clickhouse_dsn"`
 }
 
 // Validate implements component.ConfigValidator.

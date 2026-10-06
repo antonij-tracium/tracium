@@ -48,6 +48,8 @@ type Span struct {
 	// Empty (omitted) when the collector could not classify the span or for
 	// pre-migration rows; the dashboard then infers the role from the trace tree.
 	Kind string `json:"kind,omitempty"`
+
+	SetupIssues []SetupIssue `json:"setup_issues,omitempty"`
 }
 
 // CheckSchemaCompatibility reports whether every span can be interpreted by

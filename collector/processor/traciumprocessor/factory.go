@@ -11,11 +11,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/tracium/collector/enrich"
 	"github.com/tracium/collector/internal/deadletter"
 	"github.com/tracium/collector/internal/pricing"
 	"github.com/tracium/collector/internal/user"
+	"github.com/tracium/collector/internal/writer"
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
@@ -127,14 +129,30 @@ func createTracesProcessor(
 	)
 }
 
+const rejectedFlushInterval = 10 * time.Second
+
 // buildDeadLetter selects the dead-letter store: an NDJSON file when the
 // operator configured a path (drops are then recoverable), otherwise the log
 // store, which keeps every drop visible with zero configuration.
 func buildDeadLetter(cfg *Config, logger *zap.Logger) (deadletter.Store, error) {
+	dlLogger := zapDeadLetterLogger{logger}
+	var store deadletter.Store = deadletter.NewLogStore(dlLogger)
 	if path := cfg.DeadLetter.Path; path != "" {
-		return deadletter.NewFileStore(path)
+		file, err := deadletter.NewFileStore(path)
+		if err != nil {
+			return nil, err
+		}
+		store = file
 	}
-	return deadletter.NewLogStore(zapDeadLetterLogger{logger}), nil
+	if dsn := cfg.DeadLetter.ClickHouseDSN; dsn != "" {
+		w, err := writer.NewClickHouseWriter(dsn)
+		if err != nil {
+			store.Close()
+			return nil, err
+		}
+		store = deadletter.NewTallyStore(store, w, dlLogger, rejectedFlushInterval)
+	}
+	return store, nil
 }
 
 // zapDeadLetterLogger adapts the collector's zap logger to deadletter.Logger,

@@ -315,6 +315,39 @@ func TestMetricsAnomaliesRejectsSubDailyRange(t *testing.T) {
 	}
 }
 
+func TestMetricsSetupChecks(t *testing.T) {
+	repo := &mocks.MockMetricsRepository{
+		Checks: []model.SetupCheck{{
+			SetupIssue: model.SetupIssue{Code: "unmetered", Severity: "warning", Message: "Streamed calls arrived without token usage."},
+			Spans:      3, Share: 0.5, ExampleTraceID: "t1",
+		}},
+	}
+	rr := httptest.NewRecorder()
+	serveAuthed(newMetricsHandler(repo).SetupChecks, rr, httptest.NewRequest(http.MethodGet, "/v1/metrics/setup-checks?range=24h", nil))
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rr.Code)
+	}
+	var got struct {
+		Items []model.SetupCheck `json:"items"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(got.Items) != 1 || got.Items[0].Code != "unmetered" || got.Items[0].ExampleTraceID != "t1" {
+		t.Errorf("items = %+v, want the unmetered check", got.Items)
+	}
+}
+
+func TestMetricsSetupChecksRejectsRollupRange(t *testing.T) {
+	h := newMetricsHandler(&mocks.MockMetricsRepository{})
+	rr := httptest.NewRecorder()
+	serveAuthed(h.SetupChecks, rr, httptest.NewRequest(http.MethodGet, "/v1/metrics/setup-checks?range=90d", nil))
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400 for a 90d range", rr.Code)
+	}
+}
+
 func TestMetricsAnomaliesRejectsBadFilters(t *testing.T) {
 	h := newMetricsHandler(&mocks.MockMetricsRepository{})
 	for _, q := range []string{"range=30d&metric=latency", "range=30d&min_severity=urgent"} {

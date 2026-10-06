@@ -23,11 +23,28 @@ type Writer interface {
 // MockWriter
 // ---------------------------------------------------------------------------
 
-// MockWriter records all spans passed to WriteBatch.
+// MockWriter records written spans and rejection counts.
 type MockWriter struct {
 	mu           sync.Mutex
 	WrittenSpans []*spanmodel.Span
+	Rejected     map[deadletter.Rejection]uint64
 	WriteErr     error
+}
+
+// WriteRejected adds tally to Rejected unless WriteErr is set.
+func (m *MockWriter) WriteRejected(_ context.Context, tally map[deadletter.Rejection]uint64) error {
+	if m.WriteErr != nil {
+		return m.WriteErr
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.Rejected == nil {
+		m.Rejected = map[deadletter.Rejection]uint64{}
+	}
+	for r, n := range tally {
+		m.Rejected[r] += n
+	}
+	return nil
 }
 
 // WriteBatch appends spans to WrittenSpans unless WriteErr is set.

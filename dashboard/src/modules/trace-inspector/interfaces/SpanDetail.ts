@@ -1,3 +1,4 @@
+import type { SetupIssue } from '../../../common/interfaces';
 import type { SpanDetailId } from '../ids';
 import type { AvailableTool } from './AvailableTool';
 import type { TraceError } from './TraceError';
@@ -30,5 +31,6 @@ export interface SpanDetail {
   input?: string;
   output?: string;
   availableTools?: AvailableTool[];
+  setupIssues?: SetupIssue[];
   attributes: Record<string, string | number | boolean>;
 }

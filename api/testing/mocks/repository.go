@@ -114,6 +114,7 @@ type MockMetricsRepository struct {
 	AttrKeys      []string
 	AttrUsage     []model.AttributeUsage
 	AnomalyItems  []model.Anomaly
+	Checks        []model.SetupCheck
 
 	Err error
 }
@@ -172,4 +173,8 @@ func (m *MockMetricsRepository) UsageByAttribute(_ context.Context, _ query.Metr
 
 func (m *MockMetricsRepository) Anomalies(_ context.Context, _ query.MetricsFilter) ([]model.Anomaly, error) {
 	return m.AnomalyItems, m.Err
+}
+
+func (m *MockMetricsRepository) SetupChecks(_ context.Context, _ query.MetricsFilter) ([]model.SetupCheck, error) {
+	return m.Checks, m.Err
 }

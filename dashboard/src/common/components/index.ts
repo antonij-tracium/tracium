@@ -9,6 +9,7 @@ export { RunsTable } from './RunsTable';
 export type { RunRow, RunsTableProps } from './RunsTable';
 export { Spinner } from './Spinner';
 export { SlicedButton } from './SlicedButton';
+export { SetupIssueNote } from './SetupIssueNote';
 export type { SlicedButtonProps } from './SlicedButton';
 export * from './Card';
 export * from './Sparkline';
