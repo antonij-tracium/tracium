@@ -219,6 +219,7 @@ const (
 	attrModelNormalized = "tracium.model_normalized"
 	attrSchemaVersion   = "tracium.schema_version"
 	attrAvailableTools  = "tracium.available_tools"
+	attrUnmetered       = "tracium.usage.unmetered"
 )
 
 // toSpanModel extracts the fields the enrichment chain needs from an OTLP span.
@@ -266,6 +267,7 @@ func toSpanModel(s ptrace.Span, resourceAttrs pcommon.Map, attrs map[string]stri
 		CacheReadTokens:  usage.CacheReadTokens,
 		CacheWriteTokens: usage.CacheWriteTokens,
 		ReportedCostUSD:  usage.ReportedCostUSD,
+		Unmetered:        usage.Unmetered,
 		// Read from the raw attributes, not the flattened attrs map: the map
 		// holds the JSON-encoded array (see finishReason).
 		FinishReason: finishReason(s.Attributes()),
@@ -285,6 +287,9 @@ func writeBack(s ptrace.Span, m *spanmodel.Span) {
 	}
 	if m.WorkspaceID != "" {
 		attrs.PutStr(attrWorkspaceID, m.WorkspaceID)
+	}
+	if m.Unmetered {
+		attrs.PutBool(attrUnmetered, true)
 	}
 }
 
