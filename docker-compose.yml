@@ -75,6 +75,7 @@ services:
     environment:
       CLICKHOUSE_DSN: clickhouse://default:${CLICKHOUSE_PASSWORD:?set CLICKHOUSE_PASSWORD in .env}@clickhouse:9000/tracium
       PRICING_STATIC_PATH: /etc/tracium/pricing.json
+      CAPTURE_CONTENT: ${CAPTURE_CONTENT:-true}
       # Ingest auth is mandatory: the collector verifies every OTLP request's
       # API key against the API's verify endpoint. Must be reachable from the
       # collector container (the api service listens on :8090).

@@ -144,8 +144,9 @@ Each directory has its own `README.md` with the details.
   each client's detail page breaks down its spend, runs, failure rate, latency,
   models, workflows and recent traces. It's a metering label, not an access
   boundary.
-- **Prompt/completion capture is ON by default** (`capture_content: true`) so the
-  viewer can show inputs/outputs; set it off if you don't want that text stored.
+- **Prompt/completion capture is ON by default** so the viewer can show
+  inputs/outputs; set `CAPTURE_CONTENT=false` in `.env` (Helm:
+  `collector.captureContent=false`) if you don't want that text stored.
 
 ## Kubernetes
 
