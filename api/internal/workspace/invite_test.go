@@ -70,7 +70,7 @@ func TestInviteLifecycle(t *testing.T) {
 	owner := addUser(t, s, "owner@example.com")
 	invitee := addUser(t, s, "bob@example.com")
 	other := addUser(t, s, "eve@example.com")
-	if err := s.Create(ctx, model.Workspace{ID: "ws-1", UserID: owner, Name: "Prod", Slug: "prod", Env: "production", Role: "Owner", Members: 1}); err != nil {
+	if err := s.Create(ctx, model.Workspace{ID: "ws-1", UserID: owner, Name: "Prod", Slug: "prod", Env: "production", Role: RoleOwner, Members: 1}); err != nil {
 		t.Fatal(err)
 	}
 	week := time.Now().Add(InviteTTL)
@@ -156,7 +156,7 @@ func TestInviteRevokeExpireAndCascade(t *testing.T) {
 	ctx := context.Background()
 	owner := addUser(t, s, "owner@example.com")
 	bob := addUser(t, s, "bob@example.com")
-	if err := s.Create(ctx, model.Workspace{ID: "ws-1", UserID: owner, Name: "Prod", Slug: "prod", Env: "production", Role: "Owner", Members: 1}); err != nil {
+	if err := s.Create(ctx, model.Workspace{ID: "ws-1", UserID: owner, Name: "Prod", Slug: "prod", Env: "production", Role: RoleOwner, Members: 1}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -207,7 +207,7 @@ func TestCreateInviteSeatCheck(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 	owner := addUser(t, s, "owner@example.com")
-	if err := s.Create(ctx, model.Workspace{ID: "ws-1", UserID: owner, Name: "Prod", Slug: "prod", Env: "production", Role: "Owner", Members: 1}); err != nil {
+	if err := s.Create(ctx, model.Workspace{ID: "ws-1", UserID: owner, Name: "Prod", Slug: "prod", Env: "production", Role: RoleOwner, Members: 1}); err != nil {
 		t.Fatal(err)
 	}
 	week := time.Now().Add(InviteTTL)
@@ -240,7 +240,7 @@ func TestGrantMember(t *testing.T) {
 	owner := addUser(t, s, "owner@example.com")
 	bob := addUser(t, s, "bob@example.com")
 	carol := addUser(t, s, "carol@example.com")
-	if err := s.Create(ctx, model.Workspace{ID: "ws-1", UserID: owner, Name: "Prod", Slug: "prod", Env: "production", Role: "Owner", Members: 1}); err != nil {
+	if err := s.Create(ctx, model.Workspace{ID: "ws-1", UserID: owner, Name: "Prod", Slug: "prod", Env: "production", Role: RoleOwner, Members: 1}); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.CreateInvite(ctx, newInvite("ws-1", "bob@example.com", owner, time.Now().Add(InviteTTL)), "h1", nil); err != nil {
@@ -285,7 +285,7 @@ func TestConcurrentAcceptsRespectSeats(t *testing.T) {
 	owner := addUser(t, s, "owner@example.com")
 	bob := addUser(t, s, "bob@example.com")
 	carol := addUser(t, s, "carol@example.com")
-	if err := s.Create(ctx, model.Workspace{ID: "ws-1", UserID: owner, Name: "Prod", Slug: "prod", Env: "production", Role: "Owner", Members: 1}); err != nil {
+	if err := s.Create(ctx, model.Workspace{ID: "ws-1", UserID: owner, Name: "Prod", Slug: "prod", Env: "production", Role: RoleOwner, Members: 1}); err != nil {
 		t.Fatal(err)
 	}
 	week := time.Now().Add(InviteTTL)

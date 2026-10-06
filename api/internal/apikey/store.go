@@ -108,7 +108,7 @@ func (s *PostgresStore) List(ctx context.Context, workspaceID string) ([]model.A
 func (s *PostgresStore) Revoke(ctx context.Context, id, workspaceID string) error {
 	tag, err := s.pool.Exec(ctx,
 		`UPDATE api_keys SET revoked_at = NOW()
-		   WHERE id = $1 AND workspace_id = $2 AND revoked_at IS NULL`, id, workspaceID,
+		   WHERE id::text = $1 AND workspace_id = $2 AND revoked_at IS NULL`, id, workspaceID,
 	)
 	if err != nil {
 		return fmt.Errorf("postgres: revoke api key: %w", err)

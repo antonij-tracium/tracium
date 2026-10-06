@@ -72,7 +72,7 @@ func main() {
 	}
 	defer store.Close()
 
-	user, err := store.ByEmail(ctx, *email)
+	user, err := store.ByEmail(ctx, auth.NormalizeEmail(*email))
 	if err != nil {
 		fail(fmt.Errorf("look up %s: %w", *email, err))
 	}
