@@ -10,5 +10,6 @@ export type { TopWorkflowRow } from './TopWorkflows';
 export { ActivityFeed } from './ActivityFeed';
 export { OverviewLayout } from './OverviewLayout';
 export { Section } from './Section';
+export { SetupChecks } from './SetupChecks';
 export { OutlierChips } from './outliers/OutlierChips';
 export { OutliersPanel } from './outliers/OutliersPanel';

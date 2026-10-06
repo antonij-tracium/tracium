@@ -13,4 +13,5 @@ export type {
   AnomalyDirection,
   AnomalySeverity,
   Anomaly,
+  SetupCheck,
 } from './metrics';

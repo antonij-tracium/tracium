@@ -244,6 +244,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/metrics/setup-checks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Instrumentation setup checks
+         * @description Ways the workspace's instrumentation is sending telemetry Tracium cannot fully use, found in the range's spans and in the spans the collector rejected at ingest, with how to fix each. Checks that affected no span are omitted. Results are ordered most severe first, then by spans affected. Reads raw spans, so ranges longer than 30d are rejected.
+         */
+        get: operations["getSetupChecks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/metrics/model-costs": {
         parameters: {
             query?: never;
@@ -881,6 +901,8 @@ export interface components {
              * @enum {string}
              */
             kind?: "agent" | "llm" | "tool" | "chain" | "retriever" | "embedding";
+            /** @description The span-level setup checks this span fails, such as a model the price table does not know. Omitted when it fails none. */
+            setup_issues?: components["schemas"]["SetupIssue"][];
         };
         Trace: {
             /** @description Globally unique identifier for this trace. */
@@ -1123,6 +1145,28 @@ export interface components {
             severity: "info" | "warning" | "critical";
             /** @description One-line human-readable description of the anomaly. */
             summary: string;
+        };
+        SetupIssue: {
+            /** @description Stable identifier: no_llm_spans, unpriced_model, unmetered, no_model, instant_llm_spans, error_without_detail, missing_root_span, unnamed_workflow, or rejected_<drop code> for spans the collector rejected (e.g. rejected_invalid_timestamp). */
+            code: string;
+            /** @enum {string} */
+            severity: "info" | "warning" | "critical";
+            /** @description What is wrong and how to fix it. */
+            message: string;
+        };
+        SetupCheck: components["schemas"]["SetupIssue"] & {
+            /** @description Spans affected in the window. */
+            spans: number;
+            /** @description spans as a fraction (0–1) of the window's stored and rejected spans. */
+            share: number;
+            /** @description One affected trace; empty for rejected spans, which are not stored. */
+            example_trace_id: string;
+        };
+        PaginatedSetupCheckResponse: {
+            items: components["schemas"]["SetupCheck"][];
+            total: number;
+            page: number;
+            page_size: number;
         };
         PaginatedAnomalyResponse: {
             items: components["schemas"]["Anomaly"][];
@@ -1750,6 +1794,40 @@ export interface operations {
                 };
             };
             /** @description Invalid range, metric, or severity. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getSetupChecks: {
+        parameters: {
+            query?: {
+                /** @description Time window for the metric. Defaults to 7d. 24h is bucketed hourly; 7d/30d/90d/1y daily. Ranges longer than 30d (90d, 1y) are served from the daily rollup, so latency percentiles are not available for them. */
+                range?: components["parameters"]["Range"];
+                /** @description Scope the read to one workspace. This is an access boundary, not just a filter: the caller must be a member of the workspace or the request is refused with 403. Omitted, the read covers every workspace the caller is a member of (an account that is a member of none sees nothing). The dashboard passes the active workspace from its switcher. */
+                workspace_id?: components["parameters"]["WorkspaceFilter"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Setup checks that found a problem. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedSetupCheckResponse"];
+                };
+            };
+            /** @description Invalid range, or one longer than 30d. */
             400: {
                 headers: {
                     [name: string]: unknown;

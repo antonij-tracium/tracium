@@ -1,20 +1,10 @@
-// Shared presentation helpers for anomalies (outliers): severity/metric visual
-// meta, value formatting, the summary chip tallies, and alignment of an
-// anomaly's bucket_ms onto a chart's bucket index so it can be flagged in place.
+// Shared presentation helpers for anomalies (outliers): metric visual meta,
+// value formatting, the summary chip tallies, and alignment of an anomaly's
+// bucket_ms onto a chart's bucket index so it can be flagged in place.
 
-import { fmtCost, fmtNum, fmtPct } from '../../../common';
+import { fmtCost, fmtNum, fmtPct, SEVERITY_META } from '../../../common';
 import type { ChartMarker } from '../../../common/interfaces';
 import type { Anomaly, AnomalyMetric, AnomalyScope, AnomalySeverity } from '../interfaces';
-
-// Severity → colour tokens. color-mix keeps the tint/border derived from one
-// token, matching how Badge / StatusPill build their surfaces (no hardcoded rgba).
-export const SEVERITY_META: Record<AnomalySeverity, { color: string; tint: string; border: string; rank: number }> = {
-  critical: { color: 'var(--error)', tint: 'color-mix(in srgb, var(--error) 14%, transparent)', border: 'color-mix(in srgb, var(--error) 42%, transparent)', rank: 3 },
-  warning: { color: 'var(--warning)', tint: 'color-mix(in srgb, var(--warning) 14%, transparent)', border: 'color-mix(in srgb, var(--warning) 42%, transparent)', rank: 2 },
-  // info uses a neutral tone, not the brand accent — an outlier is never "good",
-  // and a green flag on a spike would read that way.
-  info: { color: 'var(--muted-foreground)', tint: 'color-mix(in srgb, var(--muted-foreground) 16%, transparent)', border: 'color-mix(in srgb, var(--muted-foreground) 42%, transparent)', rank: 1 },
-};
 
 // Metric → the noun used in copy and the short "kind" tag shown on rows/points.
 export const METRIC_META: Record<AnomalyMetric, { noun: string; kind: string }> = {

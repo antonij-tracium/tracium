@@ -10,6 +10,7 @@ import type {
   Anomaly,
   AnomalyMetric,
   AnomalySeverity,
+  SetupCheck,
 } from '../../modules/overview/interfaces';
 import type {
   ModelCost,
@@ -67,6 +68,10 @@ export class MetricsAPI extends BaseAPIClient {
     opts?: { metric?: AnomalyMetric; min_severity?: AnomalySeverity },
   ): Promise<PaginatedResponse<Anomaly>> {
     return this.get('/metrics/anomalies', { range, metric: opts?.metric, min_severity: opts?.min_severity });
+  }
+
+  getSetupChecks(range: string): Promise<PaginatedResponse<SetupCheck>> {
+    return this.get('/metrics/setup-checks', { range });
   }
 
   // Usage-page breakdowns. cost-series / kpis feed the rest of the page.

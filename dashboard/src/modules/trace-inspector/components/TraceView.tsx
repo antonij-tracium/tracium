@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   IconX,
+  SetupIssueNote,
   StatusPill,
   fmtCost,
   fmtNum,
@@ -295,6 +296,15 @@ function SpanInspector({ span, error }: { span: SpanDetail | undefined; error: T
           )}
         </div>
       </div>
+
+      {span.setupIssues && span.setupIssues.length > 0 && (
+        <div>
+          <SectionLabel>Setup issues</SectionLabel>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {span.setupIssues.map((issue) => <SetupIssueNote key={issue.code} issue={issue} />)}
+          </div>
+        </div>
+      )}
 
       {showError && (
         <div>

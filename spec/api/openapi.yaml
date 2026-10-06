@@ -451,6 +451,35 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /v1/metrics/setup-checks:
+    get:
+      operationId: getSetupChecks
+      summary: Instrumentation setup checks
+      description: >
+        Ways the workspace's instrumentation is sending telemetry Tracium cannot
+        fully use, found in the range's spans and in the spans the collector
+        rejected at ingest, with how to fix each. Checks that affected no span
+        are omitted. Results are ordered most severe first, then by spans
+        affected. Reads raw spans, so ranges longer than 30d are rejected.
+      tags:
+        - Metrics
+      parameters:
+        - $ref: "#/components/parameters/Range"
+        - $ref: "#/components/parameters/WorkspaceFilter"
+      responses:
+        "200":
+          description: Setup checks that found a problem.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedSetupCheckResponse"
+        "400":
+          description: Invalid range, or one longer than 30d.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /v1/metrics/model-costs:
     get:
       operationId: getModelCosts
@@ -1662,6 +1691,13 @@ components:
             traceloop.span.kind, or the OTel GenAI gen_ai.operation.name).
             Optional: omitted when the collector could not classify the span,
             in which case consumers infer the role from the span's context.
+        setup_issues:
+          type: array
+          items:
+            $ref: "#/components/schemas/SetupIssue"
+          description: >
+            The span-level setup checks this span fails, such as a model the
+            price table does not know. Omitted when it fails none.
 
     Trace:
       type: object
@@ -2208,6 +2244,54 @@ components:
         summary:
           type: string
           description: One-line human-readable description of the anomaly.
+
+    SetupIssue:
+      type: object
+      required: [code, severity, message]
+      properties:
+        code:
+          type: string
+          description: >
+            Stable identifier: no_llm_spans, unpriced_model, unmetered,
+            no_model, instant_llm_spans, error_without_detail, missing_root_span, unnamed_workflow, or rejected_<drop code>
+            for spans the collector rejected (e.g. rejected_invalid_timestamp).
+        severity:
+          type: string
+          enum: ["info", "warning", "critical"]
+        message:
+          type: string
+          description: What is wrong and how to fix it.
+
+    SetupCheck:
+      allOf:
+        - $ref: "#/components/schemas/SetupIssue"
+        - type: object
+          required: [spans, share, example_trace_id]
+          properties:
+            spans:
+              type: integer
+              description: Spans affected in the window.
+            share:
+              type: number
+              description: spans as a fraction (0–1) of the window's stored and rejected spans.
+            example_trace_id:
+              type: string
+              description: One affected trace; empty for rejected spans, which are not stored.
+
+    PaginatedSetupCheckResponse:
+      type: object
+      required: [items, total, page, page_size]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SetupCheck"
+        total:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
 
     PaginatedAnomalyResponse:
       type: object

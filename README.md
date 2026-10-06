@@ -67,7 +67,13 @@ without code changes beyond the exporter settings above:
   `workflow`/`task`/`agent`/`tool` decorators become Tracium workflows.
 - **OpenTelemetry GenAI instrumentations**, such as
   `opentelemetry-instrumentation-openai-v2`.
-- **Your own spans**: set the `gen_ai.*` attributes on any OTel span.
+- **Your own spans**: set the `gen_ai.*` attributes on any OTel span. See
+  [span setup](https://docs.tracium.ai/#otel-setup) for how runs,
+  latency and cached tokens are counted, and
+  [`spec/attributes/genai.yaml`](spec/attributes/genai.yaml) for the span
+  attributes Tracium reads.
+
+Full documentation is at [docs.tracium.ai](https://docs.tracium.ai).
 
 Runnable senders are in [`examples/`](examples/); each needs `TRACIUM_API_KEY`:
 

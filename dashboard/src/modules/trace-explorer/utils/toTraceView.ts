@@ -111,6 +111,7 @@ export function toTraceView(trace: LiveTrace): TraceDetail {
     input: s.input,
     output: s.output,
     availableTools: s.available_tools,
+    setupIssues: s.setup_issues,
   }));
 
   const failing = trace.spans.find(s => s.error_type || s.error_message);

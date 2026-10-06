@@ -62,4 +62,11 @@ func TestApplyStampsWorkspace(t *testing.T) {
 	if empty.WorkspaceID != "ws-2" {
 		t.Fatalf("workspace = %q, want ws-2", empty.WorkspaceID)
 	}
+
+	// Without a verified key the sender's claim is cleared.
+	keyless := &spanmodel.Span{WorkspaceID: "client-claimed"}
+	ingestScope(context.Background()).apply(keyless)
+	if keyless.WorkspaceID != "" {
+		t.Fatalf("workspace = %q, want cleared", keyless.WorkspaceID)
+	}
 }

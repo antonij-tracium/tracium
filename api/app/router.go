@@ -143,6 +143,7 @@ func newRouter(cfg Config, repo query.Repository, wsStore workspace.Store, invit
 		r.Get(version.Route(version.V1, "/metrics/attribute-keys"), metricsHandler.AttributeKeys)
 		r.Get(version.Route(version.V1, "/metrics/usage-by-attribute"), metricsHandler.UsageByAttribute)
 		r.Get(version.Route(version.V1, "/metrics/anomalies"), metricsHandler.Anomalies)
+		r.Get(version.Route(version.V1, "/metrics/setup-checks"), metricsHandler.SetupChecks)
 	})
 
 	return r

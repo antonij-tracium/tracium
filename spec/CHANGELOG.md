@@ -7,6 +7,14 @@ Breaking changes require a `schema_version` bump. Additive changes do not.
 
 ## [Unreleased]
 
+### Added
+- Setup checks: `GET /v1/metrics/setup-checks` reports instrumentation problems (unpriced or missing models, streams without usage, LLM spans that end instantly, errors without a message, traces missing their root span, no LLM spans, workflows without `gen_ai.agent.name`, spans rejected at ingest) with how to fix each; the dashboard flags them in a banner on Overview
+- `Span.setup_issues` lists the span-level checks a span fails
+- `tracium.rejected_spans` (migration 012) counts rejected spans per workspace, hour and error code, written by the collector when `processors.tracium.dead_letter.clickhouse_dsn` is set
+
+### Changed
+- A span rejected for a missing ingest key is no longer attributed to the workspace its sender claimed
+
 ---
 
 ## [1.0.3] - 2026-10-04

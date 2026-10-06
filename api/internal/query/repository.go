@@ -41,6 +41,7 @@ type MetricsRepository interface {
 	// run volume) over the window, workspace-wide and per busy workflow. Daily and
 	// rollup-backed; f.AnomalyMetric / f.AnomalyMinSeverity narrow the output.
 	Anomalies(ctx context.Context, f MetricsFilter) ([]model.Anomaly, error)
+	SetupChecks(ctx context.Context, f MetricsFilter) ([]model.SetupCheck, error)
 }
 
 // Repository is the full data-access surface a backend must provide. Concrete

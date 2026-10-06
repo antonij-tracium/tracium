@@ -30,6 +30,9 @@ data:
         user:
           source: passthrough
         capture_content: true
+        # Count rejected spans per workspace for the dashboard's setup checks.
+        dead_letter:
+          clickhouse_dsn: ${env:CLICKHOUSE_DSN}
 
       # No standalone `batch` processor: it would sit BEFORE the durable queue
       # and ACK spans to the client before they are persisted, so a crash or a

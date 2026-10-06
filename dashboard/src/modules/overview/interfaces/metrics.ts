@@ -1,6 +1,9 @@
 // API response types for the overview metrics endpoints. All values are raw
 // numbers; formatting (currency, percent, seconds) happens in the components.
 
+import type { Severity } from '../../../common';
+import type { SetupIssue } from '../../../common/interfaces';
+
 export type DeltaType = 'good' | 'bad' | 'neutral';
 
 export interface Kpi {
@@ -55,7 +58,7 @@ export interface FailureRow {
 export type AnomalyMetric = 'cost' | 'error_rate' | 'runs';
 export type AnomalyScope = 'workspace' | 'workflow';
 export type AnomalyDirection = 'spike' | 'drop';
-export type AnomalySeverity = 'info' | 'warning' | 'critical';
+export type AnomalySeverity = Severity;
 
 export interface Anomaly {
   metric: AnomalyMetric;
@@ -69,4 +72,10 @@ export interface Anomaly {
   direction: AnomalyDirection;
   severity: AnomalySeverity;
   summary: string; // ready-to-read description
+}
+
+export interface SetupCheck extends SetupIssue {
+  spans: number;
+  share: number; // fraction of the window's spans
+  example_trace_id: string; // empty for rejected spans, which are never stored
 }
