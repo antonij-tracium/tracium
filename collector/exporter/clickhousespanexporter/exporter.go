@@ -2,12 +2,14 @@ package clickhousespanexporter
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/tracium/collector/internal/genai"
 	"github.com/tracium/collector/internal/writer"
 	"github.com/tracium/collector/pkg/spanmodel"
 
+	"go.opentelemetry.io/collector/consumer/consumererror"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 )
@@ -42,7 +44,11 @@ func (e *chExporter) pushTraces(ctx context.Context, td ptrace.Traces) error {
 			}
 		}
 	}
-	return e.writer.WriteBatch(ctx, spans)
+	err := e.writer.WriteBatch(ctx, spans)
+	if errors.Is(err, writer.ErrRowRejected) {
+		return consumererror.NewPermanent(err)
+	}
+	return err
 }
 
 // Attribute keys mirror traciumprocessor; duplicated here to keep the exporter
