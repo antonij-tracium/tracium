@@ -175,7 +175,7 @@ postgres:
   # existingSecretKey: key within the secret that holds the password value.
   existingSecretKey: "password"
 
-# Ingress — exposes collector OTLP ports, API, and dashboard externally
+# Ingress — exposes the API and dashboard externally
 ingress:
   # Required when enabled: actual ingress controller peer IPs/CIDRs, or an
   # explicit dns:headless-service name resolving to controller pod addresses.

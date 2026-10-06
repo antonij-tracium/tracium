@@ -1,3 +1,10 @@
+{{- $sts := lookup "apps/v1" "StatefulSet" .Release.Namespace (printf "%s-postgres" (include "tracium.fullname" .)) }}
+{{- $pgdataSubdir := not $sts }}
+{{- range (dig "spec" "template" "spec" "containers" list $sts) }}
+{{- range (.env | default list) }}
+{{- if eq .name "PGDATA" }}{{ $pgdataSubdir = true }}{{ end }}
+{{- end }}
+{{- end }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -37,6 +44,11 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.postgres.existingSecret }}
                   key: {{ .Values.postgres.existingSecretKey }}
+            {{- if $pgdataSubdir }}
+            # A subdirectory, because a fresh block volume's root holds lost+found.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            {{- end }}
           readinessProbe:
             exec:
               command: ["pg_isready", "-U", "tracium"]
