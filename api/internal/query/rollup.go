@@ -72,10 +72,7 @@ func rollupErrRate(k rollupKPI) float64 {
 }
 
 // costReconcileRollupExpr reconciles the daily cost rollup's two source columns
-// within a bucket_date group. It is the day-grain analog of costReconcileExpr on
-// the raw-span path: each source is a lower bound on the day's true spend, so the
-// greater is the tightest non-double-counting estimate. With no metrics ingested
-// metric_cost is 0, so greatest(span, 0) = span and the result is span-only.
+// within a bucket_date group, the day-grain analog of reconciledCostUnion.
 const costReconcileRollupExpr = `greatest(sum(span_cost), sum(metric_cost))`
 
 // costTotalRollupSQL sums per-day reconciled cost over the window: reconcile each
@@ -211,7 +208,7 @@ FROM tracium.metrics_daily WHERE %s GROUP BY name ORDER BY cost DESC LIMIT ?`, c
 
 	trendQ := fmt.Sprintf(`SELECT workflow_name AS name, %s AS bucket_ms, toInt64(uniqMerge(runs)) AS calls
 FROM tracium.metrics_daily WHERE %s GROUP BY name, bucket_ms`, bucketMsExpr, clause)
-	if err := r.fillWorkflowTrends(ctx, f, workflows, trendQ, args); err != nil {
+	if err := fillWorkflowTrends(ctx, r.db, f, workflows, workflowCostTrend, trendQ, args); err != nil {
 		return nil, fmt.Errorf("clickhouse: workflow trends rollup: %w", err)
 	}
 	return workflows, nil
@@ -253,7 +250,7 @@ FROM tracium.metrics_daily WHERE %s GROUP BY name ORDER BY calls DESC LIMIT ?`, 
 
 	trendQ := fmt.Sprintf(`SELECT workflow_name AS name, %s AS bucket_ms, toInt64(uniqMerge(runs)) AS calls
 FROM tracium.metrics_daily WHERE %s GROUP BY name, bucket_ms`, bucketMsExpr, clause)
-	if err := r.fillWorkflowRowTrends(ctx, f, workflows, trendQ, args); err != nil {
+	if err := fillWorkflowTrends(ctx, r.db, f, workflows, workflowTrend, trendQ, args); err != nil {
 		return nil, fmt.Errorf("clickhouse: workflow trends rollup: %w", err)
 	}
 	return workflows, nil

@@ -8,7 +8,7 @@
 // the previous period comes straight from the *_prev fields the API returns.
 
 import { useState } from 'react';
-import { EmptyState, periodLabel, useMaxWidth, BREAKPOINTS } from '../../../common';
+import { EmptyState, isLongRange, periodLabel, useMaxWidth, BREAKPOINTS } from '../../../common';
 import type { UserId } from '../../../common/ids';
 import { Section } from '../../overview/components';
 import { useKpis, useCostSeries, useErrorSeries } from '../../overview/hooks/useMetrics';
@@ -91,13 +91,13 @@ export function UsageLivePage({ range, setView, setSelected }: UsageLivePageProp
   const models = useModelCosts(range);
   const users = useUserUsage(range);
   const workflows = useWorkflowUsage(range);
-  const attrKeys = useAttributeKeys(range);
+  const attrEnabled = !isLongRange(range);
+  const attrKeys = useAttributeKeys(range, attrEnabled);
 
   const attributeKeys = attrKeys.data?.items ?? [];
   const activeAttr = attrKey || attributeKeys[0] || '';
-  // Only fetch the allocation for the active dimension while the attribute tab
-  // is selected.
-  const attrUsage = useAttributeUsage(range, tab === 'attribute' ? activeAttr : '');
+  const view: BreakdownTab = tab === 'attribute' && !attrEnabled ? 'user' : tab;
+  const attrUsage = useAttributeUsage(range, view === 'attribute' ? activeAttr : '');
 
   function openClient(id: string) {
     if (!id || id === UNATTRIBUTED) return;
@@ -196,7 +196,7 @@ export function UsageLivePage({ range, setView, setSelected }: UsageLivePageProp
         hint="Dot marks the top 75% of spend: the rows worth reviewing first."
         right={
           <TabPill
-            tab={tab}
+            tab={view}
             setTab={handleTabChange}
             tabs={[
               { id: 'user', label: 'By client', count: userCount },
@@ -210,7 +210,7 @@ export function UsageLivePage({ range, setView, setSelected }: UsageLivePageProp
           />
         }
       />
-      {tab === 'user' && (
+      {view === 'user' && (
         <Section isLoading={users.isLoading} isError={users.isError}>
           <Breakdown
             rows={userRows}
@@ -222,7 +222,7 @@ export function UsageLivePage({ range, setView, setSelected }: UsageLivePageProp
           />
         </Section>
       )}
-      {tab === 'workflow' && (
+      {view === 'workflow' && (
         <Section isLoading={workflows.isLoading} isError={workflows.isError}>
           <Breakdown
             rows={workflowRows}
@@ -233,7 +233,7 @@ export function UsageLivePage({ range, setView, setSelected }: UsageLivePageProp
           />
         </Section>
       )}
-      {tab === 'attribute' && (
+      {view === 'attribute' && (
         <Section isLoading={attrUsage.isLoading} isError={attrUsage.isError}>
           <Breakdown
             rows={attrRows}
