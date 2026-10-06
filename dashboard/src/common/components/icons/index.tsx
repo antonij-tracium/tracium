@@ -45,13 +45,9 @@ export const IconX            = (p: IconOnlyProps) => <Icon d="M6 6l12 12M18 6L6
 export const IconPlus         = (p: IconOnlyProps) => <Icon d="M12 5v14M5 12h14" {...p} />;
 export const IconCopy         = (p: IconOnlyProps) => <Icon d="M9 4h9a2 2 0 012 2v9M5 8h9a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2v-9a2 2 0 012-2z" {...p} />;
 export const IconTrash        = (p: IconOnlyProps) => <Icon d="M4 7h16M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2M6 7l1 13a2 2 0 002 2h6a2 2 0 002-2l1-13" {...p} />;
-export const IconCode         = (p: IconOnlyProps) => <Icon d="M8 8l-5 4 5 4M16 8l5 4-5 4M14 4l-4 16" {...p} />;
 export const IconBuilding     = (p: IconOnlyProps) => <Icon d="M4 21V5a2 2 0 012-2h8a2 2 0 012 2v16M4 21h16M9 7h2M9 11h2M9 15h2M16 11h2v10" {...p} />;
-export const IconCheckSmall   = (p: IconOnlyProps) => <Icon d="M5 12l4 4 10-10" {...p} />;
 export const IconMore         = (p: IconOnlyProps) => <Icon d="M5 12h.01M12 12h.01M19 12h.01" stroke={2.5} {...p} />;
-export const IconZap          = (p: IconOnlyProps) => <Icon d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" {...p} />;
 export const IconUser         = (p: IconOnlyProps) => <Icon d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z" {...p} />;
-export const IconClock        = (p: IconOnlyProps) => <Icon d="M12 22a10 10 0 100-20 10 10 0 000 20zM12 6v6l4 2" {...p} />;
 export const IconLogout       = (p: IconOnlyProps) => <Icon d="M15 3h4a1 1 0 011 1v16a1 1 0 01-1 1h-4M10 17l5-5-5-5M15 12H3" {...p} />;
 export const IconMenu         = (p: IconOnlyProps) => <Icon d="M4 6h16M4 12h16M4 18h16" {...p} />;
 

@@ -9,7 +9,7 @@ const DETAIL_REFRESH_MS = 60_000;
 
 // Number of recent runs shown on the detail page. Small and bounded — this is a
 // single page of the workflow's traces, never an unbounded scan.
-export const WORKFLOW_RUNS_PAGE_SIZE = 10;
+const WORKFLOW_RUNS_PAGE_SIZE = 10;
 
 // `enabled` lets the page keep hook order stable while skipping the fetch when
 // there's nothing to request (e.g. a rollup range the endpoint would reject).

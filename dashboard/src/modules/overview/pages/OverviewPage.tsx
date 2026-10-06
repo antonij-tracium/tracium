@@ -32,15 +32,10 @@ import {
 import type { ActivityItem } from '../interfaces';
 import type { ActivityId } from '../ids';
 
-export interface Tweaks {
-  feedPosition: 'left' | 'right';
-}
-
 export interface OverviewPageProps {
   range: string;
   setView: (v: string) => void;
   setSelected: (updater: (prev: Record<string, string>) => Record<string, string>) => void;
-  tweaks: Tweaks;
 }
 
 const RANGE_LABEL: Record<string, string> = {
@@ -117,8 +112,7 @@ function useSimulatedFeed(): ActivityItem[] {
   return items;
 }
 
-export function OverviewPage({ range, setView, setSelected, tweaks }: OverviewPageProps) {
-  const feedPosition = tweaks.feedPosition ?? 'right';
+export function OverviewPage({ range, setView, setSelected }: OverviewPageProps) {
   const feedItems = useSimulatedFeed();
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [selectedOutlier, setSelectedOutlier] = useState<string | null>(null);
@@ -197,7 +191,6 @@ export function OverviewPage({ range, setView, setSelected, tweaks }: OverviewPa
 
   return (
     <OverviewLayout
-      feedPosition={feedPosition}
       masthead={
         <Masthead
           title="Overview"

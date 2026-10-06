@@ -1,11 +1,6 @@
 // UsersPage — pure renderer for the user list: sortable, filterable table
 // with a cost-share bar. It receives its rows as props (the live wrapper feeds
 // telemetry-derived data, the demo feeds mock data) and never fetches.
-// Inline styles only (no CSS modules).
-//
-// Health, growth ("growing") metrics, the at-risk attention banner, and the
-// Export CSV / Register user actions are intentionally omitted from this
-// build.
 //
 // Columns that aren't telemetry-derived (Region / Success / Last seen) only
 // render when the rows carry that metadata — i.e. the demo dataset. The live,
@@ -27,7 +22,7 @@ export interface User {
   lastSeen?: string;
 }
 
-const USERS: User[] = [
+export const USERS: User[] = [
   { id: "tn_acme",      name: "Acme Robotics",       cost: 12.4421, runs: 58_022, avg: 0.000214, trend:[0.36,0.42,0.41,0.48,0.51,0.55,0.58,0.61,0.59,0.62,0.66,0.71], region: "us-east-1", success: 99.4, lastSeen: "12s ago" },
   { id: "tn_northwind", name: "Northwind Logistics", cost:  8.9024, runs: 41_318, avg: 0.000216, trend:[0.18,0.22,0.27,0.31,0.34,0.39,0.41,0.44,0.45,0.49,0.52,0.55], region: "us-east-1", success: 98.1, lastSeen: "1m ago" },
   { id: "tn_helix",     name: "Helix Health",        cost:  6.1102, runs: 28_104, avg: 0.000217, trend:[0.32,0.30,0.28,0.27,0.26,0.25,0.24,0.23,0.22,0.21,0.21,0.22], region: "eu-west-2", success: 99.6, lastSeen: "3m ago" },
@@ -37,9 +32,6 @@ const USERS: User[] = [
   { id: "tn_orbit",     name: "Orbit Labs",          cost:  0.9842, runs:  5_420, avg: 0.000182, trend:[0.13,0.12,0.11,0.10,0.09,0.08,0.07,0.06,0.06,0.05,0.05,0.04], region: "us-west-2", success: 94.2, lastSeen: "2h ago" },
   { id: "tn_sable",     name: "Sable Studios",       cost:  0.4830, runs:  4_423, avg: 0.000109, trend:[0.02,0.02,0.03,0.03,0.04,0.04,0.05,0.05,0.05,0.06,0.06,0.06], region: "us-east-1", success: 96.8, lastSeen: "5m ago" },
 ];
-
-// Expose USERS so UserDetailPage and the embedded demo can share the data.
-export { USERS };
 
 function successColor(success: number): string {
   return success >= 99 ? "var(--foreground)" : success >= 97 ? "var(--warning)" : "var(--error)";
@@ -97,7 +89,6 @@ function ShareBar({ users, totalCost }: { users: User[]; totalCost: number }) {
               background: SHARE_PALETTE[i % SHARE_PALETTE.length],
               opacity: 0.85,
               borderRight: i < users.length - 1 ? "1px solid color-mix(in srgb, #000 30%, transparent)" : "none",
-              cursor: "pointer",
             }}/>
           );
         })}
@@ -265,7 +256,6 @@ export function UsersPage({ users, periodLabel, comparison, updatedAt, setView, 
 
   return (
     <div style={{ padding: "clamp(20px, 4vw, 32px) clamp(16px, 4vw, 36px) 64px", maxWidth: 1440, margin: "0 auto" }}>
-      {/* Header */}
       <header style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 24, paddingBottom: 28, flexWrap: "wrap" }}>
         <div style={{ minWidth: 0 }}>
           <h1 style={{ fontSize: 28, fontWeight: 600, letterSpacing: "-0.02em", margin: 0, color: "var(--foreground)" }}>Clients</h1>
@@ -276,7 +266,6 @@ export function UsersPage({ users, periodLabel, comparison, updatedAt, setView, 
         {updatedAt != null && <LastUpdated at={updatedAt} />}
       </header>
 
-      {/* KPI strip */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 28, paddingTop: 4, paddingBottom: 28, borderBottom: "1px solid color-mix(in srgb, var(--border) 50%, transparent)" }}>
         <Kpi label="Active clients" value={users.length.toString()} hint="this period" />
         <Kpi
@@ -296,7 +285,6 @@ export function UsersPage({ users, periodLabel, comparison, updatedAt, setView, 
         />
       </div>
 
-      {/* Cost share */}
       <div style={{
         paddingTop: 36, paddingBottom: 44,
         borderBottom: "1px solid color-mix(in srgb, var(--border) 50%, transparent)",
@@ -308,14 +296,12 @@ export function UsersPage({ users, periodLabel, comparison, updatedAt, setView, 
         <ShareBar users={sortedByCost} totalCost={totalCost} />
       </div>
 
-      {/* Table section */}
       <section style={{ paddingTop: 44 }}>
         <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 24, paddingBottom: 18, flexWrap: "wrap" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
             <h2 style={{ fontSize: 19, fontWeight: 600, letterSpacing: "-0.018em", margin: 0, color: "var(--foreground)" }}>All clients</h2>
             <p style={{ fontSize: 14, color: "var(--muted)", margin: 0 }}>{sorted.length} of {users.length} shown · click a row to drill in.</p>
           </div>
-          {/* Search */}
           <div style={{
             display: "flex", alignItems: "center", gap: 8,
             padding: "6px 10px",
@@ -340,9 +326,7 @@ export function UsersPage({ users, periodLabel, comparison, updatedAt, setView, 
           </div>
         </header>
 
-        {/* Table */}
         <div style={{ overflowX: "auto" }}>
-          {/* Header row */}
           <div style={{
             display: "grid", gridTemplateColumns: cols, minWidth, gap: 16,
             alignItems: "center", padding: "0 4px 10px",
@@ -351,7 +335,6 @@ export function UsersPage({ users, periodLabel, comparison, updatedAt, setView, 
             {visibleCols.map(c => <HeaderCell key={c.key} col={c} sort={sort} onSort={handleSort} />)}
           </div>
 
-          {/* Rows */}
           {sorted.length === 0 ? (
             <div style={{ padding: "60px 0", textAlign: "center", color: "var(--muted)", fontSize: 14 }}>
               No clients match this filter.
@@ -373,11 +356,6 @@ export function UsersPage({ users, periodLabel, comparison, updatedAt, setView, 
               {visibleCols.map(c => <React.Fragment key={c.key}>{c.cell(t)}</React.Fragment>)}
             </div>
           ))}
-        </div>
-
-        {/* Footer */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 16, fontSize: 13, color: "var(--muted)" }}>
-          <span>Showing {sorted.length} of {users.length} clients</span>
         </div>
       </section>
     </div>

@@ -4,10 +4,6 @@
 // demo (embedded) app assembles them from the mock WORKFLOWS + WORKFLOW_META via
 // WorkflowDetailDemoPage; the signed-in app assembles them from the live metrics
 // API via WorkflowDetailLivePage.
-//
-// Health/status and anomaly detection are intentionally omitted: no workflow
-// status pill, no "needs attention" banner, no anomaly markers on the charts.
-// Run-level completed/failed (a trace outcome, not workflow health) is kept.
 
 import React from 'react';
 import {
@@ -35,10 +31,6 @@ export interface WorkflowDetailPageProps {
   name: string;
   /** Version pill next to the title. Omitted on the live page (no config store). */
   version?: string;
-  model: string;
-  provider?: string;
-  /** "Deployed …" suffix on the meta line. Omitted live. */
-  deploy?: string;
   /** Workflow description paragraph. Omitted live. */
   description?: string;
 
@@ -263,15 +255,11 @@ export function WorkflowDetailPage(props: WorkflowDetailPageProps) {
       </div>
 
       <div className="ad-split">
-        {/* Recent runs */}
         <div style={{ minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 }}>
-            <h2 style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-0.01em', margin: 0 }}>Recent runs</h2>
-          </div>
+          <h2 style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-0.01em', margin: '0 0 14px' }}>Recent runs</h2>
           <RunsTable runs={runs} onOpen={openTrace} />
         </div>
 
-        {/* Config */}
         <div>
           <div style={{ fontSize: 12, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 8 }}>
             Configuration

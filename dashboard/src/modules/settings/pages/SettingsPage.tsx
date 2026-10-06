@@ -78,7 +78,6 @@ interface TabDef {
   id: TabId;
   label: string;
   icon: React.ReactNode;
-  count?: number;
 }
 
 const SET_TABS: TabDef[] = [
@@ -310,10 +309,9 @@ function TabRail({ sections, tab, setTab, horizontal = false, demo = false }: Ta
         <div style={{ fontSize: 12, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 500, padding: '0 10px 10px' }}>Settings</div>
       )}
       <nav style={{ display: 'flex', flexDirection: horizontal ? 'row' : 'column', gap: horizontal ? 4 : 1 }}>
-        {[...SET_TABS.filter(t => demo ? t.id !== 'members' : t.id !== 'danger'), ...sections.map(t => ({...t, icon: t.icon ?? null, count: undefined}))].map(t => {
+        {[...SET_TABS.filter(t => demo ? t.id !== 'members' : t.id !== 'danger'), ...sections.map(t => ({...t, icon: t.icon ?? null}))].map(t => {
           const active = t.id === tab;
           const danger = t.id === 'danger';
-          const count = t.count;
           return (
             <button
               key={t.id}
@@ -336,12 +334,6 @@ function TabRail({ sections, tab, setTab, horizontal = false, demo = false }: Ta
             >
               <span style={{ flexShrink: 0, opacity: active ? 1 : 0.7 }}>{t.icon}</span>
               <span style={{ flex: 1 }}>{t.label}</span>
-              {count != null && (
-                <span style={{
-                  fontSize: 12, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums',
-                  padding: '1px 6px', background: 'var(--surface-alt)', border: '1px solid var(--border)', borderRadius: 4,
-                }}>{count}</span>
-              )}
             </button>
           );
         })}
