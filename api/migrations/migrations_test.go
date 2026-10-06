@@ -33,10 +33,13 @@ func TestUpgradeAndImmutableNamespaces(t *testing.T) {
 	if err = pool.QueryRow(ctx, `SELECT user_id FROM workspace_members WHERE workspace_id='legacy-workspace' AND role='owner'`).Scan(&owner); err != nil || owner != "legacy-owner" {
 		t.Fatalf("legacy membership lost: %s %v", owner, err)
 	}
-	var legacyColumns int
-	if err = pool.QueryRow(ctx, `SELECT count(*) FROM information_schema.columns
- WHERE table_schema='public' AND table_name='workspaces' AND column_name IN ('role','members')`).Scan(&legacyColumns); err != nil || legacyColumns != 0 {
-		t.Fatalf("workspaces.role/members not dropped: %d %v", legacyColumns, err)
+	if _, err = pool.Exec(ctx, `INSERT INTO workspaces(id,user_id,name,slug,env) VALUES('new-workspace','new-owner','New','new','production')`); err != nil {
+		t.Fatalf("insert without role/members: %v", err)
+	}
+	var role string
+	var members int
+	if err = pool.QueryRow(ctx, `SELECT role,members FROM workspaces WHERE id='new-workspace'`).Scan(&role, &members); err != nil || role != "owner" || members != 1 {
+		t.Fatalf("workspaces defaults: %q %d %v", role, members, err)
 	}
 	if err = Apply(ctx, pool, Core); err != nil {
 		t.Fatal(err)
