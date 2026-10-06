@@ -212,3 +212,12 @@ func TestUser_RetryableErrorPropagates(t *testing.T) {
 		t.Fatalf("expected a retryable transient error, got %v", err)
 	}
 }
+
+func TestFilter_MatchesAllowedModelCaseInsensitively(t *testing.T) {
+	chain := DefaultChain(nil, nil, []string{"GPT-4o"})
+
+	res, err := chain.Apply(context.Background(), validSpan())
+	if res != ResultKeep {
+		t.Errorf("got (%v, %v), want ResultKeep", res, err)
+	}
+}

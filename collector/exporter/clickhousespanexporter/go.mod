@@ -5,6 +5,8 @@ go 1.22.0
 require (
 	github.com/tracium/collector v0.0.0
 	go.opentelemetry.io/collector/config/configretry v1.22.0
+	go.opentelemetry.io/collector/confmap v1.22.0
+	go.opentelemetry.io/collector/consumer/consumererror v0.116.0
 )
 
 require (
@@ -37,8 +39,6 @@ require (
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/stretchr/testify v1.10.0 // indirect
 	go.opentelemetry.io/collector/config/configtelemetry v0.116.0 // indirect
-	go.opentelemetry.io/collector/confmap v1.22.0 // indirect
-	go.opentelemetry.io/collector/consumer/consumererror v0.116.0 // indirect
 	go.opentelemetry.io/collector/extension v0.116.0 // indirect
 	go.opentelemetry.io/collector/extension/experimental/storage v0.116.0 // indirect
 	go.opentelemetry.io/collector/featuregate v1.22.0 // indirect

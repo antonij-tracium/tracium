@@ -218,3 +218,13 @@ func TestFromOTLP_CapsAttributeCount(t *testing.T) {
 		t.Errorf("retained %d attributes, cap is %d", len(row.Attributes), maxAttrs)
 	}
 }
+
+func TestFromOTLP_ReadsUnmeteredStampedByProcessor(t *testing.T) {
+	s := ptrace.NewSpan()
+	s.Attributes().PutStr("gen_ai.request.model", "gpt-4o-mini")
+	s.Attributes().PutBool(attrUnmetered, true)
+
+	if row := fromOTLP(s, "", pcommon.NewMap(), false); !row.Unmetered {
+		t.Error("unmetered = false, want true")
+	}
+}

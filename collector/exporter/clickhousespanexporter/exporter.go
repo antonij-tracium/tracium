@@ -2,12 +2,14 @@ package clickhousespanexporter
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/tracium/collector/internal/genai"
 	"github.com/tracium/collector/internal/writer"
 	"github.com/tracium/collector/pkg/spanmodel"
 
+	"go.opentelemetry.io/collector/consumer/consumererror"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 )
@@ -42,7 +44,11 @@ func (e *chExporter) pushTraces(ctx context.Context, td ptrace.Traces) error {
 			}
 		}
 	}
-	return e.writer.WriteBatch(ctx, spans)
+	err := e.writer.WriteBatch(ctx, spans)
+	if errors.Is(err, writer.ErrRowRejected) {
+		return consumererror.NewPermanent(err)
+	}
+	return err
 }
 
 // Attribute keys mirror traciumprocessor; duplicated here to keep the exporter
@@ -54,12 +60,13 @@ const (
 	// Dotted to match the key the tracium processor writes on enriched spans
 	// (writeBack → tracium.user.id). The underscore form left span rows with
 	// an empty user_id in the processor→exporter pipeline.
-	attrUserID        = "tracium.user.id"
+	attrUserID          = "tracium.user.id"
 	attrWorkspaceID     = "tracium.workspace.id"
 	attrCostUSD         = "tracium.cost_usd"
 	attrModelNormalized = "tracium.model_normalized"
 	attrSchemaVersion   = "tracium.schema_version"
 	attrAvailableTools  = "tracium.available_tools"
+	attrUnmetered       = "tracium.usage.unmetered"
 
 	// Workflow-identity signals. The span-scoped semconv/decorator names come first
 	// (they name the actual workflow that owns this span); the resource-level
@@ -124,11 +131,11 @@ func fromOTLP(s ptrace.Span, serviceName string, resourceAttrs pcommon.Map, trus
 		// count above is trustworthy. Stored so a $0 span is distinguishable from
 		// a genuinely free one.
 		OutputTokensDerived: usage.OutputTokensDerived,
-		Unmetered:           usage.Unmetered,
+		Unmetered:           usage.Unmetered || boolAttr(attrs, attrUnmetered),
 		FinishReason:        finishReason(attrs),
 		Kind:                spanKind(attrs, model, usage.InputTokens, usage.OutputTokens),
 		CostUSD:             cost,
-		UserID:            strAttr(attrs, attrUserID),
+		UserID:              strAttr(attrs, attrUserID),
 		WorkspaceID:         workspaceID(attrs, resourceAttrs),
 		SchemaVersion:       int(intAttr(attrs, attrSchemaVersion)),
 		ErrorType:           errType,
@@ -344,6 +351,11 @@ func intAttr(attrs pcommon.Map, key string) int64 {
 		return v.Int()
 	}
 	return 0
+}
+
+func boolAttr(attrs pcommon.Map, key string) bool {
+	v, ok := attrs.Get(key)
+	return ok && v.Type() == pcommon.ValueTypeBool && v.Bool()
 }
 
 func floatAttr(attrs pcommon.Map, key string) float64 {
