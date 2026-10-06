@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/tracium/api/migrations"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -65,23 +64,8 @@ type PostgresStore struct {
 	pool *pgxpool.Pool
 }
 
-// NewStore connects to Postgres and ensures the workspaces table exists.
-func NewStore(ctx context.Context, dsn string) (*PostgresStore, error) {
-	pool, err := pgxpool.New(ctx, dsn)
-	if err != nil {
-		return nil, fmt.Errorf("workspace store: connect: %w", err)
-	}
-	if err := pool.Ping(ctx); err != nil {
-		pool.Close()
-		return nil, fmt.Errorf("workspace store: ping: %w", err)
-	}
-
-	s := &PostgresStore{pool: pool}
-	if err := migrations.Apply(ctx, pool, migrations.Core); err != nil {
-		pool.Close()
-		return nil, err
-	}
-	return s, nil
+func NewStore(pool *pgxpool.Pool) *PostgresStore {
+	return &PostgresStore{pool: pool}
 }
 
 // List returns every workspace the user is a member of, ordered by creation
@@ -120,9 +104,8 @@ func (s *PostgresStore) Create(ctx context.Context, ws model.Workspace) error {
 	defer tx.Rollback(ctx) //nolint:errcheck // no-op after a successful Commit
 
 	if _, err := tx.Exec(ctx,
-		`INSERT INTO workspaces (id, user_id, name, slug, env, role, members)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-		ws.ID, ws.UserID, ws.Name, ws.Slug, ws.Env, ws.Role, ws.Members); err != nil {
+		`INSERT INTO workspaces (id, user_id, name, slug, env) VALUES ($1, $2, $3, $4, $5)`,
+		ws.ID, ws.UserID, ws.Name, ws.Slug, ws.Env); err != nil {
 		return fmt.Errorf("workspace store: create: %w", err)
 	}
 	if _, err := tx.Exec(ctx,
@@ -278,9 +261,4 @@ func (s *PostgresStore) RemoveMember(ctx context.Context, workspaceID, userID st
 		return ErrNotFound
 	}
 	return nil
-}
-
-// Close releases the underlying connection pool.
-func (s *PostgresStore) Close() {
-	s.pool.Close()
 }

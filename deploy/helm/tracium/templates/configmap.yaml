@@ -116,7 +116,6 @@ data:
       # jwt verifies tokens against the Postgres accounts (the default). Set to
       # "none" only for local dev — it grants every request the admin role.
       mode: "jwt"
-      token_header: "Authorization"
       # Register/login attempts per client IP per minute (default 10; negative
       # disables). Override per-pod with AUTH_RATE_LIMIT_PER_MINUTE.
       rate_limit_per_minute: 10
@@ -137,10 +136,6 @@ data:
         {{- range .Values.ingress.trustedProxies }}
         - {{ . | quote }}
         {{- end }}
-
-    telemetry:
-      log_level: "info"
-      log_format: "json"
 
 ---
 apiVersion: v1
