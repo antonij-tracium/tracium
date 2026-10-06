@@ -7,8 +7,7 @@ help: ## List targets
 	@grep -hE '^[a-z-]+:.*##' $(MAKEFILE_LIST) | sed 's/:.*##/\t/' | sort
 
 test: ## Run all unit tests (go + dashboard)
-	cd collector && go test ./... ./processor/traciumprocessor/... ./exporter/clickhousespanexporter/...
-	cd api && go test ./...
+	set -e; for mod in $$(find collector api -name go.mod -not -path '*/_build/*'); do (cd $$(dirname $$mod) && go test ./...); done
 	cd dashboard && npm ci --no-audit && npm test
 
 build-collector: ## Assemble the collector binary via OCB (GOWORK off — OCB owns its module graph)

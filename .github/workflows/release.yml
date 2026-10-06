@@ -3,9 +3,7 @@ on:
   push:
     tags: ['v*']
 
-permissions:
-  contents: write   # create the GitHub Release + upload the chart
-  packages: write   # push images to GHCR
+permissions: {}
 
 jobs:
   validate:
@@ -13,6 +11,16 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: test-password
+          POSTGRES_DB: core_test
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      TEST_POSTGRES_DSN: postgres://postgres:test-password@localhost:5432/core_test?sslmode=disable
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -33,6 +41,9 @@ jobs:
   images:
     needs: validate
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     strategy:
       matrix:
         include:
@@ -49,9 +60,7 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      # The chart job packages with --app-version = tag without the leading "v",
-      # and the chart requests images by that appVersion, so the image tag must
-      # match it exactly (0.1.0, not v0.1.0). Strip the "v" here too.
+      # Must match the chart's appVersion, which is the tag without the leading v.
       - name: Derive version (tag without the leading v)
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
       - uses: docker/build-push-action@v7
@@ -61,13 +70,15 @@ jobs:
           push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}:${{ env.VERSION }}
-            ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}:latest
+            ${{ !contains(github.ref_name, '-') && format('ghcr.io/{0}/{1}:latest', github.repository_owner, matrix.name) || '' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
   chart:
     needs: images
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v7
       - uses: azure/setup-helm@v5
