@@ -89,6 +89,4 @@ the host on loopback (`127.0.0.1:4317`, `127.0.0.1:4318`) for local convenience.
 ## Rate limiting
 
 Auth is not rate limiting. A valid but noisy sender can still flood ingest. Cap
-request rate at the ingress or gateway (nginx `limit_req`, Envoy rate limits),
-and keep the `memory_limiter` processor in the pipeline to protect the collector
-itself from OOM under load.
+request rate at the ingress or gateway (nginx `limit_req`, Envoy rate limits).
