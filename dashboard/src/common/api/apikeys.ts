@@ -19,14 +19,14 @@ export interface CreatedApiKey {
 
 export class ApiKeysAPI extends BaseAPIClient {
   list(workspaceId: string): Promise<ApiKeyRecord[]> {
-    return this.get<ApiKeyRecord[]>(`/workspaces/${workspaceId}/api-keys`);
+    return this.get<ApiKeyRecord[]>(`/workspaces/${encodeURIComponent(workspaceId)}/api-keys`);
   }
 
   create(workspaceId: string, name: string): Promise<CreatedApiKey> {
-    return this.post<CreatedApiKey>(`/workspaces/${workspaceId}/api-keys`, { name });
+    return this.post<CreatedApiKey>(`/workspaces/${encodeURIComponent(workspaceId)}/api-keys`, { name });
   }
 
   revoke(workspaceId: string, keyId: string): Promise<void> {
-    return this.delete(`/workspaces/${workspaceId}/api-keys/${keyId}`);
+    return this.delete(`/workspaces/${encodeURIComponent(workspaceId)}/api-keys/${encodeURIComponent(keyId)}`);
   }
 }

@@ -1,29 +1,15 @@
 import React from 'react';
 import { IconSearch, IconMenu } from '../../../common';
 import hover from '../../../common/styles/hover.module.css';
-import type { BreadcrumbItem, Workspace } from '../interfaces';
+import type { BreadcrumbItem } from '../interfaces';
 
-interface RangeOption {
-  id: string;
-  label: string;
-}
-
-const RANGE_OPTIONS: RangeOption[] = [
-  { id: '24h', label: '24h' },
-  { id: '7d', label: '7d' },
-  { id: '30d', label: '30d' },
-  { id: '90d', label: '90d' },
-  { id: '1y', label: '1y' },
-];
+const RANGES = ['24h', '7d', '30d', '90d', '1y'];
 
 interface TopBarProps {
   breadcrumb: BreadcrumbItem[];
   range: string;
   setRange: (r: string) => void;
   onOpenCmd: () => void;
-  workspace: Workspace | null;
-  setWorkspace: (ws: Workspace) => void;
-  setView: (v: string) => void;
   embedded?: boolean;
   showRange?: boolean;
   /** Shows the hamburger menu button (mobile: opens the sidebar drawer). */
@@ -42,6 +28,7 @@ export function TopBar({
   showMenu = false,
   onOpenNav,
 }: TopBarProps): React.ReactElement {
+  const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
   return (
     <header
       style={{
@@ -150,23 +137,24 @@ export function TopBar({
             padding: 2,
           }}
         >
-          {RANGE_OPTIONS.map((o) => (
+          {RANGES.map((r) => (
             <button
-              key={o.id}
-              onClick={() => setRange(o.id)}
+              key={r}
+              onClick={() => setRange(r)}
+              aria-pressed={range === r}
               style={{
                 padding: '4px 9px',
                 fontSize: 13,
                 fontWeight: 500,
-                background: range === o.id ? 'var(--surface)' : 'transparent',
-                color: range === o.id ? 'var(--foreground)' : 'var(--muted)',
+                background: range === r ? 'var(--surface)' : 'transparent',
+                color: range === r ? 'var(--foreground)' : 'var(--muted)',
                 border:
-                  '1px solid ' + (range === o.id ? 'var(--border)' : 'transparent'),
+                  '1px solid ' + (range === r ? 'var(--border)' : 'transparent'),
                 borderRadius: 5,
                 cursor: 'pointer',
               }}
             >
-              {o.label}
+              {r}
             </button>
           ))}
         </div>
@@ -201,7 +189,7 @@ export function TopBar({
             fontFamily: 'inherit',
           }}
         >
-          ⌘K
+          {isMac ? '⌘K' : 'Ctrl K'}
         </kbd>
       </button>
     </header>

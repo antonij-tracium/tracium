@@ -1,9 +1,11 @@
 export const TOKEN_KEY = 'tracium_token';
 export const EMAIL_KEY = 'tracium_email';
 // Where a deep link is stashed when a logged-out visitor opens one, so they can
-// be sent back to it after authenticating (see App.tsx and the dashboard's
-// initial-view resolution).
+// be sent back to it after authenticating.
 export const REDIRECT_KEY = 'tracium_redirect';
+export const WORKSPACE_KEY = 'tracium_ws';
+export const VIEW_KEY = 'tracium_view';
+export const RANGE_KEY = 'tracium_range';
 
 // storeSession persists a new session the way every sign-in path must: the token
 // and its matching email together (see readInitialToken).

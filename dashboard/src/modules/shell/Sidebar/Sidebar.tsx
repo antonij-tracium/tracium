@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   IconHome,
   IconWorkflows,
@@ -8,6 +8,7 @@ import {
   IconSettings,
   IconLogout,
   IconX,
+  handleDialogKeyDown,
 } from '../../../common';
 import hover from '../../../common/styles/hover.module.css';
 import type { Workspace } from '../interfaces';
@@ -108,7 +109,12 @@ export function Sidebar({
   open = false,
   onClose,
 }: SidebarProps): React.ReactElement {
-  // On mobile, navigating should also dismiss the drawer.
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const drawerOpen = mobile && open;
+  useEffect(() => {
+    if (drawerOpen) closeRef.current?.focus();
+  }, [drawerOpen]);
+
   const navigate = (v: string) => {
     setView(v);
     if (mobile) onClose?.();
@@ -123,7 +129,8 @@ export function Sidebar({
         height: '100dvh',
         zIndex: 60,
         transform: open ? 'translateX(0)' : 'translateX(-100%)',
-        transition: 'transform .22s ease',
+        visibility: open ? 'visible' : 'hidden',
+        transition: 'transform .22s ease, visibility .22s',
         boxShadow: open ? '0 0 40px rgba(0,0,0,0.5)' : 'none',
       }
     : embedded
@@ -148,6 +155,8 @@ export function Sidebar({
         />
       )}
     <aside
+      {...(drawerOpen && { role: 'dialog', 'aria-modal': true, 'aria-label': 'Navigation' })}
+      onKeyDown={drawerOpen ? (e) => handleDialogKeyDown(e, () => onClose?.()) : undefined}
       style={{
         width: 240,
         maxWidth: '85vw',
@@ -162,6 +171,7 @@ export function Sidebar({
     >
       {mobile && (
         <button
+          ref={closeRef}
           onClick={onClose}
           aria-label="Close menu"
           style={{
