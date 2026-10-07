@@ -21,7 +21,7 @@ import {
   OutliersPanel,
   SetupChecks,
 } from '../components';
-import type { KpiItem, TopWorkflowRow, SyncStatus, SyncTone } from '../components';
+import type { KpiItem, SyncStatus, SyncTone } from '../components';
 import {
   useKpis,
   useCostSeries,
@@ -33,16 +33,14 @@ import {
   useSetupChecks,
   useRecentActivity,
 } from '../hooks/useMetrics';
-import type { Kpi, KpiSet, WorkflowCost, FailureRow, ActivityItem, Anomaly } from '../interfaces';
+import type { Kpi, KpiSet, FailureRow, ActivityItem, Anomaly } from '../interfaces';
 import { anomalyKey, anomalyValue, toChartMarkers } from '../utils/anomalies';
 import type { ActivityId } from '../ids';
-import type { Tweaks } from './OverviewPage';
 
 interface OverviewLivePageProps {
   range: string;
   setView: (v: string) => void;
   setSelected: (updater: (prev: Record<string, string>) => Record<string, string>) => void;
-  tweaks: Tweaks;
 }
 
 // bucketLabel / toCostPoints / toLatencyPoints / toErrorPoints are shared with
@@ -79,9 +77,6 @@ function toKpiItems(kpis: KpiSet, cost: CostPoint[], latency: LatencyPoint[], er
     latencyItem,
   ];
 }
-
-const toWorkflowRows = (workflows: WorkflowCost[]): TopWorkflowRow[] =>
-  workflows.map((a) => ({ name: a.name, calls: a.calls, cost: a.cost, trend: a.trend }));
 
 // The failures endpoint reports per-workflow rows plus the true total of errored
 // runs across all workflows; we derive the strip's summary line (total failed,
@@ -140,9 +135,7 @@ const toActivityItems = (traces: Trace[]): ActivityItem[] =>
     latency: parseFloat((t.duration_ms / 1000).toFixed(1)),
   }));
 
-export function OverviewLivePage({ range, setView, setSelected, tweaks }: OverviewLivePageProps) {
-  const feedPosition = tweaks.feedPosition ?? 'right';
-
+export function OverviewLivePage({ range, setView, setSelected }: OverviewLivePageProps) {
   const kpis = useKpis(range);
   const cost = useCostSeries(range);
   const latency = useLatencySeries(range);
@@ -246,7 +239,6 @@ export function OverviewLivePage({ range, setView, setSelected, tweaks }: Overvi
 
   return (
     <OverviewLayout
-      feedPosition={feedPosition}
       masthead={
         <Masthead
           eyebrow="Workspace"
@@ -326,7 +318,7 @@ export function OverviewLivePage({ range, setView, setSelected, tweaks }: Overvi
           {workflows.data && (
             <TopWorkflows
               range={range}
-              workflows={toWorkflowRows(workflows.data.items)}
+              workflows={workflows.data.items}
               onSelectWorkflow={(name) => {
                 setSelected((s) => ({ ...s, workflow: name }));
                 setView('workflows');

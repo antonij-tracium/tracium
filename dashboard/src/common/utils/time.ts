@@ -1,11 +1,3 @@
-export function msToDate(ms: number): Date {
-  return new Date(ms);
-}
-
-export function formatTimestamp(ms: number): string {
-  return new Date(ms).toISOString();
-}
-
 export function relativeTime(ms: number): string {
   const diff = Date.now() - ms;
   if (diff < 60_000) return 'just now';

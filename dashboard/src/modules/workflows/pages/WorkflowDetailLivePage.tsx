@@ -90,7 +90,7 @@ export function WorkflowDetailLivePage({ workflowName, range, setView, setSelect
 
   const configRows: WorkflowConfigRow[] = [
     { label: 'model', value: d.model || '—', mono: true },
-    ...(d.provider ? [{ label: 'provider', value: d.provider } as WorkflowConfigRow] : []),
+    ...(d.provider ? [{ label: 'provider', value: d.provider }] : []),
     { label: 'input tokens', value: fmtNum(d.input_tokens), mono: true },
     { label: 'output tokens', value: fmtNum(d.output_tokens), mono: true },
   ];
@@ -98,8 +98,6 @@ export function WorkflowDetailLivePage({ workflowName, range, setView, setSelect
   return (
     <WorkflowDetailPage
       name={d.name}
-      model={d.model || '—'}
-      provider={d.provider || undefined}
       range={range}
       calls={d.calls}
       completed={completed}

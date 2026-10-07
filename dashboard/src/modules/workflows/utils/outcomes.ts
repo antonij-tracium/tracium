@@ -3,7 +3,7 @@
 // failed/calls over the window), so rounding the product recovers the failed
 // count without a second query.
 
-export interface RunOutcomes {
+interface RunOutcomes {
   completed: number;
   failed: number;
 }
