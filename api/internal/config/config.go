@@ -10,16 +10,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Authentication modes, selected by auth.mode / AUTH_MODE.
-const (
-	// AuthModeJWT verifies the tokens issued by /v1/auth/login against the
-	// accounts stored in Postgres. This is the default.
-	AuthModeJWT = "jwt"
-	// AuthModeNone disables authentication entirely: every request is granted
-	// the admin role. It must be asked for by name and is never a fallback for
-	// missing or misspelled configuration.
-	AuthModeNone = "none"
-)
+// AuthModeJWT, the only authentication mode, verifies the tokens issued by
+// /v1/auth/login against the accounts stored in Postgres.
+const AuthModeJWT = "jwt"
 
 // insecureJWTSecret is the value this repository used to default to. Tracium is
 // OSS, so the string is public and tokens signed with it are forgeable by
@@ -46,7 +39,7 @@ type StorageConfig struct {
 
 // AuthConfig holds authentication settings.
 type AuthConfig struct {
-	Mode      string `yaml:"mode"` // AuthModeJWT or AuthModeNone
+	Mode      string `yaml:"mode"` // must be AuthModeJWT
 	JWTSecret string `yaml:"jwt_secret"`
 	// RateLimitPerMinute caps register/login attempts per client IP per minute.
 	// Defaults to 10; set a negative value to disable throttling entirely.
@@ -127,12 +120,11 @@ func (c *StorageConfig) Validate() error {
 	return errors.Join(errs...)
 }
 
-// Validate checks the auth settings. A missing signing secret is an error in
-// every mode — the login and register routes issue tokens regardless of mode.
+// Validate checks the auth settings.
 func (c *AuthConfig) Validate() error {
 	var errs []error
-	if c.Mode != AuthModeJWT && c.Mode != AuthModeNone {
-		errs = append(errs, fmt.Errorf("config: auth.mode must be %q or %q, got %q (set AUTH_MODE)", AuthModeJWT, AuthModeNone, c.Mode))
+	if c.Mode != AuthModeJWT {
+		errs = append(errs, fmt.Errorf("config: auth.mode must be %q, got %q (set AUTH_MODE)", AuthModeJWT, c.Mode))
 	}
 	switch c.JWTSecret {
 	case "":
