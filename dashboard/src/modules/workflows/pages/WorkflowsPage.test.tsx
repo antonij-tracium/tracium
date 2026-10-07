@@ -11,13 +11,11 @@ describe('WorkflowsPage', () => {
     expect(screen.getByRole('textbox', { name: 'Filter workflows' })).toBeInTheDocument();
   });
 
-  it('exposes the sort column and direction', () => {
+  it('names the sort column and direction on the sort buttons', () => {
     render(<WorkflowsPage workflows={WORKFLOWS} setView={vi.fn()} setSelected={vi.fn()} />);
-    const header = (name: string) => screen.getByRole('button', { name }).closest('[role="columnheader"]');
-    expect(header('Calls')).toHaveAttribute('aria-sort', 'descending');
-    expect(header('Cost')).toHaveAttribute('aria-sort', 'none');
+    expect(screen.getByRole('button', { name: 'Sort by Cost' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Calls' }));
-    expect(header('Calls')).toHaveAttribute('aria-sort', 'ascending');
+    fireEvent.click(screen.getByRole('button', { name: 'Calls, sorted descending' }));
+    expect(screen.getByRole('button', { name: 'Calls, sorted ascending' })).toBeInTheDocument();
   });
 });

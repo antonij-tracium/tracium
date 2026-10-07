@@ -47,26 +47,25 @@ function SortHeader({
 }) {
   const active = sortKey === k;
   return (
-    <div role="columnheader" aria-sort={active ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
-      <button
-        onClick={() => onSort(k)}
-        style={{
-          background: 'transparent',
-          border: 'none',
-          padding: 0,
-          fontSize: 13,
-          color: active ? 'var(--foreground)' : 'var(--muted)',
-          fontWeight: 500,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 4,
-          justifyContent: align === 'right' ? 'flex-end' : 'flex-start',
-          width: '100%',
-        }}
-      >
-        {label} {active && (sortDir === 'asc' ? <IconArrowUp size={11} /> : <IconArrowDown size={11} />)}
-      </button>
-    </div>
+    <button
+      onClick={() => onSort(k)}
+      aria-label={active ? `${label}, sorted ${sortDir === 'asc' ? 'ascending' : 'descending'}` : `Sort by ${label}`}
+      style={{
+        background: 'transparent',
+        border: 'none',
+        padding: 0,
+        fontSize: 13,
+        color: active ? 'var(--foreground)' : 'var(--muted)',
+        fontWeight: 500,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 4,
+        justifyContent: align === 'right' ? 'flex-end' : 'flex-start',
+        width: '100%',
+      }}
+    >
+      {label} {active && (sortDir === 'asc' ? <IconArrowUp size={11} /> : <IconArrowDown size={11} />)}
+    </button>
   );
 }
 
@@ -184,7 +183,6 @@ export function WorkflowsPage({ workflows, range = '7d', setView, setSelected, w
 
       <div>
         <div
-          role="row"
           style={{
             display: 'grid',
             gridTemplateColumns: GRID_COLS,
@@ -194,7 +192,7 @@ export function WorkflowsPage({ workflows, range = '7d', setView, setSelected, w
           }}
         >
           <SortHeader label="Workflow" k="name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-          <span role="columnheader" style={{ fontSize: 13, color: 'var(--muted)' }}>Trend · {rangeLabel(range)}</span>
+          <span style={{ fontSize: 13, color: 'var(--muted)' }}>Trend · {rangeLabel(range)}</span>
           <SortHeader label="Calls" k="calls" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" />
           <SortHeader label="Cost" k="cost" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" />
           <SortHeader label="Avg latency" k="avg_latency_ms" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" />
