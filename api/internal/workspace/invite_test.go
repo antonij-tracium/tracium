@@ -3,54 +3,17 @@ package workspace
 import (
 	"context"
 	"errors"
-	"fmt"
-	"net/url"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/tracium/api/internal/model"
-	"github.com/tracium/api/migrations"
+	"github.com/tracium/api/testing/pgtest"
 )
 
-// newTestStore uses a throwaway schema so it can share TEST_POSTGRES_DSN with other packages.
 func newTestStore(t *testing.T) *PostgresStore {
-	t.Helper()
-	dsn := os.Getenv("TEST_POSTGRES_DSN")
-	if dsn == "" {
-		t.Skip("TEST_POSTGRES_DSN not set")
-	}
-	ctx := context.Background()
-	admin, err := pgxpool.New(ctx, dsn)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(admin.Close)
-	schema := fmt.Sprintf("invite_test_%d", time.Now().UnixNano())
-	if _, err := admin.Exec(ctx, `CREATE SCHEMA `+schema); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _, _ = admin.Exec(context.Background(), `DROP SCHEMA `+schema+` CASCADE`) })
-
-	u, err := url.Parse(dsn)
-	if err != nil {
-		t.Fatal(err)
-	}
-	q := u.Query()
-	q.Set("search_path", schema)
-	u.RawQuery = q.Encode()
-	pool, err := pgxpool.New(ctx, u.String())
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(pool.Close)
-	if err := migrations.Apply(ctx, pool, migrations.Core); err != nil {
-		t.Fatal(err)
-	}
-	return NewStore(pool)
+	return NewStore(pgtest.NewPool(t))
 }
 
 func addUser(t *testing.T, s *PostgresStore, email string) string {
@@ -254,22 +217,22 @@ func TestGrantMember(t *testing.T) {
 	record := func(_ context.Context, invited bool) error { seen = append(seen, invited); return nil }
 
 	// An invited user's seat is already held; the add closes their invite.
-	if err := s.GrantMember(ctx, "ws-1", bob, RoleMember, record); err != nil {
+	if err := s.GrantMember(ctx, "ws-1", bob, record); err != nil {
 		t.Fatal(err)
 	}
 	if invites, _ := s.ListInvites(ctx, "ws-1"); len(invites) != 0 {
 		t.Fatalf("bob's invite still open: %+v", invites)
 	}
 	// Re-adding a member takes no seat and skips the check.
-	if err := s.GrantMember(ctx, "ws-1", bob, RoleOwner, func(context.Context, bool) error { return errors.New("checked") }); err != nil {
+	if err := s.GrantMember(ctx, "ws-1", bob, func(context.Context, bool) error { return errors.New("checked") }); err != nil {
 		t.Fatalf("re-add: %v", err)
 	}
 	// A refused add stores nothing.
 	full := errors.New("full")
-	if err := s.GrantMember(ctx, "ws-1", carol, RoleMember, func(context.Context, bool) error { return full }); !errors.Is(err, full) {
+	if err := s.GrantMember(ctx, "ws-1", carol, func(context.Context, bool) error { return full }); !errors.Is(err, full) {
 		t.Fatalf("refused add: err = %v", err)
 	}
-	if err := s.GrantMember(ctx, "ws-1", carol, RoleMember, record); err != nil {
+	if err := s.GrantMember(ctx, "ws-1", carol, record); err != nil {
 		t.Fatal(err)
 	}
 	if len(seen) != 2 || !seen[0] || seen[1] {

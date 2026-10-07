@@ -12,11 +12,9 @@ import (
 	"github.com/tracium/api/internal/auth"
 	"github.com/tracium/api/internal/config"
 	"github.com/tracium/api/internal/handler"
-	"github.com/tracium/api/internal/middleware"
 	"github.com/tracium/api/internal/query"
 	"github.com/tracium/api/internal/workspace"
 	"github.com/tracium/api/migrations"
-	"log"
 	"net/http"
 	"os"
 	"regexp"
@@ -100,13 +98,8 @@ func New(ctx context.Context, cfg Config, opts Options) (*Application, error) {
 	apiKeys := apikey.NewStore(pool)
 	apiKeyService := apikey.NewService(apiKeys)
 	service := auth.NewService(users, auth.NewTokenIssuer(cfg.Auth.JWTSecret), opts.Accounts)
-	var authenticator middleware.Authenticator = service.Authenticator()
-	if cfg.Auth.Mode == config.AuthModeNone {
-		log.Println("WARNING: auth.mode=none — never use this outside local development")
-		authenticator = &middleware.NoopAuthenticator{}
-	}
 	health := []handler.DependencyCheck{{Name: "clickhouse", Check: repo.Ping}, {Name: "postgres", Check: pool.Ping}}
-	return &Application{cfg: cfg, sessions: service, Handler: newRouter(cfg, repo, workspaces, workspaces, users, authenticator, service, apiKeyService, health, opts), close: func() { pool.Close(); repo.Close() }}, nil
+	return &Application{cfg: cfg, sessions: service, Handler: newRouter(cfg, repo, workspaces, workspaces, users, service, service, apiKeyService, health, opts), close: func() { pool.Close(); repo.Close() }}, nil
 }
 
 var extensionName = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
