@@ -81,6 +81,12 @@ export function WorkflowDetailLivePage({ workflowName, range, setView, setSelect
       latencySeries={latency.data ? toLatencyPoints(latency.data.items, range) : []}
       errorSeries={errors.data ? toErrorPoints(errors.data.items, range) : []}
       runs={runs.data ? runs.data.items.map(toRunRow) : []}
+      loadErrors={{
+        cost: cost.isError && !cost.data,
+        latency: latency.isError && !latency.data,
+        errors: errors.isError && !errors.data,
+        runs: runs.isError && !runs.data,
+      }}
       setView={setView}
       setSelected={setSelected}
     />
