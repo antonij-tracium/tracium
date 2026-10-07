@@ -65,8 +65,6 @@ func (m *memKeyStore) FindActiveByHash(_ context.Context, hash string) (*model.A
 	}
 	return &k, nil
 }
-func (m *memKeyStore) Ping(context.Context) error { return nil }
-func (m *memKeyStore) Close()                     {}
 
 // fakeAccess grants membership of a fixed set of workspaces to any user.
 type fakeAccess struct{ ids []string }

@@ -93,9 +93,23 @@ func TestApplyEnv_AuthMode(t *testing.T) {
 
 	c := &Config{}
 	c.Default()
-	c.ApplyEnv()
+	if err := c.ApplyEnv(); err != nil {
+		t.Fatal(err)
+	}
 
 	if c.Auth.Mode != AuthModeNone {
 		t.Fatalf("AUTH_MODE not applied: got %q", c.Auth.Mode)
+	}
+}
+
+func TestApplyEnv_RejectsNonIntegerRateLimit(t *testing.T) {
+	for _, name := range []string{"AUTH_RATE_LIMIT_PER_MINUTE", "AUTH_VERIFY_RATE_LIMIT_PER_MINUTE"} {
+		t.Run(name, func(t *testing.T) {
+			t.Setenv(name, "ten")
+			err := (&Config{}).ApplyEnv()
+			if err == nil || !strings.Contains(err.Error(), name) {
+				t.Fatalf("expected an error naming %s, got %v", name, err)
+			}
+		})
 	}
 }
