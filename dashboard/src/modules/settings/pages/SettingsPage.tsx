@@ -42,6 +42,8 @@ export interface SettingsPageProps {
   workspace?: Workspace | null;
   /** The real signed-in account. Used when not in demo mode. */
   account?: Account | null;
+  /** Stores the session token returned by a password change. */
+  onSessionRenewed?: (token: string) => void;
 }
 
 interface SettingsUser {
@@ -353,9 +355,10 @@ function TabRail({ sections, tab, setTab, horizontal = false, demo = false }: Ta
 interface AccountViewProps {
   user: SettingsUser;
   demo: boolean;
+  onSessionRenewed?: (token: string) => void;
 }
 
-function ChangePasswordField() {
+function ChangePasswordField({ onSessionRenewed }: { onSessionRenewed?: (token: string) => void }) {
   const { usersAPI } = useAPIClient();
   const [editing, setEditing] = useState(false);
   const [current, setCurrent] = useState('');
@@ -383,7 +386,8 @@ function ChangePasswordField() {
     setSaving(true);
     setError('');
     try {
-      await usersAPI.changePassword(current, next);
+      const token = await usersAPI.changePassword(current, next);
+      onSessionRenewed?.(token);
       reset();
       setJustChanged(true);
     } catch (err) {
@@ -431,14 +435,14 @@ function ChangePasswordField() {
   );
 }
 
-function AccountView({ user, demo }: AccountViewProps) {
+function AccountView({ user, demo, onSessionRenewed }: AccountViewProps) {
   const [tabnav, setTabnav] = useState(true);
   if (!demo) return <div>
     <SectionHead first title="Account" hint="Your sign-in identity." />
     <Field label="Email" last><span>{user.email}</span></Field>
 
     <SectionHead title="Security" hint="Change the password used to sign in." />
-    <ChangePasswordField />
+    <ChangePasswordField onSessionRenewed={onSessionRenewed} />
   </div>;
 
   return (
@@ -903,6 +907,7 @@ export default function SettingsPage({
   demo = false,
   workspace = null,
   account = null,
+  onSessionRenewed,
 }: SettingsPageProps): JSX.Element {
   const [tab, setTab] = useState<TabId>(createMode || !demo ? 'workspace' : 'account');
   const [creating, setCreating] = useState(createMode);
@@ -947,7 +952,7 @@ export default function SettingsPage({
       };
 
   const viewMap: Partial<Record<TabId, React.ReactNode>> = {
-    account:   <AccountView user={user} demo={demo} />,
+    account:   <AccountView user={user} demo={demo} onSessionRenewed={onSessionRenewed} />,
     workspace: creating && createWorkspace
       ? <CreateWorkspaceView onCreate={async draft => {
           const created = await createWorkspace(draft);
