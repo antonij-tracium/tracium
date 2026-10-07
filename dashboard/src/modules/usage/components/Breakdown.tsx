@@ -14,7 +14,7 @@ import {
   IconChevron,
   IconCheck,
   IconSearch,
-  costFormatter,
+  fmtCost,
   fmtNum,
 } from '../../../common';
 import type { UserSummary, WorkflowSummary, AttributeSummary } from '../interfaces';
@@ -189,7 +189,6 @@ function BreakdownRow({ row, kind, sharePct, isTop, isLast, tmpl, onClick }: Bre
         },
       })}
     >
-      {/* Name column */}
       <div className={styles.nameCell}>
         <div className={styles.nameTop}>
           {isTop && <span className={styles.topDot} title="Top 75% of spend" />}
@@ -203,7 +202,6 @@ function BreakdownRow({ row, kind, sharePct, isTop, isLast, tmpl, onClick }: Bre
         </span>
       </div>
 
-      {/* Trend column (user only) */}
       {kind === 'user' && user && (
         <div>
           <Sparkline
@@ -216,16 +214,12 @@ function BreakdownRow({ row, kind, sharePct, isTop, isLast, tmpl, onClick }: Bre
         </div>
       )}
 
-      {/* Runs */}
       <MetricCell value={fmtNum(row.runs)} pct={runsPct} variant="runs" />
 
-      {/* Avg cost per 1,000 runs */}
-      <MetricCell value={costFormatter.format(row.avg * 1000)} pct={avgPct} variant="avg" />
+      <MetricCell value={fmtCost(row.avg * 1000)} pct={avgPct} variant="avg" />
 
-      {/* Cost */}
-      <MetricCell value={costFormatter.format(row.cost)} pct={costPct} variant="cost" />
+      <MetricCell value={fmtCost(row.cost)} pct={costPct} variant="cost" />
 
-      {/* Share bar */}
       <div className={styles.shareCell}>
         <div className={styles.shareTrack}>
           <div
@@ -283,7 +277,6 @@ export function Breakdown({ rows, totalCost, kind, sortBy, setSortBy, nameLabel,
 
   return (
     <div className={styles.scroll}>
-      {/* Header row */}
       <div className={styles.headRow} style={{ gridTemplateColumns: tmpl } as CSSProperties}>
         {cols.map((c) => (
           <button
@@ -298,7 +291,6 @@ export function Breakdown({ rows, totalCost, kind, sortBy, setSortBy, nameLabel,
         ))}
       </div>
 
-      {/* Data rows */}
       {sorted.map((row, i) => {
         const sharePct = totalCost ? (row.cost / totalCost) * 100 : 0;
         const rowId = isUserSummary(row) ? row.id : row.name;

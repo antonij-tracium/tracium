@@ -1,5 +1,4 @@
-import type { TraceId } from '../ids';
-import type { UserId } from '../../../common/ids';
+import type { TraceId, UserId } from '../../../common/ids';
 
 export interface Trace {
   trace_id: TraceId;

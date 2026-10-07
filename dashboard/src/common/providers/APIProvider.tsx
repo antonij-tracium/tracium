@@ -12,18 +12,9 @@ interface APIContextValue {
   workspacesAPI: WorkspacesAPI;
   apiKeysAPI: ApiKeysAPI;
   usersAPI: UsersAPI;
-  /**
-   * The workspace every client is currently scoped to (undefined = unscoped).
-   * Consumers MUST fold this into their react-query keys so a cached result
-   * from one workspace is never shown for another, and switching workspaces
-   * refetches with the freshly-rebuilt scoped client on its own.
-   */
+  // Fold into every query key so a workspace switch never serves another
+  // workspace's cache and refetches with the rebuilt clients.
   workspaceId: string | undefined;
-  /**
-   * Scope every subsequent read to a workspace (or clear scoping with
-   * undefined). The dashboard calls this when the active workspace changes;
-   * the API clients are rebuilt so their requests carry the new workspace_id.
-   */
   setWorkspaceId: (id: string | undefined) => void;
 }
 

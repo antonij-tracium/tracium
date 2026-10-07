@@ -1,3 +1,5 @@
+import { APIError } from '../../common/api/client';
+
 export interface LoginRequest {
   email: string;
   password: string;
@@ -24,6 +26,15 @@ export class AuthError extends Error {
     this.name = 'AuthError';
     this.status = status;
   }
+}
+
+const GENERIC_ERROR = 'Something went wrong. Please try again.';
+
+// Picks the message for a failed request by HTTP status, falling back to the
+// given text or, without one, the error's own message.
+export function requestErrorMessage(err: unknown, byStatus: Record<number, string>, fallback?: string): string {
+  const status = err instanceof AuthError || err instanceof APIError ? err.status : 0;
+  return byStatus[status] ?? fallback ?? (err instanceof Error ? err.message : GENERIC_ERROR);
 }
 
 /** Calls an endpoint that needs no session, throwing AuthError on failure. */

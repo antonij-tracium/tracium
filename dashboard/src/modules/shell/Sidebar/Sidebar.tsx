@@ -9,6 +9,7 @@ import {
   IconLogout,
   IconX,
 } from '../../../common';
+import hover from '../../../common/styles/hover.module.css';
 import type { Workspace } from '../interfaces';
 import { WorkspaceSwitcher } from '../WorkspaceSwitcher';
 import { TraciumWordmark } from '../Logo';
@@ -237,8 +238,7 @@ export function Sidebar({
         {onLogout && (
           <button
             onClick={onLogout}
-            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--danger, #f87171)')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--muted)')}
+            className={hover.danger}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -250,7 +250,6 @@ export function Sidebar({
               border: 'none',
               borderRadius: 6,
               cursor: 'pointer',
-              color: 'var(--muted)',
               fontSize: 13.5,
               fontWeight: 500,
               fontFamily: 'inherit',

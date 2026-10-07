@@ -4,18 +4,11 @@ import { TraceView } from '../../trace-inspector';
 import { Spinner, EmptyState } from '../../../common';
 
 export interface TraceDetailViewProps {
-  /** Trace selected from the overview activity feed / command palette. */
   traceId: string;
   setView: (v: string) => void;
   setSelected: (updater: (prev: Record<string, string>) => Record<string, string>) => void;
 }
 
-/**
- * Connected trace detail — fetches the selected trace from the API, adapts it
- * to the shared view-model, and renders the same {@link TraceView} as the demo
- * page. Span input/output text and tool lists aren't in the API, so those
- * sections stay empty for live traces.
- */
 export function TraceDetailView({ traceId, setView, setSelected }: TraceDetailViewProps) {
   const { data, isLoading, error } = useTrace(traceId);
 
@@ -39,10 +32,6 @@ export function TraceDetailView({ traceId, setView, setSelected }: TraceDetailVi
     return <EmptyState message="Trace not found" description="This trace is no longer available." />;
   }
 
-  // Key by trace id so the view remounts per trace; otherwise its per-trace
-  // state (selected span, collapsed set, tab) would persist when navigating
-  // between two already-cached traces and leave the inspector showing a span
-  // id that doesn't exist in the new trace.
   const openUser = (user: string) => {
     setSelected(s => ({ ...s, user }));
     setView('user');
@@ -51,6 +40,6 @@ export function TraceDetailView({ traceId, setView, setSelected }: TraceDetailVi
     if (v === 'workflows') setSelected(s => { const n = { ...s }; delete n.workflow; return n; });
     setView(v);
   };
+  // Remount per trace so the selected span, collapsed set and tab don't carry over.
   return <TraceView key={data.trace_id} trace={toTraceView(data)} setView={navigate} onOpenUser={openUser} />;
 }
-

@@ -1,9 +1,5 @@
-// Most-used workflows — a flat, clickable list (no card). Each row shows the workflow
-// name, a thin volume bar scaled to the busiest workflow, an optional trend
-// sparkline, and its call count + cost. The caller passes workflows already
-// sorted/sliced to the rows it wants shown.
-
-import { Sparkline, fmtNum, fmtCost, RANGE_LABEL } from '../../../common';
+import { Sparkline, fmtNum, fmtCost, rangeLabel } from '../../../common';
+import hover from '../../../common/styles/hover.module.css';
 import { SectionRule } from './SectionRule';
 
 export interface TopWorkflowRow {
@@ -26,7 +22,7 @@ export function TopWorkflows({
 
   return (
     <div>
-      <SectionRule eyebrow="Volume" title="Most used workflows" subtitle={`By call count, ${RANGE_LABEL[range] ?? RANGE_LABEL['7d']}`} />
+      <SectionRule eyebrow="Volume" title="Most used workflows" subtitle={`By call count, ${rangeLabel(range)}`} />
       <div style={{ margin: '-4px 0' }}>
         {workflows.map((a, i) => {
           const pct = (a.calls / maxCalls) * 100;
@@ -34,6 +30,7 @@ export function TopWorkflows({
             <button
               key={a.name}
               onClick={() => onSelectWorkflow(a.name)}
+              className={hover.row}
               style={{
                 display: 'grid',
                 gridTemplateColumns: '1fr auto auto',
@@ -45,10 +42,7 @@ export function TopWorkflows({
                 textAlign: 'left',
                 borderBottom:
                   i < workflows.length - 1 ? '1px solid color-mix(in srgb, var(--border) 55%, transparent)' : 'none',
-                background: 'transparent',
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = 'color-mix(in srgb, var(--surface-alt) 60%, transparent)')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             >
               <div style={{ display: 'flex', flexDirection: 'column', gap: 7, minWidth: 0 }}>
                 <span style={{ fontSize: 14.5, fontWeight: 500, color: 'var(--foreground)' }}>{a.name}</span>

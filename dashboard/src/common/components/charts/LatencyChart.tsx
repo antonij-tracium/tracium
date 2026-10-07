@@ -94,10 +94,8 @@ export function LatencyChart({ series, height = 220 }: LatencyChartProps) {
           );
         })}
 
-        {/* Area fill under p99 */}
         <path d={areaPath} fill="var(--accent)" opacity="0.06" />
 
-        {/* Lines */}
         <path
           d={linePath(p99Segs)}
           stroke="var(--warning)"
@@ -136,7 +134,6 @@ export function LatencyChart({ series, height = 220 }: LatencyChartProps) {
           <circle key={`i95-${i}`} cx={p.x} cy={p.y} r={3} fill="var(--accent)" />
         ))}
 
-        {/* Hit areas + hover dots + x-axis labels */}
         {series.map((d, i) => {
           const x = pad.left + i * step;
           return (
@@ -189,7 +186,6 @@ export function LatencyChart({ series, height = 220 }: LatencyChartProps) {
           );
         })}
 
-        {/* Tooltip */}
         {hover !== null && (() => {
           const d = series[hover];
           const x = pad.left + hover * step;

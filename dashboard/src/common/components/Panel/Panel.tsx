@@ -1,24 +1,14 @@
-// Panel — a titled content block used inside PanelFrame: an uppercase eyebrow, a
-// title, and an optional right-aligned slot (legend, count, etc.) above the
-// content. Mirrors the overview ChartsRow panel header so the two pages read the
-// same.
-
-import React from 'react';
+import type { ReactNode } from 'react';
 import styles from './Panel.module.css';
 
 export interface PanelProps {
   eyebrow: string;
   title: string;
-  right?: React.ReactNode;
-  /**
-   * Cap the content to the panel's available height and scroll overflow inside
-   * it, instead of letting tall content grow the panel. Used by the shorter
-   * partner in a PanelFrame so a long list matches the chart beside it rather
-   * than leaving blank space next to it. Enable only on the wide layout — when
-   * stacked, the panel has no sibling to borrow its height from.
-   */
+  right?: ReactNode;
+  // Cap the content to the height the frame gives the panel and scroll inside
+  // it, so a long list matches the chart beside it. Only useful side by side.
   scroll?: boolean;
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 export function Panel({ eyebrow, title, right, scroll = false, children }: PanelProps) {

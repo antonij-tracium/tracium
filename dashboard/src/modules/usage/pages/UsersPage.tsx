@@ -1,13 +1,5 @@
-// UsersPage — pure renderer for the user list: sortable, filterable table
-// with a cost-share bar. It receives its rows as props (the live wrapper feeds
-// telemetry-derived data, the demo feeds mock data) and never fetches.
-//
-// Columns that aren't telemetry-derived (Region / Success / Last seen) only
-// render when the rows carry that metadata — i.e. the demo dataset. The live,
-// API-backed dataset shows the telemetry columns only.
-
 import React, { useMemo, useState, type ReactNode } from 'react';
-import { LastUpdated, Sparkline, fmtNum } from '../../../common';
+import { KpiStrip, LastUpdated, Sparkline, fmtCost, fmtDelta, fmtNum } from '../../../common';
 
 export interface User {
   id: string;
@@ -38,35 +30,7 @@ function successColor(success: number): string {
 }
 
 function pctDelta(curr: number, prev: number): string {
-  if (prev <= 0) return '';
-  const d = ((curr - prev) / prev) * 100;
-  return (d >= 0 ? '+' : '') + d.toFixed(1) + '%';
-}
-
-interface KpiProps {
-  label: string;
-  value: string;
-  delta?: string;
-  deltaTone?: "good" | "bad" | "neutral";
-  hint: string;
-  last?: boolean;
-}
-
-function Kpi({ label, value, delta, deltaTone = "neutral", hint, last = false }: KpiProps) {
-  const deltaColor = deltaTone === "good" ? "var(--accent)" : deltaTone === "bad" ? "var(--warning)" : "var(--muted)";
-  return (
-    <div style={{
-      paddingRight: last ? 0 : 24,
-      borderRight: last ? "none" : "1px solid color-mix(in srgb, var(--border) 45%, transparent)",
-    }}>
-      <div style={{ fontSize: 12.5, color: "var(--muted)", marginBottom: 8, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</div>
-      <div style={{ fontSize: 24, fontWeight: 500, letterSpacing: "-0.02em", color: "var(--foreground)", fontVariantNumeric: "tabular-nums", lineHeight: 1, marginBottom: 6 }}>{value}</div>
-      <div style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 8 }}>
-        {delta && <span style={{ color: deltaColor, fontWeight: 500 }}>{delta}</span>}
-        <span style={{ color: "var(--muted)" }}>{hint}</span>
-      </div>
-    </div>
-  );
+  return prev > 0 ? fmtDelta((curr - prev) / prev) : '';
 }
 
 const SHARE_PALETTE = ["var(--accent)", "#7aa5ff", "#c08aff", "#f5a524", "#5ec8b4", "#e76e8b", "#8b95a8", "color-mix(in srgb, var(--muted) 50%, transparent)"];
@@ -84,7 +48,7 @@ function ShareBar({ users, totalCost }: { users: User[]; totalCost: number }) {
           const pct = totalCost > 0 ? (t.cost / totalCost) * 100 : 0;
           if (pct < 0.5) return null;
           return (
-            <div key={t.id} title={`${t.name}: $${t.cost.toFixed(2)} (${pct.toFixed(1)}%)`} style={{
+            <div key={t.id} title={`${t.name}: ${fmtCost(t.cost)} (${pct.toFixed(1)}%)`} style={{
               width: pct + "%",
               background: SHARE_PALETTE[i % SHARE_PALETTE.length],
               opacity: 0.85,
@@ -125,7 +89,8 @@ interface ColDef {
   width: string;
   align: 'left' | 'right';
   sortKey?: UserSortKey;
-  meta?: boolean; // requires non-telemetry metadata to render
+  // Region, success and last seen aren't telemetry; only demo rows carry them.
+  meta?: boolean;
   cell: (t: User) => ReactNode;
 }
 
@@ -153,11 +118,11 @@ const COLUMNS: ColDef[] = [
   },
   {
     key: "cost", label: "Cost", width: "90px", align: "right", sortKey: "cost",
-    cell: t => <div style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontSize: 14, color: "var(--foreground)", fontWeight: 500 }}>${t.cost.toFixed(2)}</div>,
+    cell: t => <div style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontSize: 14, color: "var(--foreground)", fontWeight: 500 }}>{fmtCost(t.cost)}</div>,
   },
   {
-    key: "avg", label: "Avg cost", width: "96px", align: "right", sortKey: "avg",
-    cell: t => <div style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontSize: 13, color: "var(--muted)" }}>${t.avg.toFixed(6)}</div>,
+    key: "avg", label: "Avg / 1K", width: "96px", align: "right", sortKey: "avg",
+    cell: t => <div style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontSize: 13, color: "var(--muted)" }}>{fmtCost(t.avg * 1000)}</div>,
   },
   {
     key: "success", label: "Success", width: "76px", align: "right", sortKey: "success", meta: true,
@@ -200,11 +165,8 @@ function HeaderCell({ col, sort, onSort }: { col: ColDef; sort: SortState; onSor
 
 export interface UsersPageProps {
   users: User[];
-  /** Human label for the period the data covers, e.g. "Apr 1 – Apr 30". */
   periodLabel: string;
-  /** Previous-period totals; when present, the KPI strip shows deltas. */
   comparison?: { runs: number; cost: number };
-  /** Epoch ms of the last successful fetch; drives the live "Updated …" badge. Omitted for demo data. */
   updatedAt?: number;
   setView: (v: string) => void;
   setSelected: (updater: (prev: Record<string, string>) => Record<string, string>) => void;
@@ -260,33 +222,34 @@ export function UsersPage({ users, periodLabel, comparison, updatedAt, setView, 
         <div style={{ minWidth: 0 }}>
           <h1 style={{ fontSize: 28, fontWeight: 600, letterSpacing: "-0.02em", margin: 0, color: "var(--foreground)" }}>Clients</h1>
           <p style={{ fontSize: 14.5, color: "var(--muted)", margin: "2px 0 0" }}>
-            {periodLabel} · {users.length} active clients · ${totalCost.toFixed(2)} this period
+            {periodLabel} · {users.length} active clients · {fmtCost(totalCost)} this period
           </p>
         </div>
         {updatedAt != null && <LastUpdated at={updatedAt} />}
       </header>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 28, paddingTop: 4, paddingBottom: 28, borderBottom: "1px solid color-mix(in srgb, var(--border) 50%, transparent)" }}>
-        <Kpi label="Active clients" value={users.length.toString()} hint="this period" />
-        <Kpi
-          label="Total runs"
-          value={fmtNum(totalRuns)}
-          delta={comparison ? pctDelta(totalRuns, comparison.runs) : undefined}
-          deltaTone="good"
-          hint={fmtNum(totalRuns) + " total"}
-        />
-        <Kpi
-          label="Spend"
-          value={"$" + totalCost.toFixed(2)}
-          delta={comparison ? pctDelta(totalCost, comparison.cost) : undefined}
-          deltaTone={comparison && totalCost > comparison.cost ? "bad" : "good"}
-          hint={"$" + (users.length > 0 ? totalCost / users.length : 0).toFixed(2) + " / client"}
-          last
-        />
-      </div>
+      <KpiStrip
+        items={[
+          { label: "Active clients", value: users.length.toString(), hint: "this period" },
+          {
+            label: "Total runs",
+            value: fmtNum(totalRuns),
+            delta: comparison ? pctDelta(totalRuns, comparison.runs) : undefined,
+            deltaTone: "good",
+            hint: fmtNum(totalRuns) + " total",
+          },
+          {
+            label: "Spend",
+            value: fmtCost(totalCost),
+            delta: comparison ? pctDelta(totalCost, comparison.cost) : undefined,
+            deltaTone: comparison && totalCost > comparison.cost ? "bad" : "good",
+            hint: fmtCost(users.length > 0 ? totalCost / users.length : 0) + " / client",
+          },
+        ]}
+      />
 
       <div style={{
-        paddingTop: 36, paddingBottom: 44,
+        paddingBottom: 44,
         borderBottom: "1px solid color-mix(in srgb, var(--border) 50%, transparent)",
       }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 20 }}>

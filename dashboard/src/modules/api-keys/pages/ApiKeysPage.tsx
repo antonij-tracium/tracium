@@ -9,7 +9,10 @@ import {
   StatusPill,
   Spinner,
   SlicedButton,
+  SectionHead,
+  formatDate,
   relativeTime,
+  useCopy,
 } from '../../../common';
 import { useApiKeys, useDemoApiKeys } from '../hooks/useApiKeys';
 import type { UseApiKeysResult } from '../hooks/useApiKeys';
@@ -20,79 +23,6 @@ export interface ApiKeysPageProps {
   demo?: boolean;
   /** The workspace to manage keys for, in the live (non-demo) page. */
   workspaceId?: string;
-}
-
-interface SectionHeadProps {
-  title: string;
-  hint?: string;
-  right?: React.ReactNode;
-  first?: boolean;
-}
-
-function SectionHead({ title, hint, right, first = false }: SectionHeadProps) {
-  return (
-    <header
-      style={{
-        display: 'flex',
-        alignItems: 'flex-end',
-        justifyContent: 'space-between',
-        gap: 24,
-        flexWrap: 'wrap',
-        paddingTop: first ? 0 : 48,
-        paddingBottom: 18,
-        borderTop: first
-          ? 'none'
-          : '1px solid color-mix(in srgb, var(--border) 50%, transparent)',
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 5,
-          minWidth: 0,
-          paddingTop: first ? 0 : 28,
-        }}
-      >
-        <h2
-          style={{
-            fontSize: 19,
-            fontWeight: 600,
-            letterSpacing: '-0.018em',
-            margin: 0,
-            color: 'var(--foreground)',
-          }}
-        >
-          {title}
-        </h2>
-        {hint && (
-          <p
-            style={{
-              fontSize: 14,
-              color: 'var(--muted)',
-              margin: 0,
-              maxWidth: 620,
-            }}
-          >
-            {hint}
-          </p>
-        )}
-      </div>
-      {right && (
-        <div style={{ paddingTop: first ? 0 : 28, flexShrink: 0 }}>{right}</div>
-      )}
-    </header>
-  );
-}
-
-function fmtDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
 }
 
 function fmtLastUsed(iso: string | null): string {
@@ -193,34 +123,10 @@ interface InlineRevealProps {
 }
 
 function InlineReveal({ created, onClose }: InlineRevealProps) {
-  const [copied, setCopied] = useState(false);
-  const [copyFailed, setCopyFailed] = useState(false);
-
-  useEffect(() => {
-    setCopied(false);
-    setCopyFailed(false);
-  }, [created]);
-
+  const [copyStatus, copy] = useCopy();
+  const copied = copyStatus === 'copied';
+  const copyFailed = copyStatus === 'failed';
   const token = created.token;
-
-  // Only report success once the write actually resolves. The Clipboard API is
-  // absent outside secure contexts and writeText can reject (denied permission),
-  // and this is the one time the token is shown — claiming "Copied" when nothing
-  // reached the clipboard would let the user dismiss it having lost the key. On
-  // failure, flag it so the user copies the still-visible token manually.
-  async function handleCopy() {
-    try {
-      if (!navigator.clipboard) throw new Error('clipboard unavailable');
-      await navigator.clipboard.writeText(token);
-      setCopyFailed(false);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    } catch {
-      setCopied(false);
-      setCopyFailed(true);
-      setTimeout(() => setCopyFailed(false), 3000);
-    }
-  }
 
   return (
     <div
@@ -266,7 +172,7 @@ function InlineReveal({ created, onClose }: InlineRevealProps) {
       >
         <span style={{ flex: 1 }}>{token}</span>
         <button
-          onClick={handleCopy}
+          onClick={() => copy(token)}
           style={{
             padding: '5px 11px',
             background: copied ? 'var(--accent)' : 'transparent',
@@ -438,15 +344,9 @@ interface LiveKeyRowProps {
 
 function LiveKeyRow({ k, isLast, confirming, onRevoke }: LiveKeyRowProps) {
   const [hover, setHover] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copyStatus, copy] = useCopy();
+  const copied = copyStatus === 'copied';
   const revoked = !!k.revoked_at;
-
-  function handleCopy(e: React.MouseEvent) {
-    e.stopPropagation();
-    void navigator.clipboard?.writeText(k.prefix);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  }
 
   return (
     <div
@@ -469,7 +369,6 @@ function LiveKeyRow({ k, isLast, confirming, onRevoke }: LiveKeyRowProps) {
         opacity: revoked ? 0.6 : 1,
       }}
     >
-      {/* Name */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
         <span
           style={{
@@ -487,12 +386,11 @@ function LiveKeyRow({ k, isLast, confirming, onRevoke }: LiveKeyRowProps) {
         </span>
         {revoked && k.revoked_at && (
           <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>
-            Revoked {fmtDate(k.revoked_at)}
+            Revoked {formatDate(k.revoked_at)}
           </div>
         )}
       </div>
 
-      {/* Key prefix */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
         <code
           style={{
@@ -508,7 +406,7 @@ function LiveKeyRow({ k, isLast, confirming, onRevoke }: LiveKeyRowProps) {
           {k.prefix}…
         </code>
         <button
-          onClick={handleCopy}
+          onClick={() => copy(k.prefix)}
           title="Copy prefix"
           style={{
             padding: '4px 6px',
@@ -525,24 +423,20 @@ function LiveKeyRow({ k, isLast, confirming, onRevoke }: LiveKeyRowProps) {
         </button>
       </div>
 
-      {/* Status */}
       <div style={{ minWidth: 0 }}>
         <StatusPill status={revoked ? 'failed' : 'ok'}>
           {revoked ? 'Revoked' : 'Active'}
         </StatusPill>
       </div>
 
-      {/* Last used */}
       <div style={{ fontSize: 13.5, color: 'var(--foreground)' }}>
         {fmtLastUsed(k.last_used_at)}
       </div>
 
-      {/* Created */}
       <div style={{ fontSize: 13.5, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>
-        {fmtDate(k.created_at)}
+        {formatDate(k.created_at)}
       </div>
 
-      {/* Revoke */}
       <div style={{ textAlign: 'right' }}>
         {!revoked && !confirming && (
           <button
@@ -645,7 +539,6 @@ function ApiKeysView({ data, workspaceId }: { data: UseApiKeysResult; workspaceI
         margin: '0 auto',
       }}
     >
-      {/* Page title */}
       <div style={{ marginBottom: 28, minWidth: 0 }}>
         <h1
           style={{
@@ -674,7 +567,6 @@ function ApiKeysView({ data, workspaceId }: { data: UseApiKeysResult; workspaceI
         </p>
       </div>
 
-      {/* Keys table */}
       <SectionHead
         first
         title="Keys"
@@ -723,7 +615,7 @@ function ApiKeysView({ data, workspaceId }: { data: UseApiKeysResult; workspaceI
       )}
 
       {created && (
-        <InlineReveal created={created} onClose={() => setCreated(null)} />
+        <InlineReveal key={created.token} created={created} onClose={() => setCreated(null)} />
       )}
 
       {isLoading ? (

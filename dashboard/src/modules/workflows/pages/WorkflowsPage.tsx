@@ -1,86 +1,31 @@
-// WorkflowsPage — sortable, filterable workflow list (from the workflows.html design).
-//
-// Pure presentational component: it renders whatever `workflows` it is handed. The
-// demo/embedded app passes the mock WORKFLOWS; the signed-in app passes the live
-// list via WorkflowsLivePage. Health/status and "needs attention" features are
-// intentionally omitted: no status column, no status filter pills, no "needs
-// attention" stat tile.
-
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   IconArrowDown,
   IconArrowUp,
   IconSearch,
   LastUpdated,
   Sparkline,
+  StatTile,
   fmtCost,
   fmtNum,
   fmtMs,
 } from '../../../common';
+import hover from '../../../common/styles/hover.module.css';
 import type { Workflow } from '../interfaces';
+import { ERR_BAD, ERR_WARN } from '../utils';
 
 export interface WorkflowsPageProps {
   workflows: Workflow[];
   setView: (v: string) => void;
   setSelected: (updater: (prev: Record<string, string>) => Record<string, string>) => void;
-  /** Active workspace name, shown in the page eyebrow. */
   workspaceName?: string;
-  /** Epoch ms of the last successful fetch; drives the live "Updated …" label. Omitted for demo data. */
   updatedAt?: number;
 }
 
 type SortKey = keyof Pick<Workflow, 'name' | 'calls' | 'cost' | 'avg_latency_ms' | 'error_rate'>;
 type SortDir = 'asc' | 'desc';
 
-// [Workflow, Trend, Calls, Cost, Avg latency, Error] — the status column is dropped.
 const GRID_COLS = '2fr 1fr 100px 100px 100px 80px';
-
-// Error-rate thresholds (fractions): above 2% reads as an error, above 0.5% as a warning.
-const ERR_BAD = 0.02;
-const ERR_WARN = 0.005;
-
-function SmallStat({
-  label,
-  value,
-  sub,
-  isFirst,
-}: {
-  label: string;
-  value: React.ReactNode;
-  sub?: string;
-  isFirst?: boolean;
-}) {
-  return (
-    <div
-      style={{
-        padding: '18px 22px 20px',
-        borderLeft: isFirst ? 'none' : '1px solid var(--border)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 8,
-      }}
-    >
-      <span style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 500 }}>{label}</span>
-      <span
-        title={typeof value === 'string' ? value : undefined}
-        style={{
-          fontSize: 22,
-          fontWeight: 500,
-          letterSpacing: '-0.02em',
-          color: 'var(--foreground)',
-          fontVariantNumeric: 'tabular-nums',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          lineHeight: 1,
-        }}
-      >
-        {value}
-      </span>
-      {sub && <span style={{ fontSize: 13, color: 'var(--muted)' }}>{sub}</span>}
-    </div>
-  );
-}
 
 function SortHeader({
   label,
@@ -151,7 +96,6 @@ export function WorkflowsPage({ workflows, setView, setSelected, workspaceName, 
   const topVolume = workflows.reduce<Workflow | null>((m, a) => (!m || a.calls > m.calls ? a : m), null);
   const topCost = workflows.reduce<Workflow | null>((m, a) => (!m || a.cost > m.cost ? a : m), null);
 
-  // Drill into the workflow's detail page (charts, recent runs, config, tools).
   const openWorkflow = (a: Workflow) => {
     setSelected(prev => ({ ...prev, workflow: a.name }));
     setView('workflows');
@@ -196,9 +140,9 @@ export function WorkflowsPage({ workflows, setView, setSelected, workspaceName, 
           margin: '4px 0 28px',
         }}
       >
-        <SmallStat isFirst label="Active workflows" value={workflows.length} sub="deployed" />
-        <SmallStat label="Highest volume" value={topVolume?.name ?? '—'} sub={topVolume ? `${fmtNum(topVolume.calls)} runs` : undefined} />
-        <SmallStat label="Most expensive" value={topCost?.name ?? '—'} sub={topCost ? fmtCost(topCost.cost) : undefined} />
+        <StatTile isFirst label="Active workflows" value={workflows.length} />
+        <StatTile label="Highest volume" value={topVolume?.name ?? '—'} sub={topVolume ? `${fmtNum(topVolume.calls)} runs` : undefined} />
+        <StatTile label="Most expensive" value={topCost?.name ?? '—'} sub={topCost ? fmtCost(topCost.cost) : undefined} />
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
@@ -270,15 +214,13 @@ export function WorkflowsPage({ workflows, setView, setSelected, workspaceName, 
 }
 
 function WorkflowRow({ workflow: a, isLast, onOpen }: { workflow: Workflow; isLast: boolean; onOpen: () => void }) {
-  const [hovered, setHovered] = useState(false);
   const errColor =
     a.error_rate > ERR_BAD ? 'var(--error)' : a.error_rate > ERR_WARN ? 'var(--warning)' : 'var(--muted)';
 
   return (
     <button
       onClick={onOpen}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      className={hover.row}
       style={{
         display: 'grid',
         gridTemplateColumns: GRID_COLS,
@@ -292,9 +234,6 @@ function WorkflowRow({ workflow: a, isLast, onOpen }: { workflow: Workflow; isLa
         borderBottom: isLast
           ? 'none'
           : '1px solid color-mix(in srgb, var(--border) 55%, transparent)',
-        background: hovered
-          ? 'color-mix(in srgb, var(--surface-alt) 60%, transparent)'
-          : 'transparent',
       }}
     >
       <span style={{ fontSize: 14.5, fontWeight: 500, color: 'var(--foreground)' }}>{a.name}</span>

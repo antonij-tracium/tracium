@@ -1,7 +1,3 @@
-// A compact strip of outlier tallies (cost spikes / error spikes / volume
-// shifts), shown under the KPI cards so the count of flagged buckets is visible
-// at a glance.
-
 import type { Anomaly } from '../../interfaces';
 import { anomalyChips } from '../../utils/anomalies';
 
@@ -18,7 +14,7 @@ export function OutlierChips({ anomalies }: OutlierChipsProps) {
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {chips.map((c) => (
           <span
-            key={c.key}
+            key={c.metric}
             style={{
               fontSize: 12,
               padding: '5px 10px',

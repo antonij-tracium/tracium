@@ -7,8 +7,6 @@
   min-width: 0;
 }
 
-/* Vertical rule between the two panels on wide viewports; becomes a horizontal
-   rule between the stacked panels on narrow ones. */
 .divider {
   border-right: 1px solid var(--border);
 }

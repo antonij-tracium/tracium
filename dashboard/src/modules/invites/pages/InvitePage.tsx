@@ -2,7 +2,7 @@ import type { AuthAppearance } from '../../../extensions';
 import { useEffect, useState } from 'react';
 import { AuthShell, AuthButton } from '../../auth/components';
 import { formatDate } from '../../../common';
-import { AuthError } from '../../auth/api';
+import { requestErrorMessage } from '../../auth/api';
 import { APIError, WorkspacesAPI } from '../../../common/api';
 import { previewInvite, type InvitePreview } from '../api';
 import styles from '../../auth/pages/LoginPage.module.css';
@@ -21,17 +21,15 @@ type Load =
   | { state: 'ready'; invite: InvitePreview }
   | { state: 'error'; message: string };
 
-function statusOf(err: unknown): number {
-  return err instanceof AuthError || err instanceof APIError ? err.status : 0;
-}
+const INVALID = 'This invite link isn’t valid. Ask the workspace owner for a new one.';
+const EXPIRED = 'This invite has expired or was already used. Ask the workspace owner for a new one.';
 
 function loadError(err: unknown): string {
-  switch (statusOf(err)) {
-    case 404: return 'This invite link isn’t valid. Ask the workspace owner for a new one.';
-    case 410: return 'This invite has expired or was already used. Ask the workspace owner for a new one.';
-    case 429: return 'Too many attempts. Wait a minute and try again.';
-    default: return 'We couldn’t load this invite. Try again in a moment.';
-  }
+  return requestErrorMessage(
+    err,
+    { 404: INVALID, 410: EXPIRED, 429: 'Too many attempts. Wait a minute and try again.' },
+    'We couldn’t load this invite. Try again in a moment.',
+  );
 }
 
 export default function InvitePage({ token, appearance, session, onAccepted, onDismiss, onSignOut }: InvitePageProps) {
@@ -58,18 +56,17 @@ export default function InvitePage({ token, appearance, session, onAccepted, onD
       const { workspace_id } = await api.acceptInvite(token);
       onAccepted?.(workspace_id);
     } catch (err) {
-      const status = statusOf(err);
       const code = err instanceof APIError ? err.code : undefined;
       if (code === 'MEMBER_LIMIT_REACHED') {
         setAcceptError('This workspace has reached its member limit. Ask the workspace owner to make room for you.');
       } else if (code === 'FEATURE_UNAVAILABLE') {
         setAcceptError('This workspace can’t add members right now. Ask the workspace owner for help.');
-      } else if (status === 403) {
-        setAcceptError('This invite was sent to a different email address. Sign in with that address to accept it.');
-      } else if (status === 404 || status === 410) {
-        setAcceptError(loadError(err));
       } else {
-        setAcceptError('We couldn’t accept this invite. Try again in a moment.');
+        setAcceptError(requestErrorMessage(
+          err,
+          { 403: 'This invite was sent to a different email address. Sign in with that address to accept it.', 404: INVALID, 410: EXPIRED },
+          'We couldn’t accept this invite. Try again in a moment.',
+        ));
       }
     } finally {
       setAccepting(false);

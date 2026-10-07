@@ -1,7 +1,3 @@
-// Editorial overview shell — a centered column that stacks the masthead and the
-// inline sections (each owns its own spacing), then ends in a two-column flow of
-// the workflows list and the activity feed.
-
 import React from 'react';
 import { useMaxWidth, BREAKPOINTS } from '../../../common';
 
@@ -9,9 +5,6 @@ interface OverviewLayoutProps {
   masthead: React.ReactNode;
   setupChecks?: React.ReactNode;
   kpis: React.ReactNode;
-  // Optional outlier surfaces: a chip strip under the KPIs and a distribution
-  // panel after the charts. Omitted (e.g. 24h, where detection is unavailable),
-  // the layout renders exactly as before.
   outlierChips?: React.ReactNode;
   charts: React.ReactNode;
   outliers?: React.ReactNode;

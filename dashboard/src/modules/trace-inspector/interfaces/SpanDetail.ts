@@ -1,10 +1,9 @@
-import type { SetupIssue } from '../../../common/interfaces';
-import type { SpanDetailId } from '../ids';
-import type { AvailableTool } from './AvailableTool';
+import type { SpanId } from '../../../common/ids';
+import type { AvailableTool, SetupIssue } from '../../../common/interfaces';
 import type { TraceError } from './TraceError';
 
 export interface SpanDetail {
-  id: SpanDetailId;
+  id: SpanId;
   name: string;
   // 'internal' is the view's local fallback for structural spans the collector
   // left unclassified; the others mirror the wire-level Span.kind enum.
