@@ -139,6 +139,27 @@ func TestProcessTracesNoAuthDropsSpan(t *testing.T) {
 	}
 }
 
+func TestProcessTracesDeadLettersChainDropWithCode(t *testing.T) {
+	p, dlq := newTestProcessor()
+	td := tracesWithWorkspace("")
+	span := td.ResourceSpans().At(0).ScopeSpans().At(0).Spans().At(0)
+	span.SetEndTimestamp(span.StartTimestamp() - 1_000_000_000)
+
+	out, err := p.processTraces(ctxWithAuth(fakeAuth{workspace: "ws-1"}), td)
+	if err != nil {
+		t.Fatalf("processTraces: %v", err)
+	}
+	if got := spanCount(out); got != 0 {
+		t.Fatalf("invalid span survived: span count = %d", got)
+	}
+	if len(dlq.records) != 1 || dlq.records[0].Code != string(customerrors.ErrInvalidTimestamp) {
+		t.Fatalf("dead-letter records = %+v, want one %s", dlq.records, customerrors.ErrInvalidTimestamp)
+	}
+	if got := dlq.records[0].Span.WorkspaceID; got != "ws-1" {
+		t.Fatalf("dead-lettered workspace = %q, want ws-1", got)
+	}
+}
+
 func TestProcessTracesKeepsUnmeteredFlagWhenContentStripped(t *testing.T) {
 	p, _ := newTestProcessor()
 	p.captureContent = false

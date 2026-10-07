@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/tracium/collector/internal/deadletter"
@@ -19,9 +20,11 @@ type ClickHouseWriter struct {
 // which retrying will not fix.
 var ErrRowRejected = errors.New("row rejected")
 
+const pingTimeout = 10 * time.Second
+
 // NewClickHouseWriter opens a connection to ClickHouse using the native
 // interface and verifies it with a ping.
-func NewClickHouseWriter(dsn string) (*ClickHouseWriter, error) {
+func NewClickHouseWriter(ctx context.Context, dsn string) (*ClickHouseWriter, error) {
 	opts, err := clickhouse.ParseDSN(dsn)
 	if err != nil {
 		return nil, fmt.Errorf("clickhouse: parse DSN: %w", err)
@@ -32,7 +35,10 @@ func NewClickHouseWriter(dsn string) (*ClickHouseWriter, error) {
 		return nil, fmt.Errorf("clickhouse: open connection: %w", err)
 	}
 
-	if err := conn.Ping(context.Background()); err != nil {
+	ctx, cancel := context.WithTimeout(ctx, pingTimeout)
+	defer cancel()
+	if err := conn.Ping(ctx); err != nil {
+		conn.Close()
 		return nil, fmt.Errorf("clickhouse: ping failed: %w", err)
 	}
 

@@ -10,7 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
+	"io/fs"
 	"time"
 
 	"github.com/tracium/collector/enrich"
@@ -61,7 +61,7 @@ func buildResolvers(cfg *Config, logger *zap.Logger) (pricing.Resolver, user.Res
 		switch {
 		case err == nil:
 			prices = loaded
-		case os.IsNotExist(errors.Unwrap(err)):
+		case errors.Is(err, fs.ErrNotExist):
 			// Absent file is a valid "use built-in defaults" signal (local dev).
 			logger.Info("pricing file not found, using built-in defaults",
 				zap.String("path", cfg.Pricing.StaticFilePath))
@@ -73,11 +73,6 @@ func buildResolvers(cfg *Config, logger *zap.Logger) (pricing.Resolver, user.Res
 	}
 	pricingResolver := pricing.NewStaticResolver(prices)
 
-	// User source: passthrough, the attribute value is the user ID.
-	// Passthrough is a no-op lookup, so it is used directly, never wrapped in the
-	// cache: caching an identity operation keyed by a sender-supplied label would
-	// grow memory without bound for no benefit. NewCachedResolver (bounded LRU) is
-	// for resolvers that perform a costly external lookup.
 	var userResolver user.Resolver
 	if cfg.User.Source == "passthrough" || cfg.User.Source == "" {
 		userResolver = user.Passthrough{}
@@ -125,7 +120,10 @@ func createTracesProcessor(
 		ctx, set, cfg, next,
 		tp.processTraces,
 		processorhelper.WithCapabilities(consumer.Capabilities{MutatesData: true}),
-		processorhelper.WithShutdown(func(context.Context) error { return dlq.Close() }),
+		processorhelper.WithStart(func(ctx context.Context, _ component.Host) error {
+			return tp.startTally(ctx, pCfg.DeadLetter.ClickHouseDSN)
+		}),
+		processorhelper.WithShutdown(func(context.Context) error { return tp.deadLetter.Close() }),
 	)
 }
 
@@ -135,24 +133,24 @@ const rejectedFlushInterval = 10 * time.Second
 // operator configured a path (drops are then recoverable), otherwise the log
 // store, which keeps every drop visible with zero configuration.
 func buildDeadLetter(cfg *Config, logger *zap.Logger) (deadletter.Store, error) {
-	dlLogger := zapDeadLetterLogger{logger}
-	var store deadletter.Store = deadletter.NewLogStore(dlLogger)
 	if path := cfg.DeadLetter.Path; path != "" {
-		file, err := deadletter.NewFileStore(path)
-		if err != nil {
-			return nil, err
-		}
-		store = file
+		return deadletter.NewFileStore(path)
 	}
-	if dsn := cfg.DeadLetter.ClickHouseDSN; dsn != "" {
-		w, err := writer.NewClickHouseWriter(dsn)
-		if err != nil {
-			store.Close()
-			return nil, err
-		}
-		store = deadletter.NewTallyStore(store, w, dlLogger, rejectedFlushInterval)
+	return deadletter.NewLogStore(zapDeadLetterLogger{logger}), nil
+}
+
+// startTally connects to ClickHouse and starts counting rejections per
+// workspace when a DSN is configured.
+func (p *traciumProcessor) startTally(ctx context.Context, dsn string) error {
+	if dsn == "" {
+		return nil
 	}
-	return store, nil
+	w, err := writer.NewClickHouseWriter(ctx, dsn)
+	if err != nil {
+		return err
+	}
+	p.deadLetter = deadletter.NewTallyStore(p.deadLetter, w, zapDeadLetterLogger{p.logger}, rejectedFlushInterval)
+	return nil
 }
 
 // zapDeadLetterLogger adapts the collector's zap logger to deadletter.Logger,
