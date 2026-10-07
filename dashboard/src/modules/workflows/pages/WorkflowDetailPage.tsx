@@ -1,4 +1,5 @@
 import {
+  Centered,
   CostBarChart,
   LatencyChart,
   HorizonStrip,
@@ -8,6 +9,7 @@ import {
   fmtCost,
   fmtNum,
   fmtPct,
+  plural,
   rangeLabel,
 } from '../../../common';
 import type { MetaRowProps, RunRow, StatTone } from '../../../common';
@@ -33,6 +35,7 @@ export interface WorkflowDetailPageProps {
   latencySeries: LatencyPoint[];
   errorSeries: ErrorPoint[];
   runs: RunRow[];
+  loadErrors?: Partial<Record<'cost' | 'latency' | 'errors' | 'runs', boolean>>;
 
   setView: (v: string) => void;
   setSelected: (updater: (prev: Record<string, string>) => Record<string, string>) => void;
@@ -42,11 +45,10 @@ export function WorkflowDetailPage(props: WorkflowDetailPageProps) {
   const {
     name, version, description, range,
     calls, completed, failed, cost, p95Ms, errorRate,
-    configRows, costSeries, latencySeries, errorSeries, runs,
+    configRows, costSeries, latencySeries, errorSeries, runs, loadErrors = {},
     setView, setSelected,
   } = props;
 
-  const totalFailures = errorSeries.reduce((s, d) => s + d.errors, 0);
   const errTone: StatTone = errorRate > ERR_BAD ? 'bad' : errorRate > ERR_WARN ? 'warn' : 'good';
   const windowLabel = rangeLabel(range);
   const hourly = range === '24h';
@@ -115,7 +117,7 @@ export function WorkflowDetailPage(props: WorkflowDetailPageProps) {
             </div>
             <span style={{ fontSize: 13, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{fmtCost(cost)} total</span>
           </div>
-          <CostBarChart series={costSeries} height={210} />
+          {loadErrors.cost ? <Centered minHeight={210}>Couldn't load spend</Centered> : <CostBarChart series={costSeries} height={210} />}
         </div>
         <div className={styles.divided} style={{ padding: '22px 26px 20px', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 18 }}>
@@ -129,7 +131,7 @@ export function WorkflowDetailPage(props: WorkflowDetailPageProps) {
               <span><span style={{ display: 'inline-block', width: 8, height: 2, background: 'var(--warning)', verticalAlign: 'middle', marginRight: 4 }} />p99</span>
             </div>
           </div>
-          <LatencyChart series={latencySeries} height={210} />
+          {loadErrors.latency ? <Centered minHeight={210}>Couldn't load latency</Centered> : <LatencyChart series={latencySeries} height={210} />}
         </div>
       </div>
 
@@ -151,16 +153,16 @@ export function WorkflowDetailPage(props: WorkflowDetailPageProps) {
             <span style={{ fontSize: 13.5, color: 'var(--muted)' }}>Errors per {hourly ? 'hour' : 'day'} · {windowLabel}</span>
           </div>
           <span style={{ fontSize: 13, color: errorRate > ERR_BAD ? 'var(--error)' : 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>
-            {totalFailures} failures
+            {plural(failed, 'failure')}
           </span>
         </div>
-        <HorizonStrip data={errorSeries} height={44} />
+        {loadErrors.errors ? <Centered minHeight={44}>Couldn't load errors</Centered> : <HorizonStrip data={errorSeries} height={44} />}
       </div>
 
       <div className={styles.split}>
         <div style={{ minWidth: 0 }}>
           <h2 style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-0.01em', margin: '0 0 14px' }}>Recent runs</h2>
-          <RunsTable runs={runs} onOpen={openTrace} />
+          {loadErrors.runs ? <Centered minHeight={120}>Couldn't load runs</Centered> : <RunsTable runs={runs} onOpen={openTrace} />}
         </div>
 
         <div>

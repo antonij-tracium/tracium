@@ -9,6 +9,8 @@ import {
   fmtCost,
   fmtNum,
   fmtMs,
+  plural,
+  rangeLabel,
 } from '../../../common';
 import hover from '../../../common/styles/hover.module.css';
 import type { Workflow } from '../interfaces';
@@ -16,6 +18,7 @@ import { ERR_BAD, ERR_WARN } from '../utils';
 
 export interface WorkflowsPageProps {
   workflows: Workflow[];
+  range?: string;
   setView: (v: string) => void;
   setSelected: (updater: (prev: Record<string, string>) => Record<string, string>) => void;
   workspaceName?: string;
@@ -46,6 +49,7 @@ function SortHeader({
   return (
     <button
       onClick={() => onSort(k)}
+      aria-label={active ? `${label}, sorted ${sortDir === 'asc' ? 'ascending' : 'descending'}` : `Sort by ${label}`}
       style={{
         background: 'transparent',
         border: 'none',
@@ -65,7 +69,7 @@ function SortHeader({
   );
 }
 
-export function WorkflowsPage({ workflows, setView, setSelected, workspaceName, updatedAt }: WorkflowsPageProps) {
+export function WorkflowsPage({ workflows, range = '7d', setView, setSelected, workspaceName, updatedAt }: WorkflowsPageProps) {
   const [sortKey, setSortKey] = useState<SortKey>('calls');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [q, setQ] = useState('');
@@ -125,7 +129,7 @@ export function WorkflowsPage({ workflows, setView, setSelected, workspaceName, 
           </span>
           <h1 style={{ fontSize: 26, fontWeight: 600, letterSpacing: '-0.02em', margin: 0 }}>Workflows</h1>
           <p style={{ fontSize: 14, color: 'var(--muted)', margin: 0 }}>
-            {workflows.length} active workflows · {fmtNum(totalCalls)} runs · {fmtCost(totalCost)} spend
+            {plural(workflows.length, 'active workflow')} · {fmtNum(totalCalls)} runs · {fmtCost(totalCost)} spend
           </p>
         </div>
         {updatedAt != null && <LastUpdated at={updatedAt} />}
@@ -164,6 +168,7 @@ export function WorkflowsPage({ workflows, setView, setSelected, workspaceName, 
             value={q}
             onChange={e => setQ(e.target.value)}
             placeholder="Filter workflows..."
+            aria-label="Filter workflows"
             style={{
               flex: 1,
               background: 'transparent',
@@ -187,7 +192,7 @@ export function WorkflowsPage({ workflows, setView, setSelected, workspaceName, 
           }}
         >
           <SortHeader label="Workflow" k="name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-          <span style={{ fontSize: 13, color: 'var(--muted)' }}>Trend (7d)</span>
+          <span style={{ fontSize: 13, color: 'var(--muted)' }}>Trend · {rangeLabel(range)}</span>
           <SortHeader label="Calls" k="calls" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" />
           <SortHeader label="Cost" k="cost" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" />
           <SortHeader label="Avg latency" k="avg_latency_ms" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="right" />

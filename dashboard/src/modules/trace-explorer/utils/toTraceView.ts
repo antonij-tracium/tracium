@@ -29,16 +29,6 @@ export function toTraceView(trace: LiveTrace): TraceDetail {
   const byId = new Map(trace.spans.map(s => [s.span_id, s]));
   const isRoot = (s: LiveSpan) => !s.parent_span_id || !byId.has(s.parent_span_id);
 
-  const depthOf = (s: LiveSpan): number => {
-    let depth = 0;
-    let cur = s;
-    while (!isRoot(cur) && depth < 64) {
-      cur = byId.get(cur.parent_span_id)!;
-      depth++;
-    }
-    return depth;
-  };
-
   // Emit spans in tree pre-order so every parent renders immediately above its
   // children. The API orders by start_time_ms alone, which ties when a parent
   // and child start in the same millisecond (e.g. an explicit span wrapping an
@@ -52,34 +42,30 @@ export function toTraceView(trace: LiveTrace): TraceDetail {
     group.sort((a, b) => a.start_time_ms - b.start_time_ms);
   }
 
-  const ordered: LiveSpan[] = [];
+  const ordered: { span: LiveSpan; depth: number }[] = [];
   const seen = new Set<string>();
-  const visit = (s: LiveSpan) => {
-    if (seen.has(s.span_id)) return; // guard against malformed cyclic parent links
-    seen.add(s.span_id);
-    ordered.push(s);
-    for (const child of childrenOf.get(s.span_id) ?? []) visit(child);
+  const visit = (span: LiveSpan, depth: number) => {
+    if (seen.has(span.span_id)) return;
+    seen.add(span.span_id);
+    ordered.push({ span, depth });
+    for (const child of childrenOf.get(span.span_id) ?? []) visit(child, depth + 1);
   };
-  for (const r of childrenOf.get('') ?? []) visit(r);
-  // Any span unreachable from a root (e.g. a parent-link cycle) still renders.
-  for (const s of trace.spans) if (!seen.has(s.span_id)) ordered.push(s);
+  for (const r of childrenOf.get('') ?? []) visit(r, 0);
+  // Spans caught in a parent-link cycle are unreachable from any root; start a tree at each.
+  for (const s of trace.spans) visit(s, 0);
 
-  const spans: SpanDetail[] = ordered.map(s => ({
+  const spans: SpanDetail[] = ordered.map(({ span: s, depth }) => ({
     id: s.span_id,
     name: s.name,
     type: spanType(s, isRoot(s), byId.get(s.parent_span_id)),
     start: s.start_time_ms - trace.start_time_ms,
     duration: s.duration_ms,
-    depth: depthOf(s),
+    depth,
     cost: s.cost_usd,
     subtreeCost: s.subtree_cost_usd,
     childCount: (childrenOf.get(s.span_id) ?? []).length,
     tokens: s.input_tokens + s.output_tokens,
-    // Sum only when both fields are present; a partial sum would yield NaN and
-    // defeat the `?? tokens` fallback for data that predates the subtree fields.
-    subtreeTokens: s.subtree_input_tokens != null && s.subtree_output_tokens != null
-      ? s.subtree_input_tokens + s.subtree_output_tokens
-      : undefined,
+    subtreeTokens: s.subtree_input_tokens + s.subtree_output_tokens,
     inputTokens: s.input_tokens,
     outputTokens: s.output_tokens,
     status: s.error_type || s.error_message ? 'failed' : 'ok',
@@ -93,7 +79,6 @@ export function toTraceView(trace: LiveTrace): TraceDetail {
     setupIssues: s.setup_issues,
   }));
 
-  const failing = trace.spans.find(s => s.error_type || s.error_message);
   // The workflow-level Input/Output tabs mirror the root span's content. But many
   // instrumentations (e.g. OpenLLMetry workflow/task decorators) make the root a
   // structural span with no LLM content, while the actual prompt/completion live
@@ -114,13 +99,11 @@ export function toTraceView(trace: LiveTrace): TraceDetail {
     totalCost: trace.total_cost_usd,
     inputTokens: trace.spans.reduce((sum, s) => sum + s.input_tokens, 0),
     outputTokens: trace.spans.reduce((sum, s) => sum + s.output_tokens, 0),
-    model: trace.spans.find(s => s.model)?.model ?? '',
+    model: [...new Set(trace.spans.map(s => s.model).filter(Boolean))].join(', '),
     user: trace.user_id || undefined,
     input: traceInput,
     output: traceOutput ?? null,
     spans,
-    error: failing
-      ? { type: failing.error_type || 'error', message: failing.error_message || '', code: '', stack: '' }
-      : null,
+    error: spans.find(s => s.error)?.error ?? null,
   };
 }

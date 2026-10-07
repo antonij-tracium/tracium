@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useAPIClient } from '../../../common/providers/APIProvider';
 
 // Same 1-minute refresh grid as the workflows list.
@@ -10,6 +10,7 @@ const shared = (enabled: boolean) => ({
   staleTime: DETAIL_REFRESH_MS,
   refetchInterval: DETAIL_REFRESH_MS,
   refetchIntervalInBackground: false,
+  placeholderData: keepPreviousData,
   enabled,
 });
 

@@ -36,6 +36,7 @@ export function WorkflowsLivePage({ range, setView, setSelected, workspaceName }
   return (
     <WorkflowsPage
       workflows={workflows}
+      range={range}
       setView={setView}
       setSelected={setSelected}
       workspaceName={workspaceName}

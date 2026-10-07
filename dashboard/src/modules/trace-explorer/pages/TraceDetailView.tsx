@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useTrace } from '../hooks/useTrace';
 import { toTraceView } from '../utils/toTraceView';
 import { TraceView } from '../../trace-inspector';
@@ -11,6 +12,7 @@ export interface TraceDetailViewProps {
 
 export function TraceDetailView({ traceId, setView, setSelected }: TraceDetailViewProps) {
   const { data, isLoading, error } = useTrace(traceId);
+  const view = useMemo(() => data && toTraceView(data), [data]);
 
   if (isLoading) {
     return (
@@ -28,7 +30,7 @@ export function TraceDetailView({ traceId, setView, setSelected }: TraceDetailVi
     );
   }
 
-  if (!data) {
+  if (!view) {
     return <EmptyState message="Trace not found" description="This trace is no longer available." />;
   }
 
@@ -41,5 +43,5 @@ export function TraceDetailView({ traceId, setView, setSelected }: TraceDetailVi
     setView(v);
   };
   // Remount per trace so the selected span, collapsed set and tab don't carry over.
-  return <TraceView key={data.trace_id} trace={toTraceView(data)} setView={navigate} onOpenUser={openUser} />;
+  return <TraceView key={view.id} trace={view} setView={navigate} onOpenUser={openUser} />;
 }

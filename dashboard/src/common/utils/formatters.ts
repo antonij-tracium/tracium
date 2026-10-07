@@ -13,7 +13,9 @@ export function fmtTokens(n: number): string {
 
 export const fmtNum = (n: number): string => n.toLocaleString();
 
-export const fmtPct = (n: number): string =>
+export const plural = (n: number, noun: string): string => `${fmtNum(n)} ${noun}${n === 1 ? '' : 's'}`;
+
+export const fmtPct =(n: number): string =>
   (n < 0.01 && n > 0 ? '<0.01' : n.toFixed(n < 10 ? 2 : 1)) + '%';
 
 export const fmtMs = (n: number): string =>
