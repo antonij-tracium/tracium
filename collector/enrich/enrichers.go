@@ -207,7 +207,7 @@ type FilterEnricher struct {
 func NewFilterEnricher(models []string) FilterEnricher {
 	m := make(map[string]bool, len(models))
 	for _, name := range models {
-		m[name] = true
+		m[ingest.SanitizeIdentifier(strings.ToLower(name), ingest.MaxModelNameBytes)] = true
 	}
 	return FilterEnricher{allowedModels: m}
 }

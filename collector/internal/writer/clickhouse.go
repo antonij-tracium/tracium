@@ -2,6 +2,7 @@ package writer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
@@ -13,6 +14,10 @@ import (
 type ClickHouseWriter struct {
 	conn clickhouse.Conn
 }
+
+// ErrRowRejected marks a batch that failed because a row could not be encoded,
+// which retrying will not fix.
+var ErrRowRejected = errors.New("row rejected")
 
 // NewClickHouseWriter opens a connection to ClickHouse using the native
 // interface and verifies it with a ping.
@@ -101,7 +106,7 @@ func (w *ClickHouseWriter) WriteBatch(ctx context.Context, spans []*spanmodel.Sp
 			s.Kind,
 			attributes,
 		); err != nil {
-			return fmt.Errorf("clickhouse: append row for span %s: %w", s.SpanID, err)
+			return fmt.Errorf("clickhouse: append row for span %s: %w: %w", s.SpanID, ErrRowRejected, err)
 		}
 	}
 
