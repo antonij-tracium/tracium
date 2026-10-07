@@ -50,7 +50,7 @@ jobs:
           - { name: collector, context: collector }
           - { name: api,        context: api }
           - { name: dashboard,  context: dashboard }
-          - { name: migrate,    context: deploy/docker/migrate }
+          - { name: migrate,    context: ., file: deploy/docker/migrate/Dockerfile }
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-qemu-action@v4
@@ -66,6 +66,7 @@ jobs:
       - uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |

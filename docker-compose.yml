@@ -1,16 +1,7 @@
-# Root compose — runs the whole Tracium stack from the published release images
-# (TRACIUM_VERSION). Add `-f compose.build.yaml` to build from this checkout.
-# `cp .env.example .env`, fill it in, then up.
-# Schema migrations run automatically: the `migrate` one-shot is a
-# service_completed_successfully dependency of every app service, so `docker
-# compose up` re-runs it (and applies any new migrations) before the collector
-# or API start. It is idempotent and state-gated, so re-running it is a no-op
-# once the schema is current — never gate it behind a "run once" flag.
+# Runs the release images pinned to TRACIUM_VERSION; add `-f compose.build.yaml` to build from this checkout.
+# `migrate` is idempotent and re-runs on every `up` before the app services start.
 
 services:
-
-  # ── Databases ────────────────────────────────────────────────────────────────
-
   clickhouse:
     image: clickhouse/clickhouse-server:24.6
     environment:
@@ -39,8 +30,6 @@ services:
       timeout: 3s
       retries: 10
 
-  # ── Migrations ───────────────────────────────────────────────────────────────
-
   migrate:
     image: ghcr.io/antonij-tracium/migrate:${TRACIUM_VERSION:-1.0.3}
     environment:
@@ -52,8 +41,6 @@ services:
       # Required only when upgrading telemetry written before workspace scoping.
       LEGACY_WORKSPACE_ID: ${LEGACY_WORKSPACE_ID:-}
       LEGACY_INGESTION_PAUSED: ${LEGACY_INGESTION_PAUSED:-false}
-    volumes:
-      - ./collector/schema:/migrations:ro
     depends_on:
       clickhouse:
         condition: service_healthy
@@ -61,12 +48,7 @@ services:
         condition: service_healthy
     restart: on-failure
 
-  # ── Application services ─────────────────────────────────────────────────────
-
   collector:
-    # Generic OpenTelemetry Collector distribution assembled by OCB
-    # (see collector/builder/oss.builder.yaml). All Tracium-specific
-    # behaviour lives in the `tracium` processor + `clickhousespan` exporter.
     image: ghcr.io/antonij-tracium/collector:${TRACIUM_VERSION:-1.0.3}
     ports:
       - "127.0.0.1:4317:4317"   # OTLP gRPC
@@ -75,21 +57,14 @@ services:
     environment:
       CLICKHOUSE_DSN: clickhouse://default:${CLICKHOUSE_PASSWORD:?set CLICKHOUSE_PASSWORD in .env}@clickhouse:9000/tracium
       PRICING_STATIC_PATH: /etc/tracium/pricing.json
-      # Ingest auth is mandatory: the collector verifies every OTLP request's
-      # API key against the API's verify endpoint. Must be reachable from the
-      # collector container (the api service listens on :8090).
       INGEST_VERIFY_URL: http://api:8090/v1/ingest/keys/verify
     volumes:
       - ./spec/pricing/pricing.json:/etc/tracium/pricing.json:ro
-      # Durable exporter queue (sending_queue.storage in collector.yaml).
-      # Must be a named volume: spans already ACKed to the client wait here
-      # during a ClickHouse outage, and a container-local path is wiped on
-      # restart — which is exactly the data loss the queue exists to prevent.
+      # Must persist: holds spans already acknowledged to clients during a ClickHouse outage.
       - collector_queue:/var/lib/tracium/queue
     depends_on:
       migrate:
         condition: service_completed_successfully
-      # Ingest auth verifies keys against the API, so it must be up first.
       api:
         condition: service_started
     restart: unless-stopped
@@ -101,9 +76,7 @@ services:
     environment:
       CLICKHOUSE_DSN: clickhouse://default:${CLICKHOUSE_PASSWORD:?set CLICKHOUSE_PASSWORD in .env}@clickhouse:9000/tracium
       POSTGRES_DSN: postgres://tracium:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/tracium?sslmode=disable
-      # No default on purpose: a secret shared by every install is public, and
-      # HS256 verifies with the same key it signs with — anyone holding it can
-      # mint admin tokens. Compose fails with the message below until it is set.
+      # No default: a secret shared by every install would let anyone mint tokens.
       JWT_SECRET: "${JWT_SECRET:?required — add JWT_SECRET to .env, generate one with 'openssl rand -hex 32'}"
       LISTEN_ADDR: ":8090"
       # Resolve only the dashboard containers, not the whole Docker subnet.

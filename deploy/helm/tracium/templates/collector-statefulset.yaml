@@ -31,6 +31,8 @@ spec:
         app.kubernetes.io/instance: {{ .Release.Name }}
         app.kubernetes.io/component: collector
     spec:
+      securityContext:
+        fsGroup: 10001
       containers:
         - name: collector
           image: "{{ .Values.collector.image.repository }}:{{ include "tracium.imageTag" (dict "component" .Values.collector "global" .Values.global "chart" .Chart) }}"
