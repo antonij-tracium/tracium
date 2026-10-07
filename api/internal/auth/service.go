@@ -60,7 +60,7 @@ func (s *Service) Register(ctx context.Context, email, password string) (Registe
 
 	user := model.User{
 		ID:           uuid.NewString(),
-		Email:        normalizeEmail(email),
+		Email:        NormalizeEmail(email),
 		PasswordHash: hash,
 		TenantID:     uuid.NewString(),
 		Role:         "admin",
@@ -90,7 +90,7 @@ func (s *Service) Register(ctx context.Context, email, password string) (Registe
 // configured it also enforces email confirmation, returning
 // extension.ErrEmailUnverified for an unconfirmed account.
 func (s *Service) Login(ctx context.Context, email, password string) (string, error) {
-	user, err := s.users.ByEmail(ctx, normalizeEmail(email))
+	user, err := s.users.ByEmail(ctx, NormalizeEmail(email))
 	if err != nil {
 		if errors.Is(err, ErrUserNotFound) {
 			return "", ErrInvalidCredentials
@@ -157,6 +157,7 @@ func account(u model.User) extension.Account {
 	return extension.Account{ID: u.ID, Email: u.Email, TenantID: u.TenantID, Role: u.Role}
 }
 
-func normalizeEmail(email string) string {
+// NormalizeEmail returns the canonical form emails are stored and looked up in.
+func NormalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
 }

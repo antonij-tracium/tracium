@@ -124,7 +124,7 @@ func NewTestWorkspace(id, userID string) model.Workspace {
 		Name:    "test-workspace",
 		Slug:    "test-workspace",
 		Env:     "production",
-		Role:    "Owner",
+		Role:    workspace.RoleOwner,
 		Members: 1,
 	}
 }
