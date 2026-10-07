@@ -56,26 +56,11 @@ func (r *ClickHouseRepository) Ping(ctx context.Context) error {
 	return r.db.PingContext(ctx)
 }
 
-// A trace is the aggregation of all spans sharing a trace_id. start/end span the
-// whole tree; has_error is true if any span carries an error_type.
-// trace_name prefers the collector-derived workflow_name (see the collector's
-// workflowName helper) so the displayed name matches the workflow the trace is grouped
-// under — mirroring workflowExpr's precedence: the root span's workflow_name first
-// (parent_span_id = ”, the trace's entry workflow), then any span's workflow_name.
-// Both are taken from the root/earliest span rather than simply the earliest by
-// start_time_ms because a span wrapping an auto-instrumented call starts in the
-// same millisecond as its child, and a plain argMin would tie-break arbitrarily
-// onto the child's name (e.g. "chat gpt-4o-mini"). To keep the right name while a
-// trace is still in flight — before any invoke_agent span carrying
-// gen_ai.agent.name exports — we then fall back to the root span's own name and
-// to service_name, the resource-level name present on the very first
-// auto-instrumented span (e.g. "openai.chat"). The final fallback is the earliest
-// span's raw name (rows written before workflow_name/service_name existed, which
-// read back empty).
-// Aliases deliberately differ from the raw column names: an alias that shadows a
-// column (e.g. AS start_time_ms) gets substituted back into argMin(name, start_time_ms),
-// producing an illegal aggregate-inside-aggregate. count() is cast to Int64 so it
-// scans into a Go int cleanly (it is UInt64 otherwise).
+// traceSelect aggregates all spans sharing a trace_id into one trace row.
+// trace_name follows workflowExpr's precedence (root workflow_name, any
+// workflow_name), then the root span's name and service_name so in-flight traces
+// still get a sensible name. Aliases must not shadow column names: ClickHouse
+// would substitute them back into argMin(name, start_time_ms) and nest aggregates.
 const traceSelect = `
 SELECT
     trace_id,
@@ -92,7 +77,7 @@ SELECT
     toInt64(count())                      AS spans,
     max(` + spanErrored + `)              AS errored,
     sum(cost_usd)                         AS total_cost
-FROM tracium.calls`
+FROM ` + tableCalls
 
 // scanTrace reads one aggregated trace row. Works with both *sql.Row and *sql.Rows.
 func scanTrace(s interface{ Scan(...any) error }) (model.Trace, error) {
@@ -176,7 +161,7 @@ func (r *ClickHouseRepository) ListTraces(ctx context.Context, filter TraceFilte
 
 	// total counts the trace_id groups matching the filter, ignoring LIMIT/OFFSET.
 	var total int64
-	totalQ := "SELECT toInt64(count()) FROM (\nSELECT trace_id FROM tracium.calls" + clause + "\n)"
+	totalQ := "SELECT toInt64(count()) FROM (\nSELECT trace_id FROM " + tableCalls + clause + "\n)"
 	if err := r.db.QueryRowContext(ctx, totalQ, filterArgs...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("clickhouse: count traces: %w", err)
 	}
@@ -206,8 +191,6 @@ func (r *ClickHouseRepository) GetTrace(ctx context.Context, traceID string, wor
 	ctx, cancel := r.withTimeout(ctx)
 	defer cancel()
 
-	// source = 'span' for symmetry with the listing: only per-call spans carry
-	// trace identity, so metric rows can never contribute to a trace.
 	clause, args := traceDetailScope(traceID, workspaceIDs)
 	q := traceSelect + clause + "\nGROUP BY trace_id"
 
@@ -226,7 +209,7 @@ SELECT trace_id, span_id, parent_span_id, name, start_time_ms, end_time_ms, dura
        model, model_normalized, input_tokens, output_tokens, cost_usd, user_id, workspace_id,
        finish_reason, error_type, error_message, schema_version,
        input, output, available_tools, kind, ` + spanIssuesSQL + `
-FROM tracium.calls`
+FROM ` + tableCalls
 
 // GetSpans returns all spans for a given trace ID, ordered by start time.
 func (r *ClickHouseRepository) GetSpans(ctx context.Context, traceID string, workspaceIDs []string) ([]model.Span, error) {

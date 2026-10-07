@@ -573,7 +573,8 @@ paths:
       description: >
         The custom-attribute keys present on spans in the window (e.g.
         `team`, `environment`, `customer`), offered as the allocation axes
-        for /v1/metrics/usage-by-attribute.
+        for /v1/metrics/usage-by-attribute. Reads raw spans, so ranges longer
+        than 30d are rejected.
       tags:
         - Metrics
       parameters:
@@ -588,7 +589,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/PaginatedAttributeKeyResponse"
         "400":
-          description: Invalid range.
+          description: Invalid range, or one longer than 30d.
           content:
             application/json:
               schema:
@@ -603,7 +604,8 @@ paths:
         the cost-allocation primitive that splits AI spend by whatever
         dimension the instrumentation tags spans with. The `key` query
         parameter names the dimension (from /v1/metrics/attribute-keys) and
-        is required. Ordered by cost descending.
+        is required. Ordered by cost descending. Reads raw spans, so ranges
+        longer than 30d are rejected.
       tags:
         - Metrics
       parameters:
@@ -624,7 +626,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/PaginatedAttributeUsageResponse"
         "400":
-          description: Invalid range, or the required `key` parameter is missing.
+          description: Invalid range, a range longer than 30d, or the required `key` parameter is missing.
           content:
             application/json:
               schema:
@@ -1310,8 +1312,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/APIKeyVerifyResponse"
+        "400":
+          description: The request body is not valid JSON.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "401":
           description: The key is missing, malformed, unknown, or revoked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "413":
+          description: The request body exceeds 4 KiB.
           content:
             application/json:
               schema:
@@ -1358,9 +1372,11 @@ components:
       in: query
       description: >-
         Optional: restrict the metric to a single workflow (the trace root name),
-        powering the workflow detail page's charts. Workflow-scoped metrics are a
-        raw-window feature; ranges longer than 30d (90d, 1y) are rejected with a
-        400, since per-workflow latency cannot be derived from the daily rollup.
+        powering the workflow detail page's charts. Only the series endpoints
+        accept it; other metrics endpoints reject it with a 400. Workflow-scoped
+        series are a raw-window feature; ranges longer than 30d (90d, 1y) are
+        rejected with a 400, since per-workflow latency cannot be derived from the
+        daily rollup.
       schema:
         type: string
 

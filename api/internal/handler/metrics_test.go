@@ -348,6 +348,46 @@ func TestMetricsSetupChecksRejectsRollupRange(t *testing.T) {
 	}
 }
 
+func TestMetricsRejectsWorkflowOnUnscopedEndpoints(t *testing.T) {
+	h := newMetricsHandler(&mocks.MockMetricsRepository{})
+	for path, hf := range map[string]http.HandlerFunc{
+		"/v1/metrics/kpis":           h.KPIs,
+		"/v1/metrics/top-workflows":  h.TopWorkflows,
+		"/v1/metrics/failures":       h.Failures,
+		"/v1/metrics/usage-users":    h.UserUsage,
+		"/v1/metrics/attribute-keys": h.AttributeKeys,
+	} {
+		rr := httptest.NewRecorder()
+		serveAuthed(hf, rr, httptest.NewRequest(http.MethodGet, path+"?range=7d&workflow=planner", nil))
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("%s: status = %d, want 400", path, rr.Code)
+		}
+	}
+}
+
+func TestMetricsSeriesAcceptsWorkflow(t *testing.T) {
+	h := newMetricsHandler(&mocks.MockMetricsRepository{})
+	rr := httptest.NewRecorder()
+	serveAuthed(h.ErrorSeries, rr, httptest.NewRequest(http.MethodGet, "/v1/metrics/error-series?range=7d&workflow=planner", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rr.Code)
+	}
+}
+
+func TestMetricsAttributeEndpointsRejectRollupRange(t *testing.T) {
+	h := newMetricsHandler(&mocks.MockMetricsRepository{})
+	for path, hf := range map[string]http.HandlerFunc{
+		"/v1/metrics/attribute-keys?range=1y":               h.AttributeKeys,
+		"/v1/metrics/usage-by-attribute?range=90d&key=team": h.UsageByAttribute,
+	} {
+		rr := httptest.NewRecorder()
+		serveAuthed(hf, rr, httptest.NewRequest(http.MethodGet, path, nil))
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("%s: status = %d, want 400", path, rr.Code)
+		}
+	}
+}
+
 func TestMetricsAnomaliesRejectsBadFilters(t *testing.T) {
 	h := newMetricsHandler(&mocks.MockMetricsRepository{})
 	for _, q := range []string{"range=30d&metric=latency", "range=30d&min_severity=urgent"} {

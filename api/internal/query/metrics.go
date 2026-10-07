@@ -10,28 +10,15 @@ import (
 	"github.com/tracium/api/internal/model"
 )
 
-// The two ingestion relations. Real per-call spans are exposed by the
-// tracium.calls view (source='span'); token-usage metric rows by
-// tracium.usage_metrics (source='metric'). Both are views over tracium.spans
-// (collector migrations 009/010) that carry the source predicate, so a query
-// reading calls cannot see metric rows and vice versa — the exclusion is
-// structural, not a predicate each query must remember to add. The reads below
-// never mention `source`; they choose the relation instead.
+// The two ingestion relations, both views over tracium.spans filtered by source,
+// so queries pick a relation instead of adding a source predicate.
 const (
 	tableCalls        = "tracium.calls"
 	tableUsageMetrics = "tracium.usage_metrics"
 )
 
-// window builds the time-range WHERE clause (and its args) shared by every
-// metrics query. lo/hi are epoch-millis bounds; an empty user means no filter.
-// It carries no source predicate — the caller picks the relation (tableCalls for
-// per-call spans, or both relations for reconciled cost).
-// workspaceScope renders the workspace access clause. The workspaces slice is
-// the caller's allowed set (resolved from memberships): a single id compiles to
-// an equality, several to an IN, and an empty set to a clause that matches
-// nothing — so a caller with no accessible workspace sees no rows rather than
-// every row. This is the read-side access boundary; every metrics query appends
-// it.
+// workspaceScope renders the workspace access clause for the caller's allowed
+// workspaces. An empty set matches nothing, never everything.
 func workspaceScope(workspaces []string) (string, []any) {
 	switch len(workspaces) {
 	case 0:
@@ -48,6 +35,8 @@ func workspaceScope(workspaces []string) (string, []any) {
 	}
 }
 
+// window builds the time-range, user and workspace WHERE clause shared by every
+// metrics query. lo/hi are epoch-millis bounds; an empty user means no filter.
 func window(user string, workspaces []string, lo, hi int64) (string, []any) {
 	clause := "start_time_ms >= ? AND start_time_ms < ?"
 	args := []any{lo, hi}
@@ -62,22 +51,13 @@ func window(user string, workspaces []string, lo, hi int64) (string, []any) {
 }
 
 // reconciledCostUnion builds the row-level UNION ALL over the two cost relations
-// for one window: every calls row contributes span_cost, every usage_metrics row
-// metric_cost, both carrying start_time_ms so the caller can bucket and reconcile
-// them. The window clause is identical for both branches, so its args are
-// returned once per branch (calls first, then usage_metrics) — bind them in that
-// order. Reconciliation itself (the per-bucket greatest) is the caller's, so the
-// same union serves both the KPI total and the cost series.
+// for one window: calls rows contribute span_cost, usage_metrics rows
+// metric_cost. The returned args bind the clause once per branch.
 //
-// Why greatest, not sum: spans and metrics meter the same spend, but either side
-// can be incomplete — spans may be sampled or lack usage (streamed calls),
-// metrics may cover only some services or part of the window. Four stray metric
-// rows in a 30d window once made the Cost KPI report 99.8% below reality, because
-// the old code committed the whole window to whichever source had any rows. Each
-// side is a lower bound on a bucket's true spend, so the greater is the tightest
-// estimate without per-call identity (metric rows have none) and can never
-// double-count. A bucket with only one source resolves to it, so a deployment
-// without metrics is bitwise-identical to the pre-metrics span sum.
+// Callers reconcile per bucket with greatest, not sum: spans and metrics meter
+// the same spend and either may be incomplete (sampling, streamed calls without
+// usage, partial metric coverage), so each is a lower bound and the greater is
+// the tightest estimate that never double-counts.
 func reconciledCostUnion(clause string, args []any) (string, []any) {
 	sql := fmt.Sprintf(`SELECT start_time_ms, cost_usd AS span_cost, 0 AS metric_cost FROM %s WHERE %s
     UNION ALL
@@ -130,7 +110,7 @@ const spanErrored = `(error_type != '' OR error_message != '')`
 // may come from the metric relation), so it is not in this query — it reads
 // tracium.calls, whose rows are the per-call spans that carry trace identity,
 // durations, and errors.
-var kpiAggregates = `
+const kpiAggregates = `
 SELECT
     toInt64(count())     AS runs,
     quantile(0.95)(dur)  AS p95,
@@ -139,7 +119,7 @@ FROM (
     SELECT
         ` + traceDurationExpr + ` AS dur,
         max(` + spanErrored + `)  AS errored
-    FROM tracium.calls
+    FROM ` + tableCalls + `
     WHERE %s
     GROUP BY trace_id
 )`
@@ -318,7 +298,7 @@ FROM (
     SELECT
         intDiv(min(start_time_ms), ?) * ? AS bucket_ms,
         `+traceDurationExpr+` AS dur%s
-    FROM tracium.calls
+    FROM `+tableCalls+`
     WHERE %s
     GROUP BY trace_id
 )%s
@@ -382,7 +362,7 @@ FROM (
     SELECT
         intDiv(min(start_time_ms), ?) * ? AS bucket_ms,
         max(`+spanErrored+`)              AS errored%s
-    FROM tracium.calls
+    FROM `+tableCalls+`
     WHERE %s
     GROUP BY trace_id
 )%s
@@ -399,31 +379,19 @@ GROUP BY bucket_ms`, workflowNameCol(f.Workflow), clause, workflowNameFilter(f.W
 	return points, nil
 }
 
-// workflowExpr derives a trace's representative workflow inside a `GROUP BY trace_id`
-// subquery. A trace's workflow is the workflow of its entry point, so we prefer the
-// root span (parent_span_id = ”): in a multi-workflow trace the root is the
-// orchestrator/top-level workflow, and preferring it also fixes the same-millisecond
-// tie-break where a wrapping span and its auto-instrumented child start together
-// and a plain argMin would land arbitrarily on the child. Fallbacks, in order:
-// the earliest span carrying any workflow_name (traces whose root span exports late
-// or lacks one); the earliest span's service_name (a stable, always-present
-// resource name for in-flight traces, before any invoke_agent span arrives); and
-// finally the earliest span's raw name (rows written before workflow_name/
-// service_name existed, which read back as ”). Grouping on this — rather than
-// the raw span name — keeps every auto-instrumented trace from collapsing under
-// a generic operation name like "openai.chat".
+// workflowExpr derives a trace's workflow inside a `GROUP BY trace_id` subquery:
+// the root span's workflow_name, else the earliest span's workflow_name, else
+// service_name, else the earliest span's name. Preferring the root avoids
+// landing on an auto-instrumented child that starts in the same millisecond.
 const workflowExpr = `coalesce(` +
 	`nullIf(argMinIf(workflow_name, start_time_ms, workflow_name != '' AND parent_span_id = ''), ''), ` +
 	`nullIf(argMinIf(workflow_name, start_time_ms, workflow_name != ''), ''), ` +
 	`nullIf(argMinIf(service_name, start_time_ms, service_name != ''), ''), ` +
 	`argMin(name, start_time_ms))`
 
-// workflowNameCol / workflowNameFilter add an optional single-workflow filter to a series
-// query whose inner subquery rolls spans up to traces (GROUP BY trace_id). The
-// column derives the trace's workflow (workflowExpr) on the inner rows; the filter
-// keeps only the requested workflow on the wrapper. Both are empty when no workflow is
-// set, so the non-workflow series query is byte-identical to before. The filter
-// binds one extra arg (the workflow name), positioned after the window args.
+// workflowNameCol / workflowNameFilter add an optional single-workflow filter to a
+// series query whose inner subquery groups by trace_id. Both are empty when no
+// workflow is set; otherwise the filter binds the workflow name after the window args.
 func workflowNameCol(workflow string) string {
 	if workflow == "" {
 		return ""
@@ -454,7 +422,7 @@ FROM (
     SELECT
         %s AS name,
         sum(cost_usd) AS cost
-    FROM tracium.calls
+    FROM `+tableCalls+`
     WHERE %s
     GROUP BY trace_id
 )
@@ -488,12 +456,12 @@ FROM (
     SELECT
         %s AS name,
         intDiv(min(start_time_ms), ?) * ? AS bucket_ms
-    FROM tracium.calls
+    FROM `+tableCalls+`
     WHERE %s
     GROUP BY trace_id
 )
 GROUP BY name, bucket_ms`, workflowExpr, clause)
-	if err := r.fillWorkflowTrends(ctx, f, workflows, trendQ, append([]any{bucketMs, bucketMs}, args...)); err != nil {
+	if err := fillWorkflowTrends(ctx, r.db, f, workflows, workflowCostTrend, trendQ, append([]any{bucketMs, bucketMs}, args...)); err != nil {
 		return nil, fmt.Errorf("clickhouse: workflow trends: %w", err)
 	}
 	return workflows, nil
@@ -545,7 +513,7 @@ FROM (
         max(`+spanErrored+`) AS errored,
         min(start_time_ms)   AS ts,
         intDiv(min(start_time_ms), ?) * ? AS bucket
-    FROM tracium.calls
+    FROM `+tableCalls+`
     WHERE %s
     GROUP BY trace_id
 )
@@ -616,7 +584,7 @@ FROM (
         sum(input_tokens)    AS in_tok,
         sum(output_tokens)   AS out_tok,
         min(start_time_ms)   AS ts
-    FROM tracium.calls
+    FROM `+tableCalls+`
     WHERE %s
     GROUP BY trace_id
 )
@@ -724,7 +692,7 @@ FROM (
         %s AS name,
         max(`+spanErrored+`)                AS errored,
         anyIf(error_type, error_type != '') AS err
-    FROM tracium.calls
+    FROM `+tableCalls+`
     WHERE %s
     GROUP BY trace_id
 )
@@ -760,7 +728,7 @@ LIMIT ?`, workflowExpr, clause)
 	totalQ := fmt.Sprintf(`
 SELECT toInt64(count())
 FROM (
-    SELECT trace_id FROM tracium.calls
+    SELECT trace_id FROM `+tableCalls+`
     WHERE %s
     GROUP BY trace_id
     HAVING max(`+spanErrored+`) = 1
@@ -795,7 +763,7 @@ SELECT
     toInt64(count())   AS calls,
     toInt64(sum(input_tokens))  AS input_tokens,
     toInt64(sum(output_tokens)) AS output_tokens
-FROM tracium.calls
+FROM `+tableCalls+`
 WHERE %s AND %s != ''
 GROUP BY name
 ORDER BY cost DESC
@@ -847,7 +815,7 @@ FROM (
         any(user_id)     AS user_id,
         sum(cost_usd)      AS cost,
         min(start_time_ms) AS ts
-    FROM tracium.calls
+    FROM `+tableCalls+`
     WHERE %s
     GROUP BY trace_id
 )
@@ -886,7 +854,7 @@ FROM (
         any(user_id)                    AS user_id,
         intDiv(min(start_time_ms), ?) * ? AS bucket_ms,
         sum(cost_usd)                     AS cost
-    FROM tracium.calls
+    FROM `+tableCalls+`
     WHERE %s
     GROUP BY trace_id
 )
@@ -925,7 +893,7 @@ FROM (
         argMin(%s, start_time_ms) AS model,
         sum(cost_usd)      AS cost,
         min(start_time_ms) AS ts
-    FROM tracium.calls
+    FROM `+tableCalls+`
     WHERE %s
     GROUP BY trace_id
 )
@@ -986,9 +954,8 @@ func sanitize(v float64) float64 {
 	return v
 }
 
-// AttributeKeys returns the distinct custom-attribute keys seen in the window,
-// so callers can populate an allocation-dimension picker. Bounded by the time
-// window (raw spans) and by limit; custom attributes live only on span rows.
+// AttributeKeys returns the distinct custom-attribute keys seen in the window.
+// It scans raw spans with no rollup path, so callers must keep f off rollup ranges.
 func (r *ClickHouseRepository) AttributeKeys(ctx context.Context, f MetricsFilter, limit int) ([]string, error) {
 	ctx, cancel := r.withTimeout(ctx)
 	defer cancel()
@@ -996,7 +963,7 @@ func (r *ClickHouseRepository) AttributeKeys(ctx context.Context, f MetricsFilte
 	clause, args := window(f.UserID, f.WorkspaceIDs, f.Start.UnixMilli(), f.End.UnixMilli())
 	q := fmt.Sprintf(`
 SELECT DISTINCT arrayJoin(mapKeys(attributes)) AS key
-FROM tracium.calls
+FROM `+tableCalls+`
 WHERE %s
 ORDER BY key
 LIMIT ?`, clause)
@@ -1018,11 +985,8 @@ LIMIT ?`, clause)
 	return keys, rows.Err()
 }
 
-// UsageByAttribute groups spend/usage by the value of one custom attribute key —
-// the allocation primitive that splits AI cost across teams, users, or any
-// dimension the instrumentation tags. Rows missing the key are excluded. Custom
-// attributes exist only on span rows, so this reads the span source over the
-// time window (metric rows carry no custom attributes).
+// UsageByAttribute groups spend/usage by the value of one custom attribute key,
+// excluding spans without it. Like AttributeKeys it reads raw spans only.
 func (r *ClickHouseRepository) UsageByAttribute(ctx context.Context, f MetricsFilter, key string, limit int) ([]model.AttributeUsage, error) {
 	ctx, cancel := r.withTimeout(ctx)
 	defer cancel()
@@ -1036,7 +1000,7 @@ SELECT
     toInt64(uniq(trace_id))     AS runs,
     toInt64(sum(input_tokens))  AS input_tokens,
     toInt64(sum(output_tokens)) AS output_tokens
-FROM tracium.calls
+FROM `+tableCalls+`
 WHERE %s AND attributes[?] != ''
 GROUP BY value
 ORDER BY cost DESC

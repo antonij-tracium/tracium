@@ -165,10 +165,7 @@ func (h *WorkspaceHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 		if invited {
 			feature = MemberAddFeature
 		}
-		if denial := checkMemberEntitlement(ctx, h.entitlements, extension.Subject{UserID: userID, WorkspaceID: workspaceID}, feature); denial != nil {
-			return denial
-		}
-		return nil
+		return checkMemberEntitlement(ctx, h.entitlements, extension.Subject{UserID: userID, WorkspaceID: workspaceID}, feature)
 	}
 	if err := h.store.GrantMember(r.Context(), workspaceID, member.ID, role, allow); err != nil {
 		var denial *entitlementDenial
