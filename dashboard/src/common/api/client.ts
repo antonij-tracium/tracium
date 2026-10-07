@@ -2,7 +2,9 @@ import type { APIClientConfig } from '../interfaces';
 
 export const API_VERSION = 'v1';
 
-export const API_BASE_URL: string = import.meta.env.VITE_API_URL || window.location.origin;
+export function apiBaseUrl(): string {
+  return import.meta.env.VITE_API_URL || window.location.origin;
+}
 
 export class APIError extends Error {
   status: number;

@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { QueryProvider } from './common/providers/QueryProvider';
 import { APIProvider } from './common/providers/APIProvider';
-import { API_BASE_URL } from './common/api';
+import { apiBaseUrl } from './common/api';
 import { Dashboard } from './modules/shell';
 import { LoginPage, SignupPage, TOKEN_KEY, EMAIL_KEY, REDIRECT_KEY, WORKSPACE_KEY, VIEW_KEY, readInitialToken, storeSession } from './modules/auth';
 import { InvitePage, readPendingInvite, clearPendingInvite } from './modules/invites';
@@ -89,7 +89,7 @@ export default function App({ extensions = EMPTY_EXTENSIONS }: AppProps = {}) {
   const Onboarding = extensions.onboarding ?? React.Fragment;
   return (
     <QueryProvider onUnauthorized={handleLogout}>
-      <APIProvider config={{ baseUrl: API_BASE_URL, apiKey: token }}>
+      <APIProvider config={{ baseUrl: apiBaseUrl(), apiKey: token }}>
         <Onboarding><Dashboard onLogout={handleLogout} extensions={extensions} /></Onboarding>
       </APIProvider>
     </QueryProvider>

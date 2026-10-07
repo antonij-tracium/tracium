@@ -1,4 +1,4 @@
-import { API_BASE_URL, APIError } from '../../common/api/client';
+import { apiBaseUrl, APIError } from '../../common/api/client';
 
 export interface LoginRequest {
   email: string;
@@ -39,7 +39,7 @@ export function requestErrorMessage(err: unknown, byStatus: Record<number, strin
 
 /** Calls an endpoint that needs no session, throwing AuthError on failure. */
 export async function publicRequest(path: string, init: RequestInit, failureLabel: string): Promise<Response> {
-  const response = await fetch(`${API_BASE_URL}${path}`, init);
+  const response = await fetch(`${apiBaseUrl()}${path}`, init);
 
   if (!response.ok) {
     let message = `${failureLabel} (${response.status})`;

@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { AuthShell, AuthButton } from '../../auth/components';
 import { formatDate } from '../../../common';
 import { requestErrorMessage } from '../../auth/api';
-import { API_BASE_URL, APIError, WorkspacesAPI } from '../../../common/api';
+import { apiBaseUrl, APIError, WorkspacesAPI } from '../../../common/api';
 import { previewInvite, type InvitePreview } from '../api';
 import styles from '../../auth/pages/LoginPage.module.css';
 
@@ -54,7 +54,7 @@ export default function InvitePage({ token, appearance, session, onAccepted, onD
     setAccepting(true);
     setAcceptError(null);
     try {
-      const api = new WorkspacesAPI({ baseUrl: API_BASE_URL, apiKey: session.token });
+      const api = new WorkspacesAPI({ baseUrl: apiBaseUrl(), apiKey: session.token });
       const { workspace_id } = await api.acceptInvite(token);
       navigate('/', { replace: true });
       onAccepted?.(workspace_id);
