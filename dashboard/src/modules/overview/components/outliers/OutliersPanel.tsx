@@ -252,6 +252,7 @@ function OutlierRow({
     >
       <button
         onClick={onToggle}
+        aria-expanded={expanded}
         style={{
           width: '100%',
           display: 'flex',
@@ -347,6 +348,7 @@ function IncidentCard({
     >
       <button
         onClick={onToggle}
+        aria-expanded={expanded}
         style={{
           width: '100%',
           display: 'flex',

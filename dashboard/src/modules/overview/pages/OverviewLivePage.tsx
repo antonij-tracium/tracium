@@ -15,7 +15,7 @@ import {
   toLatencyPoints,
   toErrorPoints,
 } from '../../../common';
-import type { KpiItem, SyncTone } from '../../../common';
+import type { KpiItem } from '../../../common';
 import type { CostPoint, LatencyPoint, ErrorPoint } from '../../../common/interfaces';
 import { useAPIClient } from '../../../common/providers/APIProvider';
 import type { Trace } from '../../trace-explorer/interfaces';
@@ -30,7 +30,6 @@ import {
   OutliersPanel,
   SetupChecks,
 } from '../components';
-import type { SyncStatus } from '../components';
 import {
   useKpis,
   useCostSeries,
@@ -42,8 +41,9 @@ import {
   useSetupChecks,
   useRecentActivity,
 } from '../hooks/useMetrics';
-import type { KpiSet, FailureRow, ActivityItem, Anomaly } from '../interfaces';
+import type { KpiSet, ActivityItem, Anomaly } from '../interfaces';
 import { anomalyKey, anomalyValue, toChartMarkers } from '../utils/anomalies';
+import { failuresSummary, syncStatus } from '../utils/status';
 
 interface OverviewLivePageProps {
   range: string;
@@ -64,25 +64,6 @@ function toKpiItems(kpis: KpiSet, cost: CostPoint[], latency: LatencyPoint[], er
     { label: 'Failure rate', value: fmtPct(kpis.error_rate.value * 100), ...deltaParts(kpis.error_rate), sparkData: failureTrend, sparkColor: 'var(--warning)' },
     latencyItem,
   ];
-}
-
-// The rows are only the top workflows, so the failed total comes from the
-// envelope rather than re-summing them.
-function failuresSummary(rows: FailureRow[], total: number): { totalFailed: number; worstWorkflow: string } {
-  const worst = rows.reduce<FailureRow | null>((m, r) => (!m || r.count > m.count ? r : m), null);
-  return { totalFailed: total, worstWorkflow: worst?.workflow ?? '—' };
-}
-
-// Sections don't poll, so freshness is only as good as the oldest successful fetch.
-const STALE_AFTER_MS = 5 * 60 * 1000;
-
-function syncStatus(queries: { isError: boolean; isSuccess: boolean; dataUpdatedAt: number }[]): SyncStatus {
-  if (queries.some((q) => q.isError)) return { label: 'Sync failed', tone: 'error' };
-  const updates = queries.filter((q) => q.isSuccess).map((q) => q.dataUpdatedAt);
-  if (updates.length === 0) return { label: 'Syncing…', tone: 'syncing' };
-  const oldest = Math.min(...updates);
-  const tone: SyncTone = Date.now() - oldest > STALE_AFTER_MS ? 'stale' : 'live';
-  return { label: `Synced ${relativeTime(oldest)}`, tone };
 }
 
 const toActivityItems = (traces: Trace[]): ActivityItem[] =>
@@ -110,7 +91,7 @@ export function OverviewLivePage({ range, setView, setSelected }: OverviewLivePa
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [selectedOutlier, setSelectedOutlier] = useState<string | null>(null);
   // Also shown on the empty state: rejected spans leave a workspace looking empty.
-  const setupChecksBlock = setupChecks.data && workspaceId && (
+  const setupChecksBlock = workspaceId && setupChecks.data && setupChecks.data.items.length > 0 && (
     <SetupChecks
       key={workspaceId}
       checks={setupChecks.data.items}
@@ -134,7 +115,7 @@ export function OverviewLivePage({ range, setView, setSelected }: OverviewLivePa
     const hasAnyTraces = activity.data.items.length > 0;
     return (
       <div>
-        <div style={{ maxWidth: 880, margin: '0 auto', padding: '32px 16px 0' }}>{setupChecksBlock}</div>
+        {setupChecksBlock && <div style={{ maxWidth: 880, margin: '0 auto', padding: '32px 16px 0' }}>{setupChecksBlock}</div>}
         {hasAnyTraces ? (
           <EmptyState
             message={`No traces in the ${rangeLabel(range)}`}

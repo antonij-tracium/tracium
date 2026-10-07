@@ -30,6 +30,7 @@ import {
 } from '../hooks/useUsage';
 import type { UserSummary, AttributeSummary, UserUsage, AttributeUsage } from '../interfaces';
 import {
+  UNATTRIBUTED,
   toDailySeries,
   toModelSummaries,
   toWorkflowSummaries,
@@ -44,8 +45,6 @@ interface UsageLivePageProps {
   setView: (v: string) => void;
   setSelected: (updater: (prev: Record<string, string>) => Record<string, string>) => void;
 }
-
-const UNATTRIBUTED = '—';
 
 const toUserSummaries = (users: UserUsage[]): UserSummary[] =>
   users.map((t) => ({
@@ -87,11 +86,10 @@ export function UsageLivePage({ range, setView, setSelected }: UsageLivePageProp
   const attrKeys = useAttributeKeys(range);
 
   const attributeKeys = attrKeys.data?.items ?? [];
-  const activeAttr = attrKey || attributeKeys[0] || '';
+  const activeAttr = attributeKeys.includes(attrKey) ? attrKey : attributeKeys[0] ?? '';
   const attrUsage = useAttributeUsage(range, tab === 'attribute' ? activeAttr : '');
 
   function openClient(id: string) {
-    if (!id || id === UNATTRIBUTED) return;
     setSelected((prev) => ({ ...prev, user: id }));
     setView('user');
   }
@@ -158,7 +156,7 @@ export function UsageLivePage({ range, setView, setSelected }: UsageLivePageProp
 
       <PanelFrame
         left={
-          <Panel eyebrow="Spend" title="Daily spend" right={<DailyChartLegend />}>
+          <Panel eyebrow="Spend" title={range === '24h' ? 'Hourly spend' : 'Daily spend'} right={<DailyChartLegend />}>
             <Section
               isLoading={cost.isLoading || errors.isLoading}
               isError={cost.isError || errors.isError}

@@ -1,5 +1,6 @@
 import { Centered, EmptyState, Spinner, periodLabel } from '../../../common';
 import { useUserUsage } from '../hooks/useUsage';
+import { UNATTRIBUTED } from '../utils';
 import { UsersPage, type User } from './UsersPage';
 
 interface UsersLivePageProps {
@@ -33,7 +34,7 @@ export function UsersLivePage({ range, setView, setSelected }: UsersLivePageProp
   }
 
   const users: User[] = items.map((t) => ({
-    id: t.user_id || '—',
+    id: t.user_id || UNATTRIBUTED,
     name: t.user_id || 'default',
     cost: t.cost,
     runs: t.runs,

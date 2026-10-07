@@ -10,6 +10,10 @@ describe('bucketLabel', () => {
     expect(bucketLabel(midnightUtc, '7d')).toBe('Tue 10/6');
     expect(bucketLabel(midnightUtc, '30d')).toBe('10/6');
   });
+
+  it('reads hourly buckets in local time', () => {
+    expect(bucketLabel(new Date(2026, 9, 6, 9).getTime(), '24h')).toBe('09:00');
+  });
 });
 
 describe('fmtCost', () => {
