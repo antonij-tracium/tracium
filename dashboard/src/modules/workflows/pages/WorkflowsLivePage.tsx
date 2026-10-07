@@ -44,7 +44,7 @@ export function WorkflowsLivePage({ range, setView, setSelected, workspaceName }
       </Centered>
     );
   }
-  if (isError) {
+  if (isError && !data) {
     return <Centered>Failed to load workflows</Centered>;
   }
 
