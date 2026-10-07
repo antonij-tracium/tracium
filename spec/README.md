@@ -2,26 +2,20 @@
 
 The single source of truth for all data contracts in the Tracium platform.
 
-**No application code lives here.** This repository contains only JSON Schemas,
-YAML attribute definitions, an OpenAPI specification, a pricing table, and
-codegen scripts. Every shared type used across `api`, `collector`,
-and `dashboard` originates here.
-
----
+This directory holds no application code: only JSON Schemas, YAML attribute
+definitions, an OpenAPI specification, a pricing table, and codegen scripts.
+Every shared type used across `api`, `collector`, and `dashboard` originates
+here.
 
 ## Purpose
 
 When you need to answer "what is the canonical shape of a Span?", the answer is
-`schemas/span.json` in this repository, not a struct in `api`, not an
-interface in `dashboard`.
+`schemas/span.json`, not a struct in `api` or an interface in `dashboard`.
 
-Any change to a shared data contract must be made here first, then propagated to
-other repositories via the codegen scripts. **Never manually edit generated files
-in other repos.**
+Change a shared data contract here first, then regenerate the derived types with
+the codegen scripts. Never hand-edit generated files.
 
----
-
-## Repository Structure
+## Layout
 
 ```
 spec/
@@ -33,6 +27,7 @@ spec/
     error.json            ← JSON Schema for the ErrorResponse envelope
   pricing/
     pricing.json          ← model pricing table, consumed by collector
+    refresh-pricing.sh    ← regenerates pricing.json from LiteLLM
   attributes/
     genai.yaml            ← gen_ai.* OTel SIG attributes Tracium reads
     tracium.yaml          ← tracium.* attributes written by the collector
@@ -41,8 +36,6 @@ spec/
   CHANGELOG.md            ← all schema and API changes, version-tagged
   README.md               ← this file
 ```
-
----
 
 ## Compatibility Policy
 
@@ -79,8 +72,6 @@ deprecation period:
    it is an API-level change.
 3. After 30 days, remove the deprecated field and increment `schema_version`.
 
----
-
 ## How to Make a Change
 
 ### Step 1: Classify the change
@@ -104,9 +95,7 @@ the version number.
 ### Step 4: Run the codegen script
 
 ```bash
-# Generate TypeScript types for dashboard
 ./codegen/gen-ts-types.sh
-
 ```
 
 Commit the generated output changes alongside your schema changes.
@@ -116,8 +105,6 @@ Commit the generated output changes alongside your schema changes.
 Add a one-line bullet under `## [Unreleased]`, in `### Added`, `### Changed`,
 `### Fixed` or `### Removed`. Keep it an outline: name the change, and mark it
 "breaking" when it is. Details belong in the PR, not the changelog.
-
----
 
 ## Codegen
 
@@ -134,8 +121,6 @@ to `dashboard/src/types/openapi.d.ts`.
 
 The Go models in `api/internal/model` are hand-written; keep them in step with
 the spec by hand.
-
----
 
 ## Pricing
 
