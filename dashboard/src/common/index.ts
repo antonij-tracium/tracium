@@ -5,6 +5,7 @@ export { relativeTime, formatDate, formatDateTime } from './utils/time';
 export { bucketLabel, toCostPoints, toLatencyPoints, toErrorPoints } from './utils/buckets';
 export { isLongRange, LONG_RANGES, RANGE_LABEL, rangeLabel, periodLabel } from './utils/ranges';
 export { SEVERITY_META } from './utils/severity';
+export { handleDialogKeyDown } from './utils/dialog';
 export type { Severity } from './utils/severity';
 export { useResize } from './hooks/useResize';
 export { useMaxWidth, BREAKPOINTS } from './hooks/useMediaQuery';

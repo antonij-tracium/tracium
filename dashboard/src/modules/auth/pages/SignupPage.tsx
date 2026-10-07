@@ -101,14 +101,14 @@ export default function SignupPage({ onLogin, appearance }: SignupPageProps) {
             <label className={styles.label} htmlFor="password">
               Password
             </label>
-            <span className={`${styles.hint} ${styles.hintStatic}`}>12+ characters</span>
+            <span className={`${styles.hint} ${styles.hintStatic}`}>8+ characters</span>
           </div>
           <input
             id="password"
             name="password"
             type="password"
             required
-            minLength={12}
+            minLength={8}
             autoComplete="new-password"
             className={`${styles.input} ${styles.password}`}
             placeholder="••••••••••••"

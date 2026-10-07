@@ -134,7 +134,7 @@ interface Btn {
 function Btn({ children, variant = 'secondary', onClick, disabled, type = 'button', style, title }: Btn) {
   const variantStyles: Record<ButtonVariant, React.CSSProperties> = {
     primary:   { background: 'var(--accent)', color: 'var(--accent-contrast)', border: '1px solid var(--accent)', fontWeight: 600 },
-    secondary: { background: 'transparent', color: 'var(--foreground)', border: '1px solid var(--border-strong, rgba(255,255,255,0.12))', fontWeight: 500 },
+    secondary: { background: 'transparent', color: 'var(--foreground)', border: '1px solid var(--border-strong)', fontWeight: 500 },
     ghost:     { background: 'transparent', color: 'var(--muted)', border: '1px solid transparent', fontWeight: 500 },
     danger:    { background: 'color-mix(in srgb, var(--error) 12%, transparent)', color: 'var(--error)', border: '1px solid color-mix(in srgb, var(--error) 30%, transparent)', fontWeight: 500 },
   };
@@ -160,21 +160,22 @@ interface InputProps {
   suffix?: React.ReactNode;
   readOnly?: boolean;
   label?: string;
+  autoComplete?: string;
 }
 
-function Input({ value, onChange, placeholder, type = 'text', mono = false, prefix, suffix, readOnly, label }: InputProps) {
+function Input({ value, onChange, placeholder, type = 'text', mono = false, prefix, suffix, readOnly, label, autoComplete }: InputProps) {
   return (
     <div
       style={{
         display: 'flex', alignItems: 'center', gap: 8,
         padding: '0 11px',
         background: readOnly ? 'var(--surface-alt)' : 'transparent',
-        border: '1px solid var(--border-strong, rgba(255,255,255,0.12))',
+        border: '1px solid var(--border-strong)',
         borderRadius: 7,
         transition: 'border-color 120ms',
       }}
       onFocusCapture={e => { e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--accent) 50%, transparent)'; }}
-      onBlurCapture={e => { e.currentTarget.style.borderColor = 'var(--border-strong, rgba(255,255,255,0.12))'; }}
+      onBlurCapture={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; }}
     >
       {prefix && <span style={{ fontSize: 14, color: 'var(--muted)', flexShrink: 0 }}>{prefix}</span>}
       <input
@@ -184,6 +185,7 @@ function Input({ value, onChange, placeholder, type = 'text', mono = false, pref
         placeholder={placeholder}
         type={type}
         readOnly={readOnly}
+        autoComplete={autoComplete}
         style={{
           flex: 1, minWidth: 0, padding: '9px 0',
           background: 'transparent', border: 'none', outline: 'none',
@@ -211,7 +213,7 @@ function Toggle({ on, onChange }: ToggleProps) {
       style={{
         width: 36, height: 20,
         background: on ? 'var(--accent)' : 'var(--surface-alt)',
-        border: '1px solid ' + (on ? 'var(--accent)' : 'var(--border-strong, rgba(255,255,255,0.12))'),
+        border: '1px solid ' + (on ? 'var(--accent)' : 'var(--border-strong)'),
         borderRadius: 999,
         position: 'relative',
         transition: 'background 150ms, border-color 150ms',
@@ -377,13 +379,13 @@ function ChangePasswordField() {
     <form onSubmit={submit} aria-busy={saving}>
       <fieldset disabled={saving} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
         <Field label="Current password">
-          <Input label="Current password" type="password" value={current} onChange={e => setCurrent(e.target.value)} />
+          <Input label="Current password" type="password" autoComplete="current-password" value={current} onChange={e => setCurrent(e.target.value)} />
         </Field>
         <Field label="New password" hint="At least 8 characters.">
-          <Input label="New password" type="password" value={next} onChange={e => setNext(e.target.value)} />
+          <Input label="New password" type="password" autoComplete="new-password" value={next} onChange={e => setNext(e.target.value)} />
         </Field>
         <Field label="Confirm new password" last>
-          <Input label="Confirm new password" type="password" value={confirm} onChange={e => setConfirm(e.target.value)} />
+          <Input label="Confirm new password" type="password" autoComplete="new-password" value={confirm} onChange={e => setConfirm(e.target.value)} />
         </Field>
       </fieldset>
       {error && <p role="alert" style={{ color: 'var(--error)', fontSize: 14 }}>{error}</p>}
@@ -854,18 +856,19 @@ export default function SettingsPage({
   const [tab, setTab] = useState<TabId>(createMode || !demo ? 'workspace' : 'account');
   const [creating, setCreating] = useState(createMode);
   const [createdId, setCreatedId] = useState<string | null>(null);
-  useEffect(() => {
+  const [prevCreateMode, setPrevCreateMode] = useState(createMode);
+  if (createMode !== prevCreateMode) {
+    setPrevCreateMode(createMode);
     if (createMode) {
       setTab('workspace');
       setCreating(true);
       setCreatedId(null);
     }
-  }, [createMode]);
+  }
   // Below the tablet breakpoint the tab rail moves above the content instead of
   // sitting in a fixed 220px left column.
   const stackRail = useMaxWidth(BREAKPOINTS.tablet);
 
-  // Switching tabs leaves the create-workspace form.
   const selectTab = (t: TabId) => {
     setCreating(false);
     onCancelCreate?.();

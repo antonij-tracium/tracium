@@ -28,8 +28,9 @@ interface APIProviderProps {
 export function APIProvider({ config, children }: APIProviderProps) {
   const [workspaceId, setWorkspaceId] = useState<string | undefined>(config.workspaceId);
 
+  const { baseUrl, apiKey, timeoutMs } = config;
   const value = useMemo(() => {
-    const scopedConfig = { ...config, workspaceId };
+    const scopedConfig = { baseUrl, apiKey, timeoutMs, workspaceId };
     return {
       tracesAPI: new TracesAPI(scopedConfig),
       metricsAPI: new MetricsAPI(scopedConfig),
@@ -39,7 +40,7 @@ export function APIProvider({ config, children }: APIProviderProps) {
       workspaceId,
       setWorkspaceId,
     };
-  }, [config, workspaceId]);
+  }, [baseUrl, apiKey, timeoutMs, workspaceId]);
 
   return <APIContext.Provider value={value}>{children}</APIContext.Provider>;
 }
