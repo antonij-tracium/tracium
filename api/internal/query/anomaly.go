@@ -102,14 +102,12 @@ func (r *ClickHouseRepository) Anomalies(ctx context.Context, f MetricsFilter) (
 
 	var out []model.Anomaly
 
-	// --- Workspace-wide series ------------------------------------------------
 	overall, err := r.anomalyDailySeries(ctx, f, baseStart)
 	if err != nil {
 		return nil, err
 	}
 	out = append(out, detectSeries(f, "workspace", "", axis, overall, detectFrom, minSev)...)
 
-	// --- Per-workflow series (busiest N by run volume in the display window) ------
 	workflows, err := r.anomalyTopWorkflows(ctx, f)
 	if err != nil {
 		return nil, err
@@ -161,7 +159,7 @@ func detectSeries(f MetricsFilter, scope, workflow string, axis []int64, byBucke
 			a := model.Anomaly{
 				Metric:    m.name,
 				Scope:     scope,
-				Workflow:     workflow,
+				Workflow:  workflow,
 				BucketMs:  res.BucketMs,
 				Observed:  sanitize(res.Observed),
 				Expected:  sanitize(res.Expected),

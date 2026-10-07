@@ -145,7 +145,7 @@ func traceFilterSQL(filter TraceFilter) (string, []any) {
 		args = append(args, filter.Model)
 	}
 	// Restrict to one derived workflow (the same derivation the workflows metrics use),
-	// so an workflow's "recent runs" list reuses the trace listing. The HAVING runs
+	// so a workflow's "recent runs" list reuses the trace listing. The HAVING runs
 	// inside the already time-bounded GROUP BY trace_id — still window-pruned.
 	if filter.Workflow != "" {
 		having = append(having, workflowExpr+" = ?")

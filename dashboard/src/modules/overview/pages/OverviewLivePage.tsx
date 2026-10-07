@@ -1,9 +1,7 @@
-// ---------------------------------------------------------------------------
 // OverviewLivePage — the signed-in overview, fed by the metrics API. Each
 // section loads independently (Section handles its spinner / error); when there
 // are no runs at all we show the "no data yet" empty state. The presentational
 // components are shared with the demo OverviewPage.
-// ---------------------------------------------------------------------------
 
 import { useState } from 'react';
 import { EmptyState, fmtCost, fmtNum, fmtMs, fmtPct, isLongRange, RANGE_LABEL, toCostPoints, toLatencyPoints, toErrorPoints } from '../../../common';
@@ -47,8 +45,6 @@ interface OverviewLivePageProps {
   tweaks: Tweaks;
 }
 
-
-// ── Formatting helpers ──────────────────────────────────────────────────────
 // bucketLabel / toCostPoints / toLatencyPoints / toErrorPoints are shared with
 // the workflow detail charts (common/utils/buckets).
 
@@ -98,7 +94,6 @@ function failuresSummary(rows: FailureRow[], total: number): { totalFailed: numb
   return { totalFailed: total, worstWorkflow: worst?.workflow ?? '—' };
 }
 
-// ── Sync status ─────────────────────────────────────────────────────────────
 // The masthead chip must reflect reality, not a hardcoded "Synced just now":
 // red if any section failed, amber once data has gone stale, green when fresh.
 // Metrics sections don't poll, so "synced" is only as true as the stalest one —
@@ -144,8 +139,6 @@ const toActivityItems = (traces: Trace[]): ActivityItem[] =>
     cost: t.total_cost_usd,
     latency: parseFloat((t.duration_ms / 1000).toFixed(1)),
   }));
-
-// ── Page ────────────────────────────────────────────────────────────────────
 
 export function OverviewLivePage({ range, setView, setSelected, tweaks }: OverviewLivePageProps) {
   const feedPosition = tweaks.feedPosition ?? 'right';

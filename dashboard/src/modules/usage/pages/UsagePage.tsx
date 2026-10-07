@@ -1,8 +1,6 @@
-// ---------------------------------------------------------------------------
 // UsagePage — the demo usage view (embedded auth preview), fed by mock
 // USAGE_DATA. The signed-in dashboard renders UsageLivePage instead; both share
 // the presentational components in ../components.
-// ---------------------------------------------------------------------------
 
 import { useMemo, useState } from 'react';
 import { costFormatter, tokenFormatter } from '../../../common';

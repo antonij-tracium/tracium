@@ -36,8 +36,8 @@ type Span struct {
 	ReportedCostUSD float64
 
 	// tracium.* enriched attributes (set by EnrichStage)
-	CostUSD         float64
-	UserID        string
+	CostUSD float64
+	UserID  string
 	// WorkspaceID scopes a span to a workspace (the isolation/allocation unit an
 	// account owns). Passthrough from the tracium.workspace.id attribute, like
 	// UserID — a client-controlled label, not resolved.

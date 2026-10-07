@@ -1,4 +1,4 @@
-// Supplemental, configuration-level metadata for an workflow, shown on the workflow
+// Supplemental, configuration-level metadata for a workflow, shown on the workflow
 // detail page. This is the workflow's *configuration* — model, runtime params,
 // and the tools it can call — not health or anomaly state, both of which are
 // intentionally absent from the OSS dashboard.

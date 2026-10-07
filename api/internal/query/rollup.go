@@ -58,8 +58,6 @@ func rollupWindow(user string, workspaces []string, lo, hi time.Time, hiInclusiv
 // rollup buckets line up with the zero-fill axis. toInt64(Date) is days-since-epoch.
 const bucketMsExpr = "toInt64(bucket_date) * 86400000"
 
-// --- KPIs ---------------------------------------------------------------------
-
 // rollupKPI holds one window's rollup aggregates before they are paired into deltas.
 type rollupKPI struct {
 	cost          float64
@@ -149,8 +147,6 @@ func (r *ClickHouseRepository) overviewKPIsRollup(ctx context.Context, f Metrics
 	}, nil
 }
 
-// --- Series -------------------------------------------------------------------
-
 func (r *ClickHouseRepository) costSeriesRollup(ctx context.Context, f MetricsFilter) ([]model.CostPoint, error) {
 	clause, args := rollupWindow(f.UserID, f.WorkspaceIDs, f.Start, f.End, true)
 	// Reconcile the two cost sources per day (see costReconcileRollupExpr) on the
@@ -188,8 +184,6 @@ FROM tracium.metrics_daily WHERE %s GROUP BY bucket_ms`, bucketMsExpr, clause)
 	}
 	return points, nil
 }
-
-// --- Top-N lists --------------------------------------------------------------
 
 func (r *ClickHouseRepository) topWorkflowsRollup(ctx context.Context, f MetricsFilter, limit int) ([]model.WorkflowCost, error) {
 	clause, args := rollupWindow(f.UserID, f.WorkspaceIDs, f.Start, f.End, true)
@@ -330,8 +324,6 @@ FROM tracium.metrics_daily WHERE %s AND model != '' GROUP BY name ORDER BY cost 
 	}
 	return models, rows.Err()
 }
-
-// --- Usage tables (current vs preceding window) -------------------------------
 
 func (r *ClickHouseRepository) userUsageRollup(ctx context.Context, f MetricsFilter, limit int) ([]model.UserUsage, error) {
 	// One pass over [PrevStart, End], split at the current window's start day.

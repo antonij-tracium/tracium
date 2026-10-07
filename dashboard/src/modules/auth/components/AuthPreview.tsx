@@ -21,7 +21,6 @@ export function AuthPreview() {
     <div className={styles.wrapper}>
       <div className={styles.window}>
 
-        {/* ── Window chrome ── */}
         <div className={styles.chrome}>
           <div className={styles.lights}>
             <span className={`${styles.light} ${styles.red}`} />
@@ -32,7 +31,6 @@ export function AuthPreview() {
           <span className={styles.chromeUrl}>tracium.ai</span>
         </div>
 
-        {/* ── Live product preview ── */}
         <div className={styles.body}>
           <QueryProvider>
             <APIProvider config={PREVIEW_CONFIG}>

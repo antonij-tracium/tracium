@@ -1,4 +1,3 @@
-// ---------------------------------------------------------------------------
 // UsersLivePage — the signed-in Users view, fed by GET /v1/metrics/
 // usage-users (range-bounded; cost scales with the query window, not the
 // total user count). It owns the data fetch and hands telemetry-derived rows
@@ -7,7 +6,6 @@
 // Only telemetry-derived fields are available from the metrics endpoint
 // (user id, runs, cost, trend). Region / success rate / last-seen are not
 // telemetry, so the live table shows the telemetry columns only.
-// ---------------------------------------------------------------------------
 
 import type { ReactNode } from 'react';
 import { EmptyState, Spinner, periodLabel } from '../../../common';

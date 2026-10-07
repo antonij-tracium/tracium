@@ -1,4 +1,3 @@
-// ---------------------------------------------------------------------------
 // WorkflowDetailLivePage — the signed-in workflow detail view. It fetches the workflow's
 // headline metrics, its three bounded workflow-scoped series, and a page of its
 // recent runs, then hands them to the presentational WorkflowDetailPage.
@@ -9,7 +8,6 @@
 //
 // The configuration panel is trimmed to what spans can source (model, provider,
 // tokens) — there is no workflow-config store, so runtime params aren't shown.
-// ---------------------------------------------------------------------------
 
 import type { ReactNode } from 'react';
 import {

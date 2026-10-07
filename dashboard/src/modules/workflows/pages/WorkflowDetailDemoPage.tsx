@@ -1,10 +1,8 @@
-// ---------------------------------------------------------------------------
 // WorkflowDetailDemoPage — the embedded (logged-out preview) workflow detail. It
 // assembles the presentational WorkflowDetailPage's props from the mock WORKFLOWS +
 // WORKFLOW_META and the deterministic demo series, so the auth-page preview shows a
 // fully-populated workflow without hitting the API. The live app uses
 // WorkflowDetailLivePage instead.
-// ---------------------------------------------------------------------------
 
 import { fmtNum } from '../../../common';
 import type { LatencyPoint } from '../../../common/interfaces';

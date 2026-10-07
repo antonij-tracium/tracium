@@ -1,4 +1,3 @@
-// ---------------------------------------------------------------------------
 // UsersPage — pure renderer for the user list: sortable, filterable table
 // with a cost-share bar. It receives its rows as props (the live wrapper feeds
 // telemetry-derived data, the demo feeds mock data) and never fetches.
@@ -11,14 +10,9 @@
 // Columns that aren't telemetry-derived (Region / Success / Last seen) only
 // render when the rows carry that metadata — i.e. the demo dataset. The live,
 // API-backed dataset shows the telemetry columns only.
-// ---------------------------------------------------------------------------
 
 import React, { useMemo, useState, type ReactNode } from 'react';
 import { LastUpdated, Sparkline, fmtNum } from '../../../common';
-
-// ---------------------------------------------------------------------------
-// User row shape
-// ---------------------------------------------------------------------------
 
 export interface User {
   id: string;
@@ -32,11 +26,6 @@ export interface User {
   success?: number;
   lastSeen?: string;
 }
-
-// ---------------------------------------------------------------------------
-// Demo dataset (used by the embedded auth preview). The signed-in dashboard
-// renders UsersLivePage, which builds its rows from the metrics API.
-// ---------------------------------------------------------------------------
 
 const USERS: User[] = [
   { id: "tn_acme",      name: "Acme Robotics",       cost: 12.4421, runs: 58_022, avg: 0.000214, trend:[0.36,0.42,0.41,0.48,0.51,0.55,0.58,0.61,0.59,0.62,0.66,0.71], region: "us-east-1", success: 99.4, lastSeen: "12s ago" },
@@ -52,10 +41,6 @@ const USERS: User[] = [
 // Expose USERS so UserDetailPage and the embedded demo can share the data.
 export { USERS };
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function successColor(success: number): string {
   return success >= 99 ? "var(--foreground)" : success >= 97 ? "var(--warning)" : "var(--error)";
 }
@@ -65,10 +50,6 @@ function pctDelta(curr: number, prev: number): string {
   const d = ((curr - prev) / prev) * 100;
   return (d >= 0 ? '+' : '') + d.toFixed(1) + '%';
 }
-
-// ---------------------------------------------------------------------------
-// KPI strip
-// ---------------------------------------------------------------------------
 
 interface KpiProps {
   label: string;
@@ -95,10 +76,6 @@ function Kpi({ label, value, delta, deltaTone = "neutral", hint, last = false }:
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Cost share bar
-// ---------------------------------------------------------------------------
 
 const SHARE_PALETTE = ["var(--accent)", "#7aa5ff", "#c08aff", "#f5a524", "#5ec8b4", "#e76e8b", "#8b95a8", "color-mix(in srgb, var(--muted) 50%, transparent)"];
 
@@ -146,10 +123,6 @@ function ShareBar({ users, totalCost }: { users: User[]; totalCost: number }) {
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Columns
-// ---------------------------------------------------------------------------
 
 type UserSortKey = 'name' | 'region' | 'runs' | 'cost' | 'avg' | 'success' | 'lastSeen';
 
@@ -233,10 +206,6 @@ function HeaderCell({ col, sort, onSort }: { col: ColDef; sort: SortState; onSor
     <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--muted)" }}>{col.label}</span>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Page
-// ---------------------------------------------------------------------------
 
 export interface UsersPageProps {
   users: User[];

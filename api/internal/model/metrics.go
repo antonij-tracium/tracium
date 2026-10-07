@@ -15,7 +15,7 @@ package model
 type Anomaly struct {
 	Metric    string  `json:"metric"`
 	Scope     string  `json:"scope"`
-	Workflow     string  `json:"workflow"` // set when Scope == "workflow", else ""
+	Workflow  string  `json:"workflow"` // set when Scope == "workflow", else ""
 	BucketMs  int64   `json:"bucket_ms"`
 	Observed  float64 `json:"observed"`
 	Expected  float64 `json:"expected"`
@@ -124,7 +124,7 @@ type WorkflowDetail struct {
 // Failure aggregates errored runs for one workflow. Pct is the fraction of that
 // workflow's runs that failed.
 type Failure struct {
-	Workflow    string  `json:"workflow"`
+	Workflow string  `json:"workflow"`
 	Count    int64   `json:"count"`
 	Pct      float64 `json:"pct"`
 	TopError string  `json:"top_error"`

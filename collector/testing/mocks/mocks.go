@@ -9,19 +9,11 @@ import (
 	"github.com/tracium/collector/pkg/spanmodel"
 )
 
-// ---------------------------------------------------------------------------
-// Writer interface (local copy to avoid import cycle with internal/writer)
-// ---------------------------------------------------------------------------
-
 // Writer mirrors internal/writer.Writer for use in tests.
 type Writer interface {
 	WriteBatch(ctx context.Context, spans []*spanmodel.Span) error
 	Close() error
 }
-
-// ---------------------------------------------------------------------------
-// MockWriter
-// ---------------------------------------------------------------------------
 
 // MockWriter records written spans and rejection counts.
 type MockWriter struct {
@@ -61,10 +53,6 @@ func (m *MockWriter) WriteBatch(_ context.Context, spans []*spanmodel.Span) erro
 // Close is a no-op.
 func (m *MockWriter) Close() error { return nil }
 
-// ---------------------------------------------------------------------------
-// MockPricingResolver
-// ---------------------------------------------------------------------------
-
 // PricingResolver mirrors internal/pricing.Resolver for use in tests.
 type PricingResolver interface {
 	Resolve(ctx context.Context, model string, usage pricing.Usage) (float64, error)
@@ -84,10 +72,6 @@ func (m *MockPricingResolver) Resolve(_ context.Context, _ string, _ pricing.Usa
 	return m.FixedCost, nil
 }
 
-// ---------------------------------------------------------------------------
-// MockUserResolver
-// ---------------------------------------------------------------------------
-
 // UserResolver mirrors internal/user.Resolver for use in tests.
 type UserResolver interface {
 	Resolve(ctx context.Context, apiKey string) (string, error)
@@ -95,7 +79,7 @@ type UserResolver interface {
 
 // MockUserResolver always returns UserID (unless ResolveErr is set).
 type MockUserResolver struct {
-	UserID   string
+	UserID     string
 	ResolveErr error
 }
 
@@ -106,10 +90,6 @@ func (m *MockUserResolver) Resolve(_ context.Context, _ string) (string, error) 
 	}
 	return m.UserID, nil
 }
-
-// ---------------------------------------------------------------------------
-// MockEnricher
-// ---------------------------------------------------------------------------
 
 // MockEnricher records calls and can inject errors or delegate to EnrichFn.
 // It satisfies enrich.Enricher for use in tests.
@@ -136,10 +116,6 @@ func (m *MockEnricher) Enrich(_ context.Context, span *spanmodel.Span) error {
 	}
 	return m.EnrichErr
 }
-
-// ---------------------------------------------------------------------------
-// MockDeadLetterStore
-// ---------------------------------------------------------------------------
 
 // MockDeadLetterStore records every dead-lettered span. It satisfies
 // deadletter.Store for use in tests.
@@ -188,10 +164,6 @@ func (m *MockDeadLetterStore) Codes() []string {
 	return codes
 }
 
-// ---------------------------------------------------------------------------
-// NewTestSpan
-// ---------------------------------------------------------------------------
-
 // NewTestSpan returns a minimal valid span suitable for use in unit tests.
 func NewTestSpan() *spanmodel.Span {
 	return &spanmodel.Span{
@@ -208,7 +180,7 @@ func NewTestSpan() *spanmodel.Span {
 		OutputTokens:    50,
 		FinishReason:    "stop",
 		CostUSD:         0.0,
-		UserID:        "user-test-1",
+		UserID:          "user-test-1",
 		SchemaVersion:   1,
 	}
 }
