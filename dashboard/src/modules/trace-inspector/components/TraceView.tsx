@@ -8,6 +8,7 @@ import {
   fmtMs,
   useMaxWidth,
   BREAKPOINTS,
+  SEVERITY_META,
 } from '../../../common';
 import type { SpanDetail, AvailableTool, TraceDetail } from '../interfaces';
 import type { TabId } from '../ids';
@@ -301,7 +302,7 @@ function SpanInspector({ span, error }: { span: SpanDetail | undefined; error: T
         <div>
           <SectionLabel>Setup issues</SectionLabel>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {span.setupIssues.map((issue) => <SetupIssueNote key={issue.code} issue={issue} />)}
+            {[...span.setupIssues].sort((a, b) => SEVERITY_META[b.severity].rank - SEVERITY_META[a.severity].rank).map((issue) => <SetupIssueNote key={issue.code} issue={issue} />)}
           </div>
         </div>
       )}
@@ -749,6 +750,7 @@ interface SpanRowProps {
 }
 
 function SpanRow({ span, isLast, isActive, isCollapsed, isHidden, totalDuration, tickValues, onSelect, onToggleCollapse }: SpanRowProps) {
+  const worstIssue = span.setupIssues?.length ? span.setupIssues.reduce((a, b) => (SEVERITY_META[b.severity].rank > SEVERITY_META[a.severity].rank ? b : a)) : undefined;
   const color = spanColor(span);
   const leftPct = (span.start / totalDuration) * 100;
   const widthPct = Math.max(0.4, (span.duration / totalDuration) * 100);
@@ -804,6 +806,12 @@ function SpanRow({ span, isLast, isActive, isCollapsed, isHidden, totalDuration,
         <span style={{ display: 'inline-block', width: 7, height: 7, background: color, borderRadius: 2, flexShrink: 0 }} />
         <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--foreground)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{span.name}</span>
         <SpanTypeTag type={span.type} />
+        {worstIssue && (
+          <span
+            title={`${span.setupIssues!.length} setup issue${span.setupIssues!.length === 1 ? '' : 's'}`}
+            style={{ width: 7, height: 7, borderRadius: '50%', background: SEVERITY_META[worstIssue.severity].color, flexShrink: 0 }}
+          />
+        )}
       </div>
       <span style={{ fontSize: 13.5, textAlign: 'right', color: 'var(--foreground)', fontVariantNumeric: 'tabular-nums' }}>{fmtMs(span.duration)}</span>
       <span

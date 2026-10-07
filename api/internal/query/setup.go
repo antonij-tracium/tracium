@@ -162,6 +162,9 @@ func (r *ClickHouseRepository) SetupChecks(ctx context.Context, f MetricsFilter)
 }
 
 func (r *ClickHouseRepository) rejectedChecks(ctx context.Context, f MetricsFilter) ([]model.SetupCheck, error) {
+	if f.UserID != "" {
+		return nil, nil
+	}
 	scope, scopeArgs := workspaceScope(f.WorkspaceIDs)
 	q := `SELECT code, toInt64(sum(spans)) FROM tracium.rejected_spans
 WHERE hour >= toStartOfHour(toDateTime(?)) AND hour < toDateTime(?)` + scope + `
