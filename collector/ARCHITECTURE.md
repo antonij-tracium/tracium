@@ -3,17 +3,22 @@
 The collector is a **generic [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/)
 distribution**, not a bespoke service. All the transport plumbing (OTLP
 ingestion, batching, queueing, retry, back-pressure, health checks) comes from
-upstream OTel components. Tracium adds exactly two custom components:
+upstream OTel components. Tracium adds three custom components:
 
 | Component | Type | What it does |
 |-----------|------|--------------|
 | `processors.tracium` | processor | LLM-span enrichment: validate → normalise model → resolve user → compute cost → filter |
 | `exporters.clickhousespan` | exporter | Writes the `tracium.spans` ClickHouse schema |
+| `extensions.traciumauth` | extension | Verifies the per-workspace ingest API key on the OTLP receivers |
 
 ```
-OTLP (gRPC/HTTP)  →  [otlp receiver]  →  [tracium processor]  →  [batch]  →  [clickhousespan exporter]  →  ClickHouse
-   upstream              upstream            Tracium             upstream          Tracium
+OTLP (gRPC/HTTP)  →  [otlp receiver]  →  [tracium processor]  →  [clickhousespan exporter]  →  ClickHouse
+                        upstream            Tracium               Tracium
 ```
+
+Batching happens inside the exporter, after its durable `sending_queue`
+(`exporters.clickhousespan.batcher`), so a request is persisted before it is
+acknowledged.
 
 ## The enrichment seam
 
@@ -45,15 +50,18 @@ own Go module (the standard OTel component layout).
 collector/
 ├── enrich/                       # ← domain logic + enrichment seam (framework-free, tested)
 ├── internal/
-│   ├── pricing/  user/         # resolvers used by the enrichers
+│   ├── pricing/  user/           # resolvers used by the enrichers
+│   ├── genai/  ingest/           # attribute parsing and ingest bounds
+│   ├── deadletter/               # dead-letter store for rejected spans
 │   ├── writer/                   # ClickHouse writer reused by the exporter
 │   └── errors/                   # span/transient error taxonomy
 ├── pkg/spanmodel/                # the plain Span struct the chain operates on
 ├── processor/traciumprocessor/   # OTel processor adapter (own module)
 ├── exporter/clickhousespanexporter/  # OTel exporter adapter (own module)
+├── extension/traciumauthextension/   # ingest authenticator (own module)
 ├── builder/                      # OCB manifest
 ├── config/collector.yaml         # generic collector runtime config
-└── schema/                       # ClickHouse DDL (unchanged)
+└── schema/                       # ClickHouse migrations
 ```
 
 ## Building
@@ -82,7 +90,7 @@ were deleted because upstream OTel now provides them:
 |---------|-------------|
 | `internal/receiver` (OTLP stubs) | `otlpreceiver` |
 | `internal/pipeline` (retry/dead-letter) | exporter queue/retry + `enrich.Chain` |
-| `internal/writer/buffer.go` | `batchprocessor` + exporter queue |
+| `internal/writer/buffer.go` | exporter `sending_queue` + `batcher` |
 | `internal/health` | `healthcheckextension` |
 | `internal/config`, `config.yaml`, `cmd/collector` | collector config + OCB binary |
 
