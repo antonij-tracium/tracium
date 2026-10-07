@@ -1,52 +1,33 @@
-// WorkflowDetailPage — single-workflow detail (from the workflow.html design).
-//
-// Pure presentational component: it renders exactly the props it is handed. The
-// demo (embedded) app assembles them from the mock WORKFLOWS + WORKFLOW_META via
-// WorkflowDetailDemoPage; the signed-in app assembles them from the live metrics
-// API via WorkflowDetailLivePage.
-
-import React from 'react';
 import {
   CostBarChart,
   LatencyChart,
   HorizonStrip,
+  MetaRow,
   RunsTable,
-  RANGE_LABEL,
+  StatTile,
   fmtCost,
   fmtNum,
   fmtPct,
+  rangeLabel,
 } from '../../../common';
-import type { RunRow } from '../../../common';
+import type { MetaRowProps, RunRow, StatTone } from '../../../common';
 import type { CostPoint, LatencyPoint, ErrorPoint } from '../../../common/interfaces';
-
-/** One row in the Configuration panel. Callers supply whatever they can source. */
-export interface WorkflowConfigRow {
-  label: string;
-  value: React.ReactNode;
-  mono?: boolean;
-  accent?: boolean;
-}
+import { ERR_BAD, ERR_WARN } from '../utils';
+import styles from './WorkflowDetailPage.module.css';
 
 export interface WorkflowDetailPageProps {
   name: string;
-  /** Version pill next to the title. Omitted on the live page (no config store). */
   version?: string;
-  /** Workflow description paragraph. Omitted live. */
   description?: string;
-
-  /** Active time range id (24h/7d/30d) — drives every windowed label on the page. */
   range: string;
 
   calls: number;
   completed: number;
   failed: number;
   cost: number;
-  /** p95 in ms, or null when undefined (no runs / not tracked). */
   p95Ms: number | null;
-  /** Error rate as a fraction (0–1). */
   errorRate: number;
-
-  configRows: WorkflowConfigRow[];
+  configRows: MetaRowProps[];
 
   costSeries: CostPoint[];
   latencySeries: LatencyPoint[];
@@ -55,84 +36,6 @@ export interface WorkflowDetailPageProps {
 
   setView: (v: string) => void;
   setSelected: (updater: (prev: Record<string, string>) => Record<string, string>) => void;
-}
-
-// Error-rate thresholds (fractions): above 2% reads as an error, above 0.5% as
-// a warning — matches the workflows list.
-const ERR_BAD = 0.02;
-const ERR_WARN = 0.005;
-
-type Tone = 'bad' | 'warn' | 'good' | undefined;
-
-function DetailStat({
-  label,
-  value,
-  sub,
-  tone,
-  isFirst,
-}: {
-  label: string;
-  value: React.ReactNode;
-  sub?: string;
-  tone?: Tone;
-  isFirst?: boolean;
-}) {
-  const color =
-    tone === 'bad' ? 'var(--error)'
-    : tone === 'warn' ? 'var(--warning)'
-    : tone === 'good' ? 'var(--accent)'
-    : 'var(--foreground)';
-  return (
-    <div style={{ padding: '16px 22px 18px', borderLeft: isFirst ? 'none' : '1px solid var(--border)' }}>
-      <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 8, fontWeight: 500 }}>{label}</div>
-      <div
-        style={{
-          fontSize: 22,
-          fontWeight: 500,
-          letterSpacing: '-0.02em',
-          color,
-          fontVariantNumeric: 'tabular-nums',
-          lineHeight: 1,
-        }}
-      >
-        {value}
-      </div>
-      {sub && <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 6 }}>{sub}</div>}
-    </div>
-  );
-}
-
-function DetailMetaRow({ label, value, mono, accent }: WorkflowConfigRow) {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'baseline',
-        justifyContent: 'space-between',
-        gap: 12,
-        padding: '9px 0',
-        borderBottom: '1px solid color-mix(in srgb, var(--border) 55%, transparent)',
-      }}
-    >
-      <span style={{ fontSize: 13, color: 'var(--muted)' }}>{label}</span>
-      <span
-        title={typeof value === 'string' ? value : undefined}
-        style={{
-          fontSize: 13.5,
-          color: accent ? 'var(--accent)' : 'var(--foreground)',
-          fontWeight: 500,
-          fontFamily: mono ? 'var(--font-mono)' : 'inherit',
-          textAlign: 'right',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          maxWidth: '62%',
-        }}
-      >
-        {value}
-      </span>
-    </div>
-  );
 }
 
 export function WorkflowDetailPage(props: WorkflowDetailPageProps) {
@@ -144,8 +47,8 @@ export function WorkflowDetailPage(props: WorkflowDetailPageProps) {
   } = props;
 
   const totalFailures = errorSeries.reduce((s, d) => s + d.errors, 0);
-  const errTone: Tone = errorRate > ERR_BAD ? 'bad' : errorRate > ERR_WARN ? 'warn' : 'good';
-  const rangeLabel = RANGE_LABEL[range] ?? RANGE_LABEL['7d'];
+  const errTone: StatTone = errorRate > ERR_BAD ? 'bad' : errorRate > ERR_WARN ? 'warn' : 'good';
+  const windowLabel = rangeLabel(range);
   const hourly = range === '24h';
 
   const openTrace = (id: string) => {
@@ -192,29 +95,29 @@ export function WorkflowDetailPage(props: WorkflowDetailPageProps) {
           margin: '4px 0 32px',
         }}
       >
-        <DetailStat isFirst label="Total runs" value={fmtNum(calls)} sub={rangeLabel} />
-        <DetailStat label="Completed" value={fmtNum(completed)} />
-        <DetailStat label="Failed" value={fmtNum(failed)} tone={failed > 0 ? errTone : undefined} />
-        <DetailStat label="Success rate" value={calls > 0 ? fmtPct((completed / calls) * 100) : '—'} tone={calls > 0 ? errTone : undefined} />
-        <DetailStat label="Total cost" value={fmtCost(cost)} sub={calls > 0 ? `${fmtCost(cost / calls)} / run avg` : undefined} />
-        <DetailStat label="p95 latency" value={p95Ms == null ? '—' : `${(p95Ms / 1000).toFixed(1)}s`} tone={p95Ms != null && p95Ms > 8000 ? 'warn' : undefined} />
+        <StatTile isFirst label="Total runs" value={fmtNum(calls)} sub={windowLabel} />
+        <StatTile label="Completed" value={fmtNum(completed)} />
+        <StatTile label="Failed" value={fmtNum(failed)} tone={failed > 0 ? errTone : undefined} />
+        <StatTile label="Success rate" value={calls > 0 ? fmtPct((completed / calls) * 100) : '—'} tone={calls > 0 ? errTone : undefined} />
+        <StatTile label="Total cost" value={fmtCost(cost)} sub={calls > 0 ? `${fmtCost(cost / calls)} / run avg` : undefined} />
+        <StatTile label="p95 latency" value={p95Ms == null ? '—' : `${(p95Ms / 1000).toFixed(1)}s`} tone={p95Ms != null && p95Ms > 8000 ? 'warn' : undefined} />
       </div>
 
       <div
-        className="ad-charts"
+        className={styles.charts}
         style={{ borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', marginBottom: 44 }}
       >
-        <div className="ad-chart-cell ad-chart-cell--first" style={{ padding: '22px 26px 20px', minWidth: 0 }}>
+        <div style={{ padding: '22px 26px 20px', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 18 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               <span style={{ fontSize: 12, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)' }}>Spend</span>
-              <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--foreground)', letterSpacing: '-0.01em' }}>{hourly ? 'Hourly' : 'Daily'} cost · {rangeLabel}</span>
+              <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--foreground)', letterSpacing: '-0.01em' }}>{hourly ? 'Hourly' : 'Daily'} cost · {windowLabel}</span>
             </div>
             <span style={{ fontSize: 13, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{fmtCost(cost)} total</span>
           </div>
           <CostBarChart series={costSeries} height={210} />
         </div>
-        <div className="ad-chart-cell" style={{ padding: '22px 26px 20px', minWidth: 0 }}>
+        <div className={styles.divided} style={{ padding: '22px 26px 20px', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 18 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               <span style={{ fontSize: 12, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)' }}>Latency</span>
@@ -245,7 +148,7 @@ export function WorkflowDetailPage(props: WorkflowDetailPageProps) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <span style={{ fontSize: 12, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)' }}>Reliability</span>
             <span style={{ fontSize: 17, fontWeight: 600, color: 'var(--foreground)', letterSpacing: '-0.01em' }}>Failed runs</span>
-            <span style={{ fontSize: 13.5, color: 'var(--muted)' }}>Errors per {hourly ? 'hour' : 'day'} · {rangeLabel}</span>
+            <span style={{ fontSize: 13.5, color: 'var(--muted)' }}>Errors per {hourly ? 'hour' : 'day'} · {windowLabel}</span>
           </div>
           <span style={{ fontSize: 13, color: errorRate > ERR_BAD ? 'var(--error)' : 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>
             {totalFailures} failures
@@ -254,7 +157,7 @@ export function WorkflowDetailPage(props: WorkflowDetailPageProps) {
         <HorizonStrip data={errorSeries} height={44} />
       </div>
 
-      <div className="ad-split">
+      <div className={styles.split}>
         <div style={{ minWidth: 0 }}>
           <h2 style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-0.01em', margin: '0 0 14px' }}>Recent runs</h2>
           <RunsTable runs={runs} onOpen={openTrace} />
@@ -265,7 +168,7 @@ export function WorkflowDetailPage(props: WorkflowDetailPageProps) {
             Configuration
           </div>
           {configRows.map((row) => (
-            <DetailMetaRow key={row.label} {...row} />
+            <MetaRow key={row.label} {...row} />
           ))}
         </div>
       </div>

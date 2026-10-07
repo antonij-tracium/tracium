@@ -1,5 +1,6 @@
 import React from 'react';
 import { IconSearch, IconMenu } from '../../../common';
+import hover from '../../../common/styles/hover.module.css';
 import type { BreadcrumbItem, Workspace } from '../interfaces';
 
 interface RangeOption {
@@ -7,9 +8,6 @@ interface RangeOption {
   label: string;
 }
 
-// 90d and 1y are served from the daily rollup (tracium.metrics_daily) so they
-// stay fast at scale; see the API's UseRollup. Latency isn't available at those
-// ranges (the rollup can't reconstruct per-trace durations).
 const RANGE_OPTIONS: RangeOption[] = [
   { id: '24h', label: '24h' },
   { id: '7d', label: '7d' },
@@ -60,13 +58,11 @@ export function TopBar({
         zIndex: 40,
       }}
     >
-      {/* Hamburger (mobile) */}
       {showMenu && (
         <button
           onClick={onOpenNav}
           aria-label="Open menu"
-          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--foreground)')}
-          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--muted)')}
+          className={hover.text}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -78,7 +74,6 @@ export function TopBar({
             background: 'transparent',
             border: 'none',
             borderRadius: 7,
-            color: 'var(--muted)',
             cursor: 'pointer',
           }}
         >
@@ -86,7 +81,6 @@ export function TopBar({
         </button>
       )}
 
-      {/* Breadcrumb */}
       <div
         style={{
           flex: 1,
@@ -146,7 +140,6 @@ export function TopBar({
         ))}
       </div>
 
-      {/* Range picker */}
       {showRange && (
         <div
           style={{
@@ -179,27 +172,19 @@ export function TopBar({
         </div>
       )}
 
-      {/* Search / cmd */}
       <button
         onClick={onOpenCmd}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.borderColor = 'var(--border-strong)';
-          e.currentTarget.style.color = 'var(--foreground)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.borderColor = 'var(--border)';
-          e.currentTarget.style.color = 'var(--muted)';
-        }}
+        className={hover.outlined}
         style={{
           display: 'flex',
           alignItems: 'center',
           gap: 8,
           padding: '5px 10px',
           background: 'var(--surface-alt)',
-          border: '1px solid var(--border)',
+          borderWidth: 1,
+          borderStyle: 'solid',
           borderRadius: 7,
           cursor: 'pointer',
-          color: 'var(--muted)',
           fontSize: 13,
         }}
       >

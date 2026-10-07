@@ -1,7 +1,7 @@
 import type { AuthAppearance } from '../../../extensions';
 import { FormEvent, useState } from 'react';
 import { AuthShell } from '../components';
-import { registerUser, AuthError } from '../api';
+import { registerUser, requestErrorMessage } from '../api';
 import styles from './LoginPage.module.css';
 
 interface SignupPageProps {
@@ -44,13 +44,7 @@ export default function SignupPage({ onLogin, appearance }: SignupPageProps) {
       onLogin(result.token, email);
     } catch (err) {
       setAttempt((n) => n + 1);
-      if (err instanceof AuthError && err.status === 409) {
-        setFormError('An account with that email already exists. Try signing in instead.');
-      } else if (err instanceof Error) {
-        setFormError(err.message);
-      } else {
-        setFormError('Something went wrong. Please try again.');
-      }
+      setFormError(requestErrorMessage(err, { 409: 'An account with that email already exists. Try signing in instead.' }));
     } finally {
       setSubmitting(false);
     }

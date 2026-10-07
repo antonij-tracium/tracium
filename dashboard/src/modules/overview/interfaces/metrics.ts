@@ -1,15 +1,10 @@
-// API response types for the overview metrics endpoints. All values are raw
-// numbers; formatting (currency, percent, seconds) happens in the components.
-
-import type { Severity } from '../../../common';
+import type { DeltaTone, Severity } from '../../../common';
 import type { SetupIssue } from '../../../common/interfaces';
-
-export type DeltaType = 'good' | 'bad' | 'neutral';
 
 export interface Kpi {
   value: number;
   delta: number; // fraction: 0.12 === +12%
-  delta_type: DeltaType;
+  delta_type: DeltaTone;
 }
 
 export interface KpiSet {

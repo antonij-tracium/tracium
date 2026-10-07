@@ -12,7 +12,9 @@ import {
   IconCopy,
   IconPlus,
   IconUsers,
+  SectionHead,
   formatDate,
+  useCopy,
   useMaxWidth,
   BREAKPOINTS,
 } from '../../../common';
@@ -88,34 +90,6 @@ const SET_TABS: TabDef[] = [
   { id: 'members',       label: 'Members',        icon: <IconUsers size={14} /> },
   { id: 'danger',        label: 'Danger zone',    icon: <IconTrash size={14} /> },
 ];
-
-interface SectionHeadProps {
-  title: string;
-  hint?: string;
-  right?: React.ReactNode;
-  first?: boolean;
-  headingRef?: React.Ref<HTMLHeadingElement>;
-  style?: React.CSSProperties;
-}
-
-function SectionHead({ title, hint, right, first = false, headingRef, style }: SectionHeadProps) {
-  return (
-    <header style={{
-      display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
-      gap: 24, flexWrap: 'wrap',
-      paddingTop: first ? 0 : 48,
-      paddingBottom: 18,
-      borderTop: first ? 'none' : '1px solid color-mix(in srgb, var(--border) 50%, transparent)',
-      ...style,
-    }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0, paddingTop: first ? 0 : 28 }}>
-        <h2 ref={headingRef} tabIndex={headingRef ? -1 : undefined} style={{ fontSize: 19, fontWeight: 600, letterSpacing: '-0.018em', margin: 0, color: 'var(--foreground)' }}>{title}</h2>
-        {hint && <p style={{ fontSize: 14, color: 'var(--muted)', margin: 0, maxWidth: 620, lineHeight: 1.55 }}>{hint}</p>}
-      </div>
-      {right && <div style={{ paddingTop: first ? 0 : 28, flexShrink: 0 }}>{right}</div>}
-    </header>
-  );
-}
 
 interface FieldProps {
   label: string;
@@ -465,7 +439,6 @@ function AccountView({ user, demo, onSessionRenewed }: AccountViewProps) {
         <Btn variant="primary">Save profile</Btn>
       </div>
 
-      {/* Security */}
       <SectionHead title="Security" hint="Sign-in factors, active sessions, and recent activity on your account." />
       <div>
         <Field label="Password" hint={demo ? 'Last changed 84 days ago.' : 'Set when you created your account.'} right={<Btn variant="secondary">Change</Btn>} last>
@@ -473,7 +446,6 @@ function AccountView({ user, demo, onSessionRenewed }: AccountViewProps) {
         </Field>
       </div>
 
-      {/* Display */}
       <SectionHead title="Display" hint="Personal preferences. Stored on this device." />
       <div>
         <Field label="Keyboard navigation" hint="Use J / K to move through trace lists; / to focus search." last>
@@ -574,31 +546,14 @@ interface WorkspaceViewProps {
 }
 
 function CopyButton({ value, label }: { value: string; label: string }) {
-  const [status, setStatus] = useState<'idle' | 'copied' | 'error'>('idle');
-  useEffect(() => {
-    setStatus('idle');
-  }, [value]);
-  useEffect(() => {
-    if (status !== 'copied') return;
-    const timer = setTimeout(() => setStatus('idle'), 2000);
-    return () => clearTimeout(timer);
-  }, [status]);
-  const copy = async () => {
-    try {
-      if (!navigator.clipboard) throw new Error('Clipboard unavailable');
-      await navigator.clipboard.writeText(value);
-      setStatus('copied');
-    } catch {
-      setStatus('error');
-    }
-  };
-  const message = status === 'error' ? 'Couldn’t copy. Select and copy the text manually.' : status === 'copied' ? `${label.replace('Copy ', '')} copied to clipboard.` : '';
+  const [status, copy] = useCopy();
+  const message = status === 'failed' ? 'Couldn’t copy. Select and copy the text manually.' : status === 'copied' ? 'Copied to clipboard.' : '';
   return <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
-    <Btn onClick={copy}>
+    <Btn onClick={() => copy(value)}>
       {status === 'copied' ? <IconCheck size={13} /> : <IconCopy size={13} />}
       {status === 'copied' ? 'Copied' : label}
     </Btn>
-    <span role="status" style={{ fontSize: 13, color: status === 'error' ? 'var(--error)' : 'var(--muted)' }}>
+    <span role="status" style={{ fontSize: 13, color: status === 'failed' ? 'var(--error)' : 'var(--muted)' }}>
       {message}
     </span>
   </span>;
@@ -782,7 +737,7 @@ function MembersView({ workspace, account }: MembersViewProps) {
       </p>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px 16px', flexWrap: 'wrap' }}>
         <code style={{ flex: '1 1 280px', minWidth: 0, overflowWrap: 'anywhere', fontSize: 13, fontFamily: 'var(--font-mono)' }}>{inviteLink(created.token)}</code>
-        <CopyButton value={inviteLink(created.token)} label="Copy invite link" />
+        <CopyButton key={created.token} value={inviteLink(created.token)} label="Copy invite link" />
       </div>
       <div style={{ marginTop: 4 }}><Btn variant="ghost" onClick={() => setCreated(null)}>Done</Btn></div>
     </div>}
@@ -964,7 +919,6 @@ export default function SettingsPage({
 
   return (
     <div style={{ padding: 'clamp(24px, 4vw, 40px) clamp(16px, 4vw, 28px) 96px', maxWidth: 1280, margin: '0 auto' }} data-screen-label="Settings">
-      {/* Page header */}
       <div style={{ marginBottom: 36 }}>
         <h1 style={{ fontSize: 26, fontWeight: 600, color: 'var(--foreground)', margin: 0, letterSpacing: '-0.02em', lineHeight: 1.15 }}>Settings</h1>
         <p style={{ fontSize: 14, color: 'var(--muted)', margin: '6px 0 0', maxWidth: 620, lineHeight: 1.55 }}>

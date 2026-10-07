@@ -1,31 +1,28 @@
-// KPI strip — one seamless bar bounded by rules, with the cells divided by
-// hairlines rather than rendered as separate cards. Each cell carries a label,
-// a large value, an optional inline sparkline, a signed delta (the leading
-// +/- drives the arrow + tone) and an optional hint.
+import { Sparkline } from '../Sparkline';
+import { IconArrowUp, IconArrowDown, IconArrowRight } from '../icons';
+import { useMaxWidth, BREAKPOINTS } from '../../hooks/useMediaQuery';
 
-import { Sparkline, IconArrowUp, IconArrowDown, IconArrowRight, useMaxWidth, BREAKPOINTS } from '../../../common';
-import type { DeltaType } from '../interfaces';
+export type DeltaTone = 'good' | 'bad' | 'neutral';
 
 export interface KpiItem {
   label: string;
   value: string;
+  // A leading +/- picks the arrow; the sign itself isn't printed.
   delta?: string;
-  deltaTone?: DeltaType;
-  sparkData?: (number | null)[]; // null entries render as gaps (see Sparkline)
+  deltaTone?: DeltaTone;
+  sparkData?: (number | null)[];
   sparkColor?: string;
   hint?: string;
 }
 
-function deltaColorFor(tone?: DeltaType): string {
-  if (tone === 'good') return 'var(--accent)';
-  if (tone === 'bad') return 'var(--error)';
-  return 'var(--muted)';
-}
+const DELTA_COLOR: Record<DeltaTone, string> = {
+  good: 'var(--accent)',
+  bad: 'var(--error)',
+  neutral: 'var(--muted)',
+};
 
 export function KpiStrip({ items }: { items: KpiItem[] }) {
   const narrow = useMaxWidth(BREAKPOINTS.mobile);
-  // Below the breakpoint the seamless bar wraps to two columns instead of
-  // squeezing every cell into a sliver.
   const cols = narrow ? 2 : items.length;
   return (
     <div
@@ -38,7 +35,6 @@ export function KpiStrip({ items }: { items: KpiItem[] }) {
       }}
     >
       {items.map((it, i) => {
-        const deltaColor = deltaColorFor(it.deltaTone);
         const delta = it.delta ?? '';
         return (
           <div
@@ -79,7 +75,15 @@ export function KpiStrip({ items }: { items: KpiItem[] }) {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
               {(delta || it.deltaTone === 'neutral') && (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: deltaColor, fontWeight: 500 }}>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 3,
+                    color: DELTA_COLOR[it.deltaTone ?? 'neutral'],
+                    fontWeight: 500,
+                  }}
+                >
                   {delta.startsWith('+') ? (
                     <IconArrowUp size={11} />
                   ) : delta.startsWith('-') ? (

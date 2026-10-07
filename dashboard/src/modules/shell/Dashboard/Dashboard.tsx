@@ -23,17 +23,8 @@ import { REDIRECT_KEY } from '../../auth';
 
 export interface DashboardProps {
   extensions?: DashboardExtensions;
-  /**
-   * When true, the dashboard renders as a contained, interactive product
-   * preview. It fits its parent container instead of the viewport and keeps
-   * all state in memory, so a logged-out visitor clicking around the preview
-   * never touches the real app's persisted state.
-   */
+  // A contained demo preview: fits its parent and never touches storage or the URL.
   embedded?: boolean;
-  /**
-   * Logs the current account out. Omitted in embedded mode (the preview
-   * has no real session), so the Sidebar hides its logout control there.
-   */
   onLogout?: () => void;
   /** Stores the session token returned by a password change. */
   onSessionRenewed?: (token: string) => void;
@@ -41,12 +32,6 @@ export interface DashboardProps {
 
 const VIEWS_WITH_RANGE: ViewId[] = ['overview', 'workflows', 'usage', 'users', 'user'];
 
-/**
- * Shown to a real signed-in account that has no workspace yet. New accounts
- * start empty (no demo workspace or demo data), so this prompts the user to
- * create their first workspace. It never appears in the embedded preview,
- * which is always seeded with a Demo workspace.
- */
 function WorkspaceEmptyState({ onCreate }: { onCreate: () => void }) {
   return (
     <div
@@ -88,10 +73,8 @@ function WorkspaceEmptyState({ onCreate }: { onCreate: () => void }) {
   );
 }
 
-/**
- * Resolve the navigation state the dashboard should open on. See the call site
- * for the precedence rationale. Reads from the URL / storage once at mount.
- */
+// Deep links win: the current path, then a path stashed before the login
+// redirect, then the last-visited view.
 function computeInitialNav(persist: boolean, pages: readonly ExtensionPage[]): NavState {
   if (!persist) return { view: 'overview', selected: {} };
 
@@ -116,11 +99,6 @@ export function Dashboard({ embedded = false, onLogout, onSessionRenewed, extens
   const pages = extensions.pages ?? [];
   const persist = !embedded;
 
-  // Initial page comes from the URL so deep links open the right view. Order:
-  // (1) the current path (a logged-in user opening a shared link), (2) a path
-  // stashed before the login redirect (a logged-out recipient of a shared
-  // link, see App.tsx), then (3) the last-visited view from localStorage. The
-  // embedded preview is never URL-driven. Computed once via a ref.
   const initialNavRef = useRef<NavState | null>(null);
   if (initialNavRef.current === null) {
     initialNavRef.current = computeInitialNav(persist, pages);
@@ -149,26 +127,16 @@ export function Dashboard({ embedded = false, onLogout, onSessionRenewed, extens
     setWorkspace(serverWorkspaces.find((w) => w.id === id) ?? serverWorkspaces[0] ?? null);
   }, [persist, wsLoading, serverWorkspaces]);
 
-  // Scope every API read to the active workspace: point the API clients at the
-  // new workspace_id when the selection changes (or resolves on load). The data
-  // hooks fold workspaceId into their query keys, so changing it refetches every
-  // dashboard on its own, scoped to the rebuilt client — no manual invalidation
-  // (which would race the client rebuild and refetch with the stale, unscoped
-  // client). Only in the real app — the embedded preview renders demo data and
-  // makes no live reads.
+  // Query keys include workspaceId, so this alone refetches with the rebuilt
+  // clients; manual invalidation would race the rebuild.
   const { setWorkspaceId } = useAPIClient();
   useEffect(() => {
     if (!persist) return;
     setWorkspaceId(workspace?.id);
   }, [persist, workspace?.id, setWorkspaceId]);
   const [cmdOpen, setCmdOpen] = useState(false);
-  // Below this width the sidebar collapses into an off-canvas drawer. The
-  // embedded preview is never shown at mobile widths, so it keeps the
-  // static sidebar regardless.
   const isMobileNav = useMaxWidth(BREAKPOINTS.mobile) && !embedded;
   const [navOpen, setNavOpen] = useState(false);
-  // Set when the user clicks "Create workspace" — routes them to the Settings
-  // page opened on a create-workspace form. Cleared on any other navigation.
   const [createWsIntent, setCreateWsIntent] = useState(false);
 
   const setView = (v: string) => {
@@ -217,17 +185,9 @@ export function Dashboard({ embedded = false, onLogout, onSessionRenewed, extens
     return () => window.removeEventListener('keydown', onKey);
   }, [embedded]);
 
-  // Browser history + URL integration. Navigation is state-driven, so without
-  // this (a) the Back button has no in-app entries to return to and would leave
-  // Tracium, and (b) the address bar never changes, so pages aren't linkable.
-  // We mirror each (view, selected) change onto the history stack with a real
-  // pathname (see routing.ts), so Back/Forward move between views and the URL
-  // can be copied and shared. Only in the real app — the embedded preview
-  // must never touch the global history or URL.
-  //
-  // popRef guards the push effect from re-pushing when a popstate event is the
-  // one that changed the state; histInit ensures the very first view replaces
-  // the current entry instead of pushing a redundant one.
+  // Mirror navigation onto history so Back works and URLs are shareable.
+  // popRef skips re-pushing a state that came from popstate; histInit makes
+  // the first view replace the current entry.
   const popRef = useRef(false);
   const histInit = useRef(false);
 

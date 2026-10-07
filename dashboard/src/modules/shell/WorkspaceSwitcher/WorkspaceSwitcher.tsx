@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { IconChevron, IconCheck, IconPlus, IconTrash } from '../../../common';
+import hover from '../../../common/styles/hover.module.css';
 import type { Workspace } from '../interfaces';
 
 interface WorkspaceSwitcherProps {
@@ -229,8 +230,7 @@ export function WorkspaceSwitcher({
                     if (!window.confirm(`Delete ${ws.name}? This can’t be undone.`)) return;
                     deleteWorkspace(ws.id).catch(() => window.alert(`Could not delete ${ws.name}. Please try again.`));
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--error)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--muted)')}
+                  className={hover.danger}
                   style={{
                     display: 'grid',
                     placeItems: 'center',
@@ -242,7 +242,6 @@ export function WorkspaceSwitcher({
                     border: 'none',
                     borderRadius: 5,
                     cursor: 'pointer',
-                    color: 'var(--muted)',
                   }}
                 >
                   <IconTrash size={13} />
@@ -261,8 +260,7 @@ export function WorkspaceSwitcher({
                 createWorkspace();
                 setOpen(false);
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--foreground)')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--muted)')}
+              className={hover.text}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -273,7 +271,6 @@ export function WorkspaceSwitcher({
                 background: 'transparent',
                 border: 'none',
                 cursor: 'pointer',
-                color: 'var(--muted)',
                 fontSize: 13,
               }}
             >

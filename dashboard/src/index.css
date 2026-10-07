@@ -108,37 +108,3 @@ button:not(:disabled), [role="button"] {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--scrollbar-thumb-hover);
 }
-
-/* ── Workflow detail layout ─────────────────────────────────────────────────────
-   Two side-by-side charts split by a divider, and a content/aside split. Both
-   collapse to a single column on narrow viewports. */
-
-.ad-charts {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-}
-.ad-chart-cell {
-  border-left: 1px solid var(--border);
-}
-.ad-chart-cell--first {
-  border-left: none;
-}
-.ad-split {
-  display: grid;
-  grid-template-columns: 1fr 360px;
-  gap: 32px;
-  align-items: start;
-}
-
-@media (max-width: 1180px) {
-  .ad-charts {
-    grid-template-columns: 1fr;
-  }
-  .ad-chart-cell {
-    border-left: none;
-    border-top: 1px solid var(--border);
-  }
-  .ad-split {
-    grid-template-columns: 1fr;
-  }
-}

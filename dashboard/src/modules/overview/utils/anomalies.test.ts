@@ -37,10 +37,10 @@ describe('anomalyChips', () => {
       anom({ metric: 'cost' }),
       anom({ metric: 'runs' }),
     ]);
-    const byKey = Object.fromEntries(chips.map((c) => [c.key, c]));
-    expect(byKey.cost.label).toBe('2 cost spikes');
-    expect(byKey.runs.label).toBe('1 volume shift');
-    expect(byKey.errors).toBeUndefined(); // no error_rate anomalies
+    expect(chips.map((c) => [c.metric, c.label])).toEqual([
+      ['cost', '2 cost spikes'],
+      ['runs', '1 volume shift'],
+    ]);
   });
 });
 
