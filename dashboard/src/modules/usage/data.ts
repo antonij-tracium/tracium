@@ -17,7 +17,6 @@ export const USAGE_DATA: UsageData = {
     const cost = 0.12 + Math.sin(i / 4) * 0.04;
     const runs = Math.round(140 + Math.sin(i / 3) * 30);
     return {
-      day: d,
       label: `Apr ${d}`,
       cost: Math.max(0.04, cost),
       runs,

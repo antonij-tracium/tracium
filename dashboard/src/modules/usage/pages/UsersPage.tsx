@@ -1,5 +1,8 @@
 import React, { useMemo, useState, type ReactNode } from 'react';
-import { KpiStrip, LastUpdated, Sparkline, fmtCost, fmtDelta, fmtNum } from '../../../common';
+import { KpiStrip, LastUpdated, Sparkline, deltaParts, fmtCost, fmtNum, relativeTime } from '../../../common';
+import hover from '../../../common/styles/hover.module.css';
+import type { Kpi } from '../../overview/interfaces';
+import { UNATTRIBUTED, rowButtonProps } from '../utils';
 
 export interface User {
   id: string;
@@ -11,26 +14,30 @@ export interface User {
   // Non-telemetry metadata — present in the demo dataset only.
   region?: string;
   success?: number;
-  lastSeen?: string;
+  lastSeen?: number;
 }
 
+const ago = (seconds: number) => Date.now() - seconds * 1000;
+
 export const USERS: User[] = [
-  { id: "tn_acme",      name: "Acme Robotics",       cost: 12.4421, runs: 58_022, avg: 0.000214, trend:[0.36,0.42,0.41,0.48,0.51,0.55,0.58,0.61,0.59,0.62,0.66,0.71], region: "us-east-1", success: 99.4, lastSeen: "12s ago" },
-  { id: "tn_northwind", name: "Northwind Logistics", cost:  8.9024, runs: 41_318, avg: 0.000216, trend:[0.18,0.22,0.27,0.31,0.34,0.39,0.41,0.44,0.45,0.49,0.52,0.55], region: "us-east-1", success: 98.1, lastSeen: "1m ago" },
-  { id: "tn_helix",     name: "Helix Health",        cost:  6.1102, runs: 28_104, avg: 0.000217, trend:[0.32,0.30,0.28,0.27,0.26,0.25,0.24,0.23,0.22,0.21,0.21,0.22], region: "eu-west-2", success: 99.6, lastSeen: "3m ago" },
-  { id: "tn_lumen",     name: "Lumen Studio",        cost:  4.4081, runs: 21_890, avg: 0.000201, trend:[0.14,0.15,0.16,0.16,0.18,0.19,0.18,0.18,0.19,0.20,0.20,0.20], region: "us-west-2", success: 99.2, lastSeen: "8m ago" },
-  { id: "tn_kestrel",   name: "Kestrel Finance",     cost:  3.2204, runs: 15_842, avg: 0.000203, trend:[0.10,0.12,0.13,0.14,0.14,0.15,0.16,0.16,0.17,0.18,0.18,0.19], region: "us-east-1", success: 99.0, lastSeen: "22m ago" },
-  { id: "tn_polar",     name: "Polar Research",      cost:  1.8714, runs:  9_204, avg: 0.000203, trend:[0.07,0.08,0.08,0.08,0.09,0.08,0.09,0.08,0.08,0.09,0.09,0.09], region: "eu-west-2", success: 97.6, lastSeen: "1h ago" },
-  { id: "tn_orbit",     name: "Orbit Labs",          cost:  0.9842, runs:  5_420, avg: 0.000182, trend:[0.13,0.12,0.11,0.10,0.09,0.08,0.07,0.06,0.06,0.05,0.05,0.04], region: "us-west-2", success: 94.2, lastSeen: "2h ago" },
-  { id: "tn_sable",     name: "Sable Studios",       cost:  0.4830, runs:  4_423, avg: 0.000109, trend:[0.02,0.02,0.03,0.03,0.04,0.04,0.05,0.05,0.05,0.06,0.06,0.06], region: "us-east-1", success: 96.8, lastSeen: "5m ago" },
+  { id: "tn_acme",      name: "Acme Robotics",       cost: 12.4421, runs: 58_022, avg: 0.000214, trend:[0.36,0.42,0.41,0.48,0.51,0.55,0.58,0.61,0.59,0.62,0.66,0.71], region: "us-east-1", success: 99.4, lastSeen: ago(12) },
+  { id: "tn_northwind", name: "Northwind Logistics", cost:  8.9024, runs: 41_318, avg: 0.000216, trend:[0.18,0.22,0.27,0.31,0.34,0.39,0.41,0.44,0.45,0.49,0.52,0.55], region: "us-east-1", success: 98.1, lastSeen: ago(60) },
+  { id: "tn_helix",     name: "Helix Health",        cost:  6.1102, runs: 28_104, avg: 0.000217, trend:[0.32,0.30,0.28,0.27,0.26,0.25,0.24,0.23,0.22,0.21,0.21,0.22], region: "eu-west-2", success: 99.6, lastSeen: ago(180) },
+  { id: "tn_lumen",     name: "Lumen Studio",        cost:  4.4081, runs: 21_890, avg: 0.000201, trend:[0.14,0.15,0.16,0.16,0.18,0.19,0.18,0.18,0.19,0.20,0.20,0.20], region: "us-west-2", success: 99.2, lastSeen: ago(480) },
+  { id: "tn_kestrel",   name: "Kestrel Finance",     cost:  3.2204, runs: 15_842, avg: 0.000203, trend:[0.10,0.12,0.13,0.14,0.14,0.15,0.16,0.16,0.17,0.18,0.18,0.19], region: "us-east-1", success: 99.0, lastSeen: ago(1320) },
+  { id: "tn_polar",     name: "Polar Research",      cost:  1.8714, runs:  9_204, avg: 0.000203, trend:[0.07,0.08,0.08,0.08,0.09,0.08,0.09,0.08,0.08,0.09,0.09,0.09], region: "eu-west-2", success: 97.6, lastSeen: ago(3600) },
+  { id: "tn_orbit",     name: "Orbit Labs",          cost:  0.9842, runs:  5_420, avg: 0.000182, trend:[0.13,0.12,0.11,0.10,0.09,0.08,0.07,0.06,0.06,0.05,0.05,0.04], region: "us-west-2", success: 94.2, lastSeen: ago(7200) },
+  { id: "tn_sable",     name: "Sable Studios",       cost:  0.4830, runs:  4_423, avg: 0.000109, trend:[0.02,0.02,0.03,0.03,0.04,0.04,0.05,0.05,0.05,0.06,0.06,0.06], region: "us-east-1", success: 96.8, lastSeen: ago(300) },
 ];
 
 function successColor(success: number): string {
   return success >= 99 ? "var(--foreground)" : success >= 97 ? "var(--warning)" : "var(--error)";
 }
 
-function pctDelta(curr: number, prev: number): string {
-  return prev > 0 ? fmtDelta((curr - prev) / prev) : '';
+// Mirrors the API's KPI classification so these tiles read like the Usage ones.
+function toKpi(value: number, prev: number, higherIsBad: boolean): Kpi {
+  if (!prev || value === prev) return { value, delta: 0, delta_type: 'neutral' };
+  return { value, delta: (value - prev) / prev, delta_type: value > prev !== higherIsBad ? 'good' : 'bad' };
 }
 
 const SHARE_PALETTE = ["var(--accent)", "#7aa5ff", "#c08aff", "#f5a524", "#5ec8b4", "#e76e8b", "#8b95a8", "color-mix(in srgb, var(--muted) 50%, transparent)"];
@@ -130,7 +137,7 @@ const COLUMNS: ColDef[] = [
   },
   {
     key: "lastSeen", label: "Last seen", width: "84px", align: "right", sortKey: "lastSeen", meta: true,
-    cell: t => <div style={{ textAlign: "right", fontSize: 12.5, color: "var(--muted)", fontVariantNumeric: "tabular-nums" }}>{t.lastSeen}</div>,
+    cell: t => <div style={{ textAlign: "right", fontSize: 12.5, color: "var(--muted)", fontVariantNumeric: "tabular-nums" }}>{t.lastSeen != null && relativeTime(t.lastSeen)}</div>,
   },
 ];
 
@@ -177,7 +184,6 @@ export function UsersPage({ users, periodLabel, comparison, updatedAt, setView, 
 
   const [search, setSearch] = useState<string>("");
   const [sort, setSort] = useState<SortState>({ key: "cost", dir: "desc" });
-  const [hoverId, setHoverId] = useState<string | null>(null);
 
   const handleSort = (key: UserSortKey) => {
     setSort(s => s.key === key ? { key, dir: s.dir === "desc" ? "asc" : "desc" } : { key, dir: "desc" });
@@ -234,15 +240,12 @@ export function UsersPage({ users, periodLabel, comparison, updatedAt, setView, 
           {
             label: "Total runs",
             value: fmtNum(totalRuns),
-            delta: comparison ? pctDelta(totalRuns, comparison.runs) : undefined,
-            deltaTone: "good",
-            hint: fmtNum(totalRuns) + " total",
+            ...(comparison && deltaParts(toKpi(totalRuns, comparison.runs, false))),
           },
           {
             label: "Spend",
             value: fmtCost(totalCost),
-            delta: comparison ? pctDelta(totalCost, comparison.cost) : undefined,
-            deltaTone: comparison && totalCost > comparison.cost ? "bad" : "good",
+            ...(comparison && deltaParts(toKpi(totalCost, comparison.cost, true))),
             hint: fmtCost(users.length > 0 ? totalCost / users.length : 0) + " / client",
           },
         ]}
@@ -305,15 +308,12 @@ export function UsersPage({ users, periodLabel, comparison, updatedAt, setView, 
           ) : sorted.map(t => (
             <div
               key={t.id}
-              onMouseEnter={() => setHoverId(t.id)}
-              onMouseLeave={() => setHoverId(null)}
-              onClick={() => { setSelected(s => ({ ...s, user: t.id })); setView("user"); }}
+              className={hover.row}
+              {...(t.id !== UNATTRIBUTED && rowButtonProps(() => { setSelected(s => ({ ...s, user: t.id })); setView("user"); }))}
               style={{
                 display: "grid", gridTemplateColumns: cols, minWidth, gap: 16,
                 alignItems: "center", padding: "14px 4px",
                 borderBottom: "1px solid color-mix(in srgb, var(--border) 30%, transparent)",
-                cursor: "pointer",
-                background: hoverId === t.id ? "color-mix(in srgb, var(--foreground) 2%, transparent)" : "transparent",
               }}
             >
               {visibleCols.map(c => <React.Fragment key={c.key}>{c.cell(t)}</React.Fragment>)}

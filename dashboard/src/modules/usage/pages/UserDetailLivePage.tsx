@@ -167,7 +167,7 @@ export function UserDetailLivePage({ userId, range, setView, setSelected }: Prop
               <div className={styles.panels}>
                 <PanelFrame
                   left={
-                    <Panel eyebrow="Spend" title="Daily spend" right={<DailyChartLegend />}>
+                    <Panel eyebrow="Spend" title={range === '24h' ? 'Hourly spend' : 'Daily spend'} right={<DailyChartLegend />}>
                       <Section
                         isLoading={cost.isLoading || errors.isLoading}
                         isError={cost.isError || errors.isError}
