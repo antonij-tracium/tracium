@@ -333,7 +333,7 @@ export interface paths {
         };
         /**
          * Custom-attribute dimensions
-         * @description The custom-attribute keys present on spans in the window (e.g. `team`, `environment`, `customer`), offered as the allocation axes for /v1/metrics/usage-by-attribute.
+         * @description The custom-attribute keys present on spans in the window (e.g. `team`, `environment`, `customer`), offered as the allocation axes for /v1/metrics/usage-by-attribute. Reads raw spans, so ranges longer than 30d are rejected.
          */
         get: operations["getAttributeKeys"];
         put?: never;
@@ -353,7 +353,7 @@ export interface paths {
         };
         /**
          * Cost allocation by attribute
-         * @description Spend and usage allocated across the values of one custom attribute, the cost-allocation primitive that splits AI spend by whatever dimension the instrumentation tags spans with. The `key` query parameter names the dimension (from /v1/metrics/attribute-keys) and is required. Ordered by cost descending.
+         * @description Spend and usage allocated across the values of one custom attribute, the cost-allocation primitive that splits AI spend by whatever dimension the instrumentation tags spans with. The `key` query parameter names the dimension (from /v1/metrics/attribute-keys) and is required. Ordered by cost descending. Reads raw spans, so ranges longer than 30d are rejected.
          */
         get: operations["getUsageByAttribute"];
         put?: never;
@@ -1268,7 +1268,7 @@ export interface components {
         UserFilter: string;
         /** @description Scope the read to one workspace. This is an access boundary, not just a filter: the caller must be a member of the workspace or the request is refused with 403. Omitted, the read covers every workspace the caller is a member of (an account that is a member of none sees nothing). The dashboard passes the active workspace from its switcher. */
         WorkspaceFilter: string;
-        /** @description Optional: restrict the metric to a single workflow (the trace root name), powering the workflow detail page's charts. Workflow-scoped metrics are a raw-window feature; ranges longer than 30d (90d, 1y) are rejected with a 400, since per-workflow latency cannot be derived from the daily rollup. */
+        /** @description Optional: restrict the metric to a single workflow (the trace root name), powering the workflow detail page's charts. Only the series endpoints accept it; other metrics endpoints reject it with a 400. Workflow-scoped series are a raw-window feature; ranges longer than 30d (90d, 1y) are rejected with a 400, since per-workflow latency cannot be derived from the daily rollup. */
         WorkflowFilter: string;
     };
     requestBodies: never;
@@ -1503,7 +1503,7 @@ export interface operations {
                 user_id?: components["parameters"]["UserFilter"];
                 /** @description Scope the read to one workspace. This is an access boundary, not just a filter: the caller must be a member of the workspace or the request is refused with 403. Omitted, the read covers every workspace the caller is a member of (an account that is a member of none sees nothing). The dashboard passes the active workspace from its switcher. */
                 workspace_id?: components["parameters"]["WorkspaceFilter"];
-                /** @description Optional: restrict the metric to a single workflow (the trace root name), powering the workflow detail page's charts. Workflow-scoped metrics are a raw-window feature; ranges longer than 30d (90d, 1y) are rejected with a 400, since per-workflow latency cannot be derived from the daily rollup. */
+                /** @description Optional: restrict the metric to a single workflow (the trace root name), powering the workflow detail page's charts. Only the series endpoints accept it; other metrics endpoints reject it with a 400. Workflow-scoped series are a raw-window feature; ranges longer than 30d (90d, 1y) are rejected with a 400, since per-workflow latency cannot be derived from the daily rollup. */
                 workflow?: components["parameters"]["WorkflowFilter"];
             };
             header?: never;
@@ -1541,7 +1541,7 @@ export interface operations {
                 user_id?: components["parameters"]["UserFilter"];
                 /** @description Scope the read to one workspace. This is an access boundary, not just a filter: the caller must be a member of the workspace or the request is refused with 403. Omitted, the read covers every workspace the caller is a member of (an account that is a member of none sees nothing). The dashboard passes the active workspace from its switcher. */
                 workspace_id?: components["parameters"]["WorkspaceFilter"];
-                /** @description Optional: restrict the metric to a single workflow (the trace root name), powering the workflow detail page's charts. Workflow-scoped metrics are a raw-window feature; ranges longer than 30d (90d, 1y) are rejected with a 400, since per-workflow latency cannot be derived from the daily rollup. */
+                /** @description Optional: restrict the metric to a single workflow (the trace root name), powering the workflow detail page's charts. Only the series endpoints accept it; other metrics endpoints reject it with a 400. Workflow-scoped series are a raw-window feature; ranges longer than 30d (90d, 1y) are rejected with a 400, since per-workflow latency cannot be derived from the daily rollup. */
                 workflow?: components["parameters"]["WorkflowFilter"];
             };
             header?: never;
@@ -1579,7 +1579,7 @@ export interface operations {
                 user_id?: components["parameters"]["UserFilter"];
                 /** @description Scope the read to one workspace. This is an access boundary, not just a filter: the caller must be a member of the workspace or the request is refused with 403. Omitted, the read covers every workspace the caller is a member of (an account that is a member of none sees nothing). The dashboard passes the active workspace from its switcher. */
                 workspace_id?: components["parameters"]["WorkspaceFilter"];
-                /** @description Optional: restrict the metric to a single workflow (the trace root name), powering the workflow detail page's charts. Workflow-scoped metrics are a raw-window feature; ranges longer than 30d (90d, 1y) are rejected with a 400, since per-workflow latency cannot be derived from the daily rollup. */
+                /** @description Optional: restrict the metric to a single workflow (the trace root name), powering the workflow detail page's charts. Only the series endpoints accept it; other metrics endpoints reject it with a 400. Workflow-scoped series are a raw-window feature; ranges longer than 30d (90d, 1y) are rejected with a 400, since per-workflow latency cannot be derived from the daily rollup. */
                 workflow?: components["parameters"]["WorkflowFilter"];
             };
             header?: never;
@@ -1971,7 +1971,7 @@ export interface operations {
                     "application/json": components["schemas"]["PaginatedAttributeKeyResponse"];
                 };
             };
-            /** @description Invalid range. */
+            /** @description Invalid range, or one longer than 30d. */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -2009,7 +2009,7 @@ export interface operations {
                     "application/json": components["schemas"]["PaginatedAttributeUsageResponse"];
                 };
             };
-            /** @description Invalid range, or the required `key` parameter is missing. */
+            /** @description Invalid range, a range longer than 30d, or the required `key` parameter is missing. */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -2753,8 +2753,26 @@ export interface operations {
                     "application/json": components["schemas"]["APIKeyVerifyResponse"];
                 };
             };
+            /** @description The request body is not valid JSON. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description The key is missing, malformed, unknown, or revoked. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request body exceeds 4 KiB. */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };

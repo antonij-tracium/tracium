@@ -1,4 +1,6 @@
-# Upgrading to workspace-scoped telemetry
+# Upgrade notes
+
+## Workspace-scoped telemetry
 
 Fresh installations run all migrations automatically. Existing installations
 whose spans still contain `tenant_id` must explicitly choose an existing
@@ -10,7 +12,7 @@ including history whose raw spans have expired. It retains the original rollup
 as `tracium.metrics_daily_pre_workspace`. Back up ClickHouse and Postgres before
 upgrading and keep the old images until validation completes.
 
-## Docker Compose
+### Docker Compose
 
 1. Using the existing dashboard, create or select the workspace that should own
    **all legacy telemetry**. Record its ID and owner. If old telemetry belongs to
@@ -43,7 +45,7 @@ Do not restart the old collector after migrating: it still writes `tenant_id`.
 Rollback requires restoring the pre-upgrade databases and old images together.
 Do not drop the retained rollup until the upgrade has been verified.
 
-## Kubernetes
+### Kubernetes
 
 Pause producers, drain queues, and scale the old collector and API to zero
 before upgrading. Pass `migrate.legacyWorkspaceId` and
@@ -55,7 +57,7 @@ The migration script runs only once according to Postgres `schema_migrations`.
 Do not delete migration records or manually rerun completed upgrade scripts
 against an active installation.
 
-# Backfilling the reconciled cost rollup
+## Backfilling the reconciled cost rollup
 
 Migrations `007`/`008` add `tracium.metrics_daily_cost`, a source-aware cost
 rollup that lets long windows (90d/1y) reconcile span- and metric-derived spend
@@ -92,7 +94,7 @@ directing users at long-range cost if that transient is unacceptable.
 > `metrics_daily_cost`. The `repair-rollup` command (in the API image) rebuilds
 > **both** rollups for the affected days; see `rollup-repair.md`.
 
-# Typed read views (calls / usage_metrics)
+## Typed read views (calls / usage_metrics)
 
 Migrations `009`/`010` add two views over `tracium.spans`:
 `tracium.calls` (`source='span'`) and `tracium.usage_metrics` (`source='metric'`).

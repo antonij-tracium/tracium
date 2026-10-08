@@ -24,6 +24,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 
 	"github.com/tracium/api/internal/auth"
@@ -66,11 +67,12 @@ func main() {
 	}
 
 	ctx := context.Background()
-	store, err := auth.NewUserStore(ctx, dsn)
+	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
 		fail(err)
 	}
-	defer store.Close()
+	defer pool.Close()
+	store := auth.NewUserStore(pool)
 
 	user, err := store.ByEmail(ctx, auth.NormalizeEmail(*email))
 	if err != nil {
