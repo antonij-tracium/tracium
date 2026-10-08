@@ -48,6 +48,15 @@ services:
         condition: service_healthy
     restart: on-failure
 
+  # Queue volumes created by older root images are root-owned; the collector runs as 10001.
+  collector-queue-owner:
+    image: alpine:3.24
+    user: root
+    command: ["chown", "-R", "10001:10001", "/var/lib/tracium/queue"]
+    volumes:
+      - collector_queue:/var/lib/tracium/queue
+    restart: "no"
+
   collector:
     image: ghcr.io/antonij-tracium/collector:${TRACIUM_VERSION:-1.0.3}
     ports:
@@ -64,6 +73,8 @@ services:
       - collector_queue:/var/lib/tracium/queue
     depends_on:
       migrate:
+        condition: service_completed_successfully
+      collector-queue-owner:
         condition: service_completed_successfully
       api:
         condition: service_started
