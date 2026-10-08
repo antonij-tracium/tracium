@@ -30,13 +30,13 @@ export function useWorkflowUsage(range: string) {
   });
 }
 
-// Custom-attribute allocation. useAttributeKeys discovers the dimensions the
-// instrumentation tags spans with; useAttributeUsage allocates spend by one.
-export function useAttributeKeys(range: string) {
+// Custom-attribute allocation reads raw spans, so the server rejects long ranges.
+export function useAttributeKeys(range: string, enabled: boolean) {
   const { metricsAPI, workspaceId } = useAPIClient();
   return useQuery({
     queryKey: ['usage', 'attribute-keys', workspaceId, range],
     queryFn: () => metricsAPI.getAttributeKeys(range),
+    enabled,
   });
 }
 
