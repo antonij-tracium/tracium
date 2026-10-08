@@ -26,13 +26,13 @@ const empty = { items: [], total: 0, page: 1, page_size: 20 };
 
 function show(range = '7d') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const page = (r: string) => (
+  const page = (r: string, name = 'checkout') => (
     <QueryClientProvider client={client}>
-      <WorkflowDetailLivePage workflowName="checkout" range={r} setView={vi.fn()} setSelected={vi.fn()} />
+      <WorkflowDetailLivePage workflowName={name} range={r} setView={vi.fn()} setSelected={vi.fn()} />
     </QueryClientProvider>
   );
   const { rerender } = render(page(range));
-  return (r: string) => rerender(page(r));
+  return (r: string, name?: string) => rerender(page(r, name));
 }
 
 beforeEach(() => {
@@ -71,5 +71,14 @@ describe('live workflow detail', () => {
     api.getWorkflowDetail.mockReturnValue(new Promise(() => {}));
     setRange('30d');
     expect(screen.getByText('13 failures')).toBeInTheDocument();
+  });
+
+  it('drops the previous workflow\'s numbers when another workflow opens', async () => {
+    const rerender = show('7d');
+    await screen.findByText('13 failures');
+    api.getWorkflowDetail.mockReturnValue(new Promise(() => {}));
+    rerender('7d', 'refunds');
+    expect(screen.queryByText('13 failures')).not.toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Loading' })).toBeInTheDocument();
   });
 });
