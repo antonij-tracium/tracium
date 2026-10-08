@@ -30,7 +30,6 @@ import {
 interface OutliersPanelProps {
   anomalies: Anomaly[]; // already filtered to non-dismissed
   range: string;
-  baselineLabel?: string; // e.g. "28-day"
   dismissedCount?: number;
   // The expanded row/incident. null means everything is collapsed (the default);
   // a chart flag click sets it to expand + scroll the matching row into view.
@@ -52,11 +51,11 @@ const LIST_MAX_H = 460;
 // ones don't collapse onto the floor; the exact z stays in the row.
 const Z_TICKS = [3, 4.5, 6];
 const Z_CEIL = 12;
+const BASELINE_LABEL = '28-day';
 
 export function OutliersPanel({
   anomalies,
   range,
-  baselineLabel = '28-day',
   dismissedCount = 0,
   selectedKey,
   onSelectKey,
@@ -89,7 +88,6 @@ export function OutliersPanel({
       <Header
         count={sorted.length}
         incidentCount={incidents.length}
-        baselineLabel={baselineLabel}
         view={view}
         onView={setView}
         narrow={narrow}
@@ -98,7 +96,7 @@ export function OutliersPanel({
       {sorted.length === 0 ? (
         <EmptyState
           message="No outliers in this window"
-          description={`Nothing strayed far enough from its ${baselineLabel} baseline to flag. Cost, error-rate and run-volume are all within their usual range.`}
+          description={`Nothing strayed far enough from its ${BASELINE_LABEL} baseline to flag. Cost, error-rate and run-volume are all within their usual range.`}
         />
       ) : view === 'list' ? (
         <div style={scrollArea}>
@@ -153,14 +151,12 @@ export function OutliersPanel({
 function Header({
   count,
   incidentCount,
-  baselineLabel,
   view,
   onView,
   narrow,
 }: {
   count: number;
   incidentCount: number;
-  baselineLabel: string;
   view: ViewMode;
   onView: (v: ViewMode) => void;
   narrow: boolean;
@@ -180,7 +176,7 @@ function Header({
         <span style={{ fontSize: 14, color: 'var(--muted)' }}>
           {grouped
             ? `Flags for the same target on the same day, grouped. Most severe first.`
-            : `Each row is a flagged day, most severe first. Distance from the ${baselineLabel} baseline is shown per row.`}
+            : `Each row is a flagged day, most severe first. Distance from the ${BASELINE_LABEL} baseline is shown per row.`}
         </span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>

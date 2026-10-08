@@ -30,10 +30,6 @@ func DefaultChain(
 	)
 }
 
-// Ingest sanity bounds are shared with the metrics path in package ingest, so
-// spans and token-usage metrics enforce identical limits. See that package for
-// the rationale behind each bound.
-
 // ValidateEnricher fails fast on structurally invalid spans. It must run first.
 type ValidateEnricher struct{}
 
@@ -126,7 +122,6 @@ func (e UserEnricher) Enrich(ctx context.Context, span *spanmodel.Span) error {
 			customerrors.ErrUserLookupFailed,
 			"failed to resolve user",
 			err,
-			true,
 		)
 	}
 	span.UserID = userID
@@ -134,19 +129,11 @@ func (e UserEnricher) Enrich(ctx context.Context, span *spanmodel.Span) error {
 }
 
 // PricingEnricher sets span.CostUSD from token usage via the Resolver. A missing
-// price is non-fatal: the cost is recorded as 0 rather than dropping the span,
-// matching the pricing policy.
-//
-// A cost the instrumentation reported itself (gen_ai.usage.cost) is ignored
-// unless TrustReportedCost is set. A valid ingest key authenticates the sender
-// and its workspace, but does not make the sender's self-reported cost true —
-// trusting it unconditionally would let any authenticated sender declare a span
-// worth $1,000,000 and have it stored verbatim, and every cost figure in the
-// product is a sum(cost_usd). Operators whose instrumentation prices calls the
-// table cannot (private or self-hosted models) can opt in.
+// price is non-fatal: the cost is recorded as 0 rather than dropping the span.
+// A cost the instrumentation reported itself is never used: an ingest key
+// authenticates the sender, not its numbers.
 type PricingEnricher struct {
-	Resolver          pricing.Resolver
-	TrustReportedCost bool
+	Resolver pricing.Resolver
 }
 
 // Name implements Enricher.
@@ -154,12 +141,6 @@ func (PricingEnricher) Name() string { return "pricing" }
 
 // Enrich implements Enricher.
 func (e PricingEnricher) Enrich(ctx context.Context, span *spanmodel.Span) error {
-	// Prefer a cost the instrumentation already computed (e.g. gen_ai.usage.cost)
-	// only where the operator has declared that source trustworthy.
-	if e.TrustReportedCost && span.ReportedCostUSD > 0 {
-		span.CostUSD = span.ReportedCostUSD
-		return nil
-	}
 	if e.Resolver == nil || span.ModelNormalized == "" {
 		return nil
 	}

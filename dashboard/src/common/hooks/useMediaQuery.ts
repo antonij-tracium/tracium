@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
  * Shared layout breakpoints (viewport width, px). The app's inline-style
  * components can't use CSS media queries, so structural reflows (e.g. the
  * sidebar drawer, two-column → one-column stacking) read these via
- * useMediaQuery / useBreakpoint instead.
+ * useMaxWidth instead.
  */
 export const BREAKPOINTS = {
   /** Phone — sidebar becomes an off-canvas drawer below this. */
@@ -17,7 +17,7 @@ export const BREAKPOINTS = {
  * Subscribes to a CSS media query and returns whether it currently matches.
  * Re-renders the component when the match state changes.
  */
-export function useMediaQuery(query: string): boolean {
+function useMediaQuery(query: string): boolean {
   const [matches, setMatches] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia(query).matches : false,
   );

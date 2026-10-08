@@ -2,14 +2,6 @@ export interface Formatter<T> {
   format(value: T): string;
 }
 
-export class DurationFormatter implements Formatter<number> {
-  format(ms: number): string {
-    if (ms < 1000) return `${Math.round(ms)}ms`;
-    if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
-    return `${Math.floor(ms / 60_000)}m ${Math.floor((ms % 60_000) / 1000)}s`;
-  }
-}
-
 export class CostFormatter implements Formatter<number> {
   format(usd: number): string {
     if (usd === 0) return '$0.00';
@@ -27,7 +19,6 @@ export class TokenFormatter implements Formatter<number> {
   }
 }
 
-export const durationFormatter = new DurationFormatter();
 export const costFormatter = new CostFormatter();
 export const tokenFormatter = new TokenFormatter();
 

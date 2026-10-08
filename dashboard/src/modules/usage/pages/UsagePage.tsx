@@ -2,7 +2,7 @@
 // USAGE_DATA. The signed-in dashboard renders UsageLivePage instead; both share
 // the presentational components in ../components.
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { costFormatter, tokenFormatter } from '../../../common';
 import {
   SectionHead,
@@ -18,10 +18,6 @@ import {
 } from '../components';
 import type { KpiItem, BreakdownTab, SortKey } from '../components';
 import { USAGE_DATA } from '../data';
-
-export interface UsagePageProps {
-  range: string;
-}
 
 function kpiItems(data: typeof USAGE_DATA): KpiItem[] {
   const costDelta = ((data.totalCost - data.totalCostPrev) / data.totalCostPrev) * 100;
@@ -54,11 +50,12 @@ function kpiItems(data: typeof USAGE_DATA): KpiItem[] {
   ];
 }
 
-export default function UsagePage({ range: _range }: UsagePageProps) {
+const KPI_ITEMS = kpiItems(USAGE_DATA);
+
+export default function UsagePage() {
   const data = USAGE_DATA;
   const [tab, setTab] = useState<BreakdownTab>('user');
   const [sortBy, setSortBy] = useState<SortKey>('cost');
-  const items = useMemo(() => kpiItems(data), [data]);
 
   function handleTabChange(t: BreakdownTab) {
     setTab(t);
@@ -78,7 +75,7 @@ export default function UsagePage({ range: _range }: UsagePageProps) {
       />
 
       <div style={{ paddingBottom: 8 }}>
-        <KpiStrip items={items} />
+        <KpiStrip items={KPI_ITEMS} />
       </div>
 
       <div style={{ marginTop: 28 }}>

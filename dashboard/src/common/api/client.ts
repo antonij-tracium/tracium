@@ -147,9 +147,3 @@ export abstract class BaseAPIClient {
     return response.json() as Promise<T>;
   }
 }
-
-export class MockAPIClient extends BaseAPIClient {
-  constructor() {
-    super({ baseUrl: 'http://localhost', apiKey: 'mock-key' });
-  }
-}

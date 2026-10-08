@@ -47,9 +47,6 @@ export function WorkflowDetailDemoPage({ workflow, range, setView, setSelected }
     <WorkflowDetailPage
       name={workflow.name}
       version={meta.version}
-      model={meta.model}
-      provider={meta.provider}
-      deploy={meta.lastDeploy}
       description={meta.description}
       range={range}
       calls={workflow.calls}

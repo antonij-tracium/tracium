@@ -1,6 +1,3 @@
-export { Badge } from './Badge';
-export { CostTag } from './CostTag';
-export { Duration } from './Duration';
 export { EmptyState } from './EmptyState';
 export { LastUpdated } from './LastUpdated';
 export type { LastUpdatedProps, SyncTone } from './LastUpdated';
@@ -11,7 +8,6 @@ export { Spinner } from './Spinner';
 export { SlicedButton } from './SlicedButton';
 export { SetupIssueNote } from './SetupIssueNote';
 export type { SlicedButtonProps } from './SlicedButton';
-export * from './Card';
 export * from './Sparkline';
 export * from './StatusPill';
 export * from './charts';

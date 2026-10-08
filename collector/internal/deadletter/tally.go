@@ -13,6 +13,13 @@ type Rejection struct {
 	Code        string
 }
 
+const (
+	flushTimeout = 10 * time.Second
+	// maxPendingRejections caps the distinct counts held between flushes, so a
+	// long ClickHouse outage cannot grow the tally without bound.
+	maxPendingRejections = 10_000
+)
+
 // TallyWriter persists rejection counts.
 type TallyWriter interface {
 	WriteRejected(ctx context.Context, tally map[Rejection]uint64) error
@@ -52,7 +59,7 @@ func (s *TallyStore) Put(ctx context.Context, rec Record) error {
 	// Keyless spans have no workspace and are not charged to any.
 	if rec.Span != nil && rec.Span.WorkspaceID != "" {
 		s.mu.Lock()
-		s.tally[Rejection{WorkspaceID: rec.Span.WorkspaceID, Code: rec.Code}]++
+		s.add(Rejection{WorkspaceID: rec.Span.WorkspaceID, Code: rec.Code}, 1)
 		s.mu.Unlock()
 	}
 	return s.next.Put(ctx, rec)
@@ -90,7 +97,21 @@ func (s *TallyStore) flush() {
 	s.tally = map[Rejection]uint64{}
 	s.mu.Unlock()
 
-	if err := s.writer.WriteRejected(context.Background(), tally); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), flushTimeout)
+	defer cancel()
+	if err := s.writer.WriteRejected(ctx, tally); err != nil {
 		s.logger.Warn("rejected-span tally not written", "rejections", len(tally), "error", err)
+		s.mu.Lock()
+		for r, n := range tally {
+			s.add(r, n)
+		}
+		s.mu.Unlock()
+	}
+}
+
+// add must be called with s.mu held.
+func (s *TallyStore) add(r Rejection, n uint64) {
+	if _, ok := s.tally[r]; ok || len(s.tally) < maxPendingRejections {
+		s.tally[r] += n
 	}
 }

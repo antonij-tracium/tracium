@@ -14,7 +14,7 @@ import { ApiKeysPage } from '../../api-keys';
 import { SettingsPage } from '../../settings';
 import { EmptyState, useMaxWidth, BREAKPOINTS } from '../../../common';
 import { readAccount } from '../../auth';
-import { createDemoWorkspace, TWEAK_DEFAULTS } from '../data';
+import { createDemoWorkspace } from '../data';
 import { useWorkspaces } from '../hooks/useWorkspaces';
 import type { Workspace, BreadcrumbItem, CommandAction } from '../interfaces';
 import type { ViewId } from '../ids';
@@ -25,14 +25,13 @@ export interface DashboardProps {
   extensions?: DashboardExtensions;
   /**
    * When true, the dashboard renders as a contained, interactive product
-   * preview (e.g. inside the auth screen). It fits its parent container
-   * instead of the viewport and keeps all state in memory, so a logged-out
-   * visitor clicking around the preview never touches the real app's
-   * persisted state.
+   * preview. It fits its parent container instead of the viewport and keeps
+   * all state in memory, so a logged-out visitor clicking around the preview
+   * never touches the real app's persisted state.
    */
   embedded?: boolean;
   /**
-   * Logs the current account out. Omitted in embedded mode (the auth preview
+   * Logs the current account out. Omitted in embedded mode (the preview
    * has no real session), so the Sidebar hides its logout control there.
    */
   onLogout?: () => void;
@@ -43,24 +42,9 @@ export interface DashboardProps {
 const VIEWS_WITH_RANGE: ViewId[] = ['overview', 'workflows', 'usage', 'users', 'user'];
 
 /**
- * Demo data (KPIs, workflows, traces, usage…) exists only to bring the logged-out
- * auth-page preview to life. A real signed-in workspace starts empty until it
- * receives its own data, so these data views render an empty state instead.
- * Keyed by ViewId; views not listed here (settings, keys, detail
- * views) are either functional or unreachable from an empty workspace. Overview,
- * workflows and usage are also absent: OverviewLivePage / WorkflowsLivePage /
- * UsageLivePage fetch real metrics and render their own empty state when there
- * are no runs yet.
- */
-const DATA_EMPTY: Partial<Record<ViewId, { message: string; description: string }>> = {
-  // Clients now renders UsersLivePage, which fetches real metrics and shows
-  // its own "No clients yet" empty state when the window has no activity.
-};
-
-/**
  * Shown to a real signed-in account that has no workspace yet. New accounts
  * start empty (no demo workspace or demo data), so this prompts the user to
- * create their first workspace. It never appears in the embedded auth preview,
+ * create their first workspace. It never appears in the embedded preview,
  * which is always seeded with a Demo workspace.
  */
 function WorkspaceEmptyState({ onCreate }: { onCreate: () => void }) {
@@ -136,7 +120,7 @@ export function Dashboard({ embedded = false, onLogout, onSessionRenewed, extens
   // (1) the current path (a logged-in user opening a shared link), (2) a path
   // stashed before the login redirect (a logged-out recipient of a shared
   // link, see App.tsx), then (3) the last-visited view from localStorage. The
-  // embedded auth preview is never URL-driven. Computed once via a ref.
+  // embedded preview is never URL-driven. Computed once via a ref.
   const initialNavRef = useRef<NavState | null>(null);
   if (initialNavRef.current === null) {
     initialNavRef.current = computeInitialNav(persist, pages);
@@ -179,7 +163,7 @@ export function Dashboard({ embedded = false, onLogout, onSessionRenewed, extens
   }, [persist, workspace?.id, setWorkspaceId]);
   const [cmdOpen, setCmdOpen] = useState(false);
   // Below this width the sidebar collapses into an off-canvas drawer. The
-  // embedded auth preview is never shown at mobile widths, so it keeps the
+  // embedded preview is never shown at mobile widths, so it keeps the
   // static sidebar regardless.
   const isMobileNav = useMaxWidth(BREAKPOINTS.mobile) && !embedded;
   const [navOpen, setNavOpen] = useState(false);
@@ -205,7 +189,6 @@ export function Dashboard({ embedded = false, onLogout, onSessionRenewed, extens
     setView('settings');
   };
   const createWorkspace = async (input: { name: string; slug: string; env: Workspace['env'] }) => {
-    if (!persist) throw new Error('Sign in to create a workspace.');
     const ws = await apiCreate(input);
     updateWorkspace(ws);
     setCreateWsIntent(false);
@@ -217,10 +200,8 @@ export function Dashboard({ embedded = false, onLogout, onSessionRenewed, extens
     await apiDelete(id);
     if (workspace?.id === id) {
       setWorkspace(fallback);
-      if (persist) {
-        if (fallback) localStorage.setItem('tracium_ws', fallback.id);
-        else localStorage.removeItem('tracium_ws');
-      }
+      if (fallback) localStorage.setItem('tracium_ws', fallback.id);
+      else localStorage.removeItem('tracium_ws');
     }
   };
 
@@ -241,7 +222,7 @@ export function Dashboard({ embedded = false, onLogout, onSessionRenewed, extens
   // Tracium, and (b) the address bar never changes, so pages aren't linkable.
   // We mirror each (view, selected) change onto the history stack with a real
   // pathname (see routing.ts), so Back/Forward move between views and the URL
-  // can be copied and shared. Only in the real app — the embedded auth preview
+  // can be copied and shared. Only in the real app — the embedded preview
   // must never touch the global history or URL.
   //
   // popRef guards the push effect from re-pushing when a popstate event is the
@@ -372,14 +353,12 @@ export function Dashboard({ embedded = false, onLogout, onSessionRenewed, extens
         <div style={embedded ? { flex: 1, minHeight: 0, overflow: 'auto' } : { flex: 1 }}>
           {!workspace && view !== 'settings' && (!activePage || activePage.requiresWorkspace) ? (
             <WorkspaceEmptyState onCreate={goCreateWorkspace} />
-          ) : !embedded && DATA_EMPTY[view] ? (
-            <EmptyState message={DATA_EMPTY[view]!.message} description={DATA_EMPTY[view]!.description} />
           ) : (
           <>
           {Page && <Page workspace={workspace} navigate={setView} />}
           {view === 'overview'    && (embedded
-            ? <OverviewPage range={range} setView={setView} setSelected={setSelected} tweaks={TWEAK_DEFAULTS} />
-            : <OverviewLivePage range={range} setView={setView} setSelected={setSelected} tweaks={TWEAK_DEFAULTS} />)}
+            ? <OverviewPage range={range} setView={setView} setSelected={setSelected} />
+            : <OverviewLivePage range={range} setView={setView} setSelected={setSelected} />)}
           {view === 'workflows'      && (selected.workflow
             ? (embedded
               ? <WorkflowDetailDemoPage workflow={WORKFLOWS.find(a => a.name === selected.workflow) ?? WORKFLOWS[0]} range={range} setView={setView} setSelected={setSelected} />
@@ -393,7 +372,7 @@ export function Dashboard({ embedded = false, onLogout, onSessionRenewed, extens
               ? <TraceDetailView traceId={selected.traceId} setView={setView} setSelected={setSelected} />
               : <EmptyState message="No trace selected" description="Open a trace from a workflow or the overview to see its detail." />)}
           {view === 'usage'       && (embedded
-            ? <UsagePage range={range} />
+            ? <UsagePage />
             : <UsageLivePage range={range} setView={setView} setSelected={setSelected} />)}
           {view === 'keys'        && <ApiKeysPage demo={embedded} workspaceId={workspace?.id} />}
           {view === 'settings'    && <SettingsPage sections={extensions.settingsSections} createWorkspace={embedded ? undefined : createWorkspace} createMode={createWsIntent} onCancelCreate={() => setCreateWsIntent(false)} onOpenOverview={() => setView('overview')} onOpenApiKeys={() => setView('keys')} demo={embedded} workspace={workspace} account={embedded ? null : readAccount()} onSessionRenewed={onSessionRenewed} />}
