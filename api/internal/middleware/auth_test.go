@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -17,6 +18,9 @@ func (fakeAuthenticator) Authenticate(_ context.Context, token string) (*model.P
 	if token == "good" {
 		return &model.Principal{UserID: "u-1"}, nil
 	}
+	if token == "db-down" {
+		return nil, fmt.Errorf("%w: connection refused", ErrUnavailable)
+	}
 	return nil, errors.New("bad token")
 }
 
@@ -29,13 +33,14 @@ func TestAuth(t *testing.T) {
 		w.WriteHeader(http.StatusNoContent)
 	})
 	for _, tt := range []struct {
-		name, header string
-		want         int
+		name, header, code string
+		want               int
 	}{
-		{"missing header", "", http.StatusUnauthorized},
-		{"other scheme", "Basic dTpw", http.StatusUnauthorized},
-		{"invalid token", "Bearer bad", http.StatusUnauthorized},
-		{"valid token", "Bearer good", http.StatusNoContent},
+		{"missing header", "", "UNAUTHORIZED", http.StatusUnauthorized},
+		{"other scheme", "Basic dTpw", "UNAUTHORIZED", http.StatusUnauthorized},
+		{"invalid token", "Bearer bad", "UNAUTHORIZED", http.StatusUnauthorized},
+		{"backend down", "Bearer db-down", "UNAVAILABLE", http.StatusServiceUnavailable},
+		{"valid token", "Bearer good", "", http.StatusNoContent},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			r := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -47,11 +52,11 @@ func TestAuth(t *testing.T) {
 			if w.Code != tt.want {
 				t.Fatalf("status = %d, want %d", w.Code, tt.want)
 			}
-			if tt.want != http.StatusUnauthorized {
+			if tt.code == "" {
 				return
 			}
 			var body model.ErrorResponse
-			if w.Header().Get("Content-Type") != "application/json" || json.Unmarshal(w.Body.Bytes(), &body) != nil || body.Code != "UNAUTHORIZED" {
+			if w.Header().Get("Content-Type") != "application/json" || json.Unmarshal(w.Body.Bytes(), &body) != nil || body.Code != tt.code {
 				t.Fatalf("not a JSON error: %q %s", w.Header().Get("Content-Type"), w.Body.String())
 			}
 		})

@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -13,6 +14,10 @@ import (
 type Authenticator interface {
 	Authenticate(ctx context.Context, token string) (*model.Principal, error)
 }
+
+// ErrUnavailable marks an Authenticate failure that says nothing about the
+// token, such as a database outage. Auth answers it with 503, not 401.
+var ErrUnavailable = errors.New("authentication unavailable")
 
 type contextKey int
 
@@ -37,6 +42,10 @@ func Auth(authenticator Authenticator) func(http.Handler) http.Handler {
 
 			token := strings.TrimPrefix(header, prefix)
 			principal, err := authenticator.Authenticate(r.Context(), token)
+			if errors.Is(err, ErrUnavailable) {
+				WriteError(w, http.StatusServiceUnavailable, "UNAVAILABLE", "could not verify the session")
+				return
+			}
 			if err != nil {
 				WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid or expired token")
 				return

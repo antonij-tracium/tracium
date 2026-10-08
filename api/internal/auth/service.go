@@ -4,11 +4,13 @@ import (
 	"context"
 	"crypto/hmac"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/google/uuid"
 
 	"github.com/tracium/api/extension"
+	"github.com/tracium/api/internal/middleware"
 	"github.com/tracium/api/internal/model"
 )
 
@@ -47,8 +49,11 @@ func (s *Service) Authenticate(ctx context.Context, token string) (*model.Princi
 		return nil, err
 	}
 	user, err := s.users.ByID(ctx, claims.userID)
-	if err != nil {
+	if errors.Is(err, ErrUserNotFound) {
 		return nil, err
+	}
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", middleware.ErrUnavailable, err)
 	}
 	// Tokens without a stamp predate it and expire within tokenTTL of rollout.
 	if claims.passwordStamp != "" && !hmac.Equal([]byte(claims.passwordStamp), []byte(s.tokens.passwordStamp(user.PasswordHash))) {

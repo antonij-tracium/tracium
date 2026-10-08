@@ -8,6 +8,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 
+	"github.com/tracium/api/internal/middleware"
 	"github.com/tracium/api/testing/pgtest"
 )
 
@@ -99,8 +100,8 @@ func TestAuthenticateRejectsBadTokens(t *testing.T) {
 		"unknown user":   sign(jwt.SigningMethodHS256, testSecret, jwt.MapClaims{"sub": "00000000-0000-0000-0000-000000000000", "exp": exp}),
 		"wrong password": sign(jwt.SigningMethodHS256, testSecret, jwt.MapClaims{"sub": p.UserID, "pwd": "stale", "exp": exp}),
 	} {
-		if _, err := s.Authenticate(ctx, token); err == nil {
-			t.Errorf("%s: token accepted", name)
+		if _, err := s.Authenticate(ctx, token); err == nil || errors.Is(err, middleware.ErrUnavailable) {
+			t.Errorf("%s: err = %v, want a rejection", name, err)
 		}
 	}
 
@@ -114,5 +115,19 @@ func TestLoginUnknownEmail(t *testing.T) {
 	s := newTestService(t)
 	if _, err := s.Login(context.Background(), "nobody@example.com", "correct-horse-1"); !errors.Is(err, ErrInvalidCredentials) {
 		t.Fatalf("err = %v, want ErrInvalidCredentials", err)
+	}
+}
+
+func TestAuthenticateReportsStoreOutageAsUnavailable(t *testing.T) {
+	pool := pgtest.NewPool(t)
+	s := NewService(NewUserStore(pool), NewTokenIssuer(testSecret), nil)
+	ctx := context.Background()
+	reg, err := s.Register(ctx, "ada@example.com", "correct-horse-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pool.Close()
+	if _, err := s.Authenticate(ctx, reg.Token); !errors.Is(err, middleware.ErrUnavailable) {
+		t.Fatalf("err = %v, want ErrUnavailable", err)
 	}
 }
