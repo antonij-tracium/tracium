@@ -108,8 +108,6 @@ services:
       LISTEN_ADDR: ":8090"
       # Resolve only the dashboard containers, not the whole Docker subnet.
       AUTH_TRUSTED_PROXIES: dns:dashboard
-      LOG_LEVEL: info
-      LOG_FORMAT: json
     depends_on:
       migrate:
         condition: service_completed_successfully

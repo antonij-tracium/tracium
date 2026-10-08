@@ -65,7 +65,9 @@ count, so a sender presenting one valid key is charged once and then served from
 cache, so legitimate high-volume ingest is untouched. This stops a single abusive
 sender, streaming distinct invalid keys, from spending the collector's shared
 verify budget and blocking verification for everyone else behind the same
-collector. Set `sender_verify_limit` to `0` to disable it.
+collector. Set `sender_verify_limit` to `0` to disable it. Behind NAT or an L4
+load balancer every sender shares one peer address, so raise the limit or set
+`max_stale_age`, which lets a limited sender keep using recently verified keys.
 
 ### The key decides the workspace
 

@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/tracium/api/internal/model"
+	"github.com/tracium/api/migrations"
 )
 
 // newTestStore uses a throwaway schema so it can share TEST_POSTGRES_DSN with other packages.
@@ -41,12 +42,15 @@ func newTestStore(t *testing.T) *PostgresStore {
 	q := u.Query()
 	q.Set("search_path", schema)
 	u.RawQuery = q.Encode()
-	s, err := NewStore(ctx, u.String())
+	pool, err := pgxpool.New(ctx, u.String())
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(s.Close)
-	return s
+	t.Cleanup(pool.Close)
+	if err := migrations.Apply(ctx, pool, migrations.Core); err != nil {
+		t.Fatal(err)
+	}
+	return NewStore(pool)
 }
 
 func addUser(t *testing.T, s *PostgresStore, email string) string {
