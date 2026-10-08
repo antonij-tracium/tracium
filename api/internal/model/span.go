@@ -37,8 +37,7 @@ type Span struct {
 	ErrorType           string `json:"error_type"`
 	ErrorMessage        string `json:"error_message"`
 
-	// Content & tools (schema v3). Input/Output are present only when the
-	// collector has content capture enabled; otherwise empty and omitted.
+	// Input/Output are present only when the collector has content capture enabled.
 	Input          string          `json:"input,omitempty"`
 	Output         string          `json:"output,omitempty"`
 	AvailableTools []AvailableTool `json:"available_tools,omitempty"`
