@@ -573,7 +573,8 @@ paths:
       description: >
         The custom-attribute keys present on spans in the window (e.g.
         `team`, `environment`, `customer`), offered as the allocation axes
-        for /v1/metrics/usage-by-attribute.
+        for /v1/metrics/usage-by-attribute. Reads raw spans, so ranges longer
+        than 30d are rejected.
       tags:
         - Metrics
       parameters:
@@ -588,7 +589,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/PaginatedAttributeKeyResponse"
         "400":
-          description: Invalid range.
+          description: Invalid range, or one longer than 30d.
           content:
             application/json:
               schema:
@@ -603,7 +604,8 @@ paths:
         the cost-allocation primitive that splits AI spend by whatever
         dimension the instrumentation tags spans with. The `key` query
         parameter names the dimension (from /v1/metrics/attribute-keys) and
-        is required. Ordered by cost descending.
+        is required. Ordered by cost descending. Reads raw spans, so ranges
+        longer than 30d are rejected.
       tags:
         - Metrics
       parameters:
@@ -624,7 +626,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/PaginatedAttributeUsageResponse"
         "400":
-          description: Invalid range, or the required `key` parameter is missing.
+          description: Invalid range, a range longer than 30d, or the required `key` parameter is missing.
           content:
             application/json:
               schema:
@@ -767,8 +769,10 @@ paths:
       summary: Change the signed-in user's password
       description: >
         Verifies the current password and replaces it. Requires a login token.
-        There is no email-based reset in the OSS build; operators reset a
-        forgotten password with the API image's `reset-password` CLI.
+        Every session issued before the change ends, including the caller's;
+        the response carries the caller's new token. There is no email-based
+        reset in the OSS build; operators reset a forgotten password with the
+        API image's `reset-password` CLI, which also ends existing sessions.
       tags: [Auth]
       requestBody:
         required: true
@@ -777,8 +781,12 @@ paths:
             schema:
               $ref: "#/components/schemas/ChangePasswordRequest"
       responses:
-        "204":
-          description: Password changed.
+        "200":
+          description: Password changed. Use the returned token from now on.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Token"
         "400":
           description: >
             Missing fields (`MISSING_FIELDS`) or a new password outside 8–72
@@ -896,7 +904,8 @@ paths:
       summary: Add a member
       description: >
         Grants another account access to the workspace, named by email. Owner
-        only. The member can then read the workspace's telemetry. Consults the
+        only. The account joins as a `member`; ownership cannot be granted.
+        The member can then read the workspace's telemetry. Consults the
         `workspaces.members.add` entitlement for the workspace; the default
         provider allows it.
       tags: [Workspaces]
@@ -1310,8 +1319,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/APIKeyVerifyResponse"
+        "400":
+          description: The request body is not valid JSON.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "401":
           description: The key is missing, malformed, unknown, or revoked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "413":
+          description: The request body exceeds 4 KiB.
           content:
             application/json:
               schema:
@@ -1358,9 +1379,11 @@ components:
       in: query
       description: >-
         Optional: restrict the metric to a single workflow (the trace root name),
-        powering the workflow detail page's charts. Workflow-scoped metrics are a
-        raw-window feature; ranges longer than 30d (90d, 1y) are rejected with a
-        400, since per-workflow latency cannot be derived from the daily rollup.
+        powering the workflow detail page's charts. Only the series endpoints
+        accept it; other metrics endpoints reject it with a 400. Workflow-scoped
+        series are a raw-window feature; ranges longer than 30d (90d, 1y) are
+        rejected with a 400, since per-workflow latency cannot be derived from the
+        daily rollup.
       schema:
         type: string
 
@@ -1454,10 +1477,6 @@ components:
           type: string
           format: email
           description: The account to grant access to.
-        role:
-          type: string
-          enum: [owner, member]
-          default: member
     WorkspaceMember:
       type: object
       required: [user_id, email, role, joined_at]

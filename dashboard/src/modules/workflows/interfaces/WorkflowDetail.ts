@@ -1,4 +1,4 @@
-import type { WorkflowTool } from './WorkflowMeta';
+import type { AvailableTool } from '../../../common/interfaces';
 
 // API response shape for GET /v1/metrics/workflows/{name} — one workflow's detail
 // page. Span-backed only: there is no workflow-config store, so runtime params
@@ -17,6 +17,6 @@ export interface WorkflowDetail {
   output_tokens: number;
   model: string;
   provider: string;
-  tools: WorkflowTool[];
+  tools: AvailableTool[];
   last_trace_id: string;
 }

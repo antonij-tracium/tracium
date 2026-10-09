@@ -109,6 +109,11 @@ attributes:
     type: string
     required: false
 
+  - name: gen_ai.tool.definitions
+    description: JSON array of tool definitions offered to the model. Source for tracium.available_tools; takes precedence over llm.request.functions.{i}.*.
+    type: string
+    required: false
+
   # --- OpenLLMetry (Traceloop) legacy indexed form, read for compatibility ---
   # gen_ai.prompt.{i}.role / gen_ai.prompt.{i}.content      → Span.input
   # gen_ai.completion.{i}.role / gen_ai.completion.{i}.content → Span.output

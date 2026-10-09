@@ -1,5 +1,6 @@
 import { StatusPill } from '../StatusPill';
 import { fmtCost, fmtMs } from '../../utils/formatters';
+import hover from '../../styles/hover.module.css';
 
 export interface RunRow {
   id: string;
@@ -57,6 +58,7 @@ export function RunsTable({ runs, onOpen, emptyText = 'No runs in this window.' 
           <button
             key={run.id}
             onClick={() => onOpen(run.id)}
+            className={hover.row}
             style={{
               display: 'grid',
               gridTemplateColumns: GRID,
@@ -70,10 +72,7 @@ export function RunsTable({ runs, onOpen, emptyText = 'No runs in this window.' 
               border: 'none',
               textAlign: 'left',
               borderBottom: i < runs.length - 1 ? '1px solid color-mix(in srgb, var(--border) 50%, transparent)' : 'none',
-              background: 'transparent',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'color-mix(in srgb, var(--surface-alt) 60%, transparent)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
           >
             <span style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
               {run.name && (

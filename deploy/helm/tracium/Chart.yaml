@@ -9,8 +9,8 @@ keywords:
   - llm
   - opentelemetry
   - tracing
-home: https://github.com/tracium
+home: https://github.com/antonij-tracium/tracium
 sources:
-  - https://github.com/tracium
+  - https://github.com/antonij-tracium/tracium
 maintainers:
-  - name: Tracium Team
+  - name: Antonij Simonovski
