@@ -25,6 +25,8 @@ export interface DashboardProps {
   // A contained demo preview: fits its parent and never touches storage or the URL.
   embedded?: boolean;
   onLogout?: () => void;
+  /** Stores the session token returned by a password change. */
+  onSessionRenewed?: (token: string) => void;
 }
 
 const VIEWS_WITH_RANGE: ViewId[] = ['overview', 'workflows', 'usage', 'users', 'user'];
@@ -92,7 +94,7 @@ function computeInitialNav(persist: boolean, pages: readonly ExtensionPage[]): N
   return { view: valid ? (stored as ViewId) : 'overview', selected: {} };
 }
 
-export function Dashboard({ embedded = false, onLogout, extensions = EMPTY_EXTENSIONS }: DashboardProps = {}) {
+export function Dashboard({ embedded = false, onLogout, onSessionRenewed, extensions = EMPTY_EXTENSIONS }: DashboardProps = {}) {
   validateExtensions(extensions);
   const pages = extensions.pages ?? NO_PAGES;
   const persist = !embedded;
@@ -323,7 +325,7 @@ export function Dashboard({ embedded = false, onLogout, extensions = EMPTY_EXTEN
             ? <UsagePage />
             : <UsageLivePage range={range} setView={setView} setSelected={setSelected} />)}
           {view === 'keys'        && <ApiKeysPage demo={embedded} workspaceId={workspace?.id} />}
-          {view === 'settings'    && <SettingsPage sections={extensions.settingsSections} createWorkspace={embedded ? undefined : createWorkspace} createMode={createWsIntent} onCancelCreate={() => setCreateWsIntent(false)} onOpenOverview={() => setView('overview')} onOpenApiKeys={() => setView('keys')} demo={embedded} workspace={workspace} account={embedded ? null : readAccount()} />}
+          {view === 'settings'    && <SettingsPage sections={extensions.settingsSections} createWorkspace={embedded ? undefined : createWorkspace} createMode={createWsIntent} onCancelCreate={() => setCreateWsIntent(false)} onOpenOverview={() => setView('overview')} onOpenApiKeys={() => setView('keys')} demo={embedded} workspace={workspace} account={embedded ? null : readAccount()} onSessionRenewed={onSessionRenewed} />}
           {view === 'users'     && (embedded
             ? <UsersPage users={USERS} periodLabel="Apr 1 – Apr 30" setView={setView} setSelected={setSelected} />
             : <UsersLivePage range={range} setView={setView} setSelected={setSelected} />)}

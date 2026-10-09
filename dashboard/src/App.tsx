@@ -90,7 +90,7 @@ export default function App({ extensions = EMPTY_EXTENSIONS }: AppProps = {}) {
   return (
     <QueryProvider onUnauthorized={handleLogout}>
       <APIProvider config={{ baseUrl: apiBaseUrl(), apiKey: token }}>
-        <Onboarding><Dashboard onLogout={handleLogout} extensions={extensions} /></Onboarding>
+        <Onboarding><Dashboard onLogout={handleLogout} onSessionRenewed={(newToken) => handleLogin(newToken, localStorage.getItem(EMAIL_KEY) ?? '')} extensions={extensions} /></Onboarding>
       </APIProvider>
     </QueryProvider>
   );

@@ -115,21 +115,23 @@ describe('change password', () => {
     changePassword.mockReset();
   });
 
-  function openForm() {
-    render(<SettingsPage workspace={workspace} />);
+  function openForm(onSessionRenewed?: (token: string) => void) {
+    render(<SettingsPage workspace={workspace} onSessionRenewed={onSessionRenewed} />);
     fireEvent.click(screen.getByRole('button', { name: 'Account' }));
     fireEvent.click(screen.getByRole('button', { name: 'Change' }));
   }
 
-  it('submits the current and new password and shows confirmation', async () => {
-    changePassword.mockResolvedValue(undefined);
-    openForm();
+  it('submits the current and new password, keeps the renewed session and shows confirmation', async () => {
+    changePassword.mockResolvedValue('renewed-token');
+    const onSessionRenewed = vi.fn();
+    openForm(onSessionRenewed);
     fireEvent.change(screen.getByLabelText('Current password'), { target: { value: 'old-pass' } });
     fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'new-password' } });
     fireEvent.change(screen.getByLabelText('Confirm new password'), { target: { value: 'new-password' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save password' }));
     await waitFor(() => expect(changePassword).toHaveBeenCalledWith('old-pass', 'new-password'));
     expect(await screen.findByText('Password updated.')).toBeInTheDocument();
+    expect(onSessionRenewed).toHaveBeenCalledWith('renewed-token');
   });
 
   it('lets password managers tell the current and new password apart', () => {
