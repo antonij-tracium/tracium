@@ -1,19 +1,13 @@
-// Shared presentation helpers for anomalies (outliers): metric visual meta,
-// value formatting, the summary chip tallies, and alignment of an anomaly's
-// bucket_ms onto a chart's bucket index so it can be flagged in place.
-
 import { fmtCost, fmtNum, fmtPct, SEVERITY_META } from '../../../common';
 import type { ChartMarker } from '../../../common/interfaces';
 import type { Anomaly, AnomalyMetric, AnomalyScope, AnomalySeverity } from '../interfaces';
 
-// Metric → the noun used in copy and the short "kind" tag shown on rows/points.
 export const METRIC_META: Record<AnomalyMetric, { noun: string; kind: string }> = {
   cost: { noun: 'Cost', kind: 'Cost' },
   error_rate: { noun: 'Error rate', kind: 'Errors' },
   runs: { noun: 'Run volume', kind: 'Volume' },
 };
 
-// anomalyValue formats a metric value in its own units (USD, percent, count).
 export function anomalyValue(metric: AnomalyMetric, v: number): string {
   switch (metric) {
     case 'cost':
@@ -25,47 +19,40 @@ export function anomalyValue(metric: AnomalyMetric, v: number): string {
   }
 }
 
-// zLabel renders a signed robust z-score as e.g. "3.8σ".
 export function zLabel(score: number): string {
   return `${Math.abs(score).toFixed(1)}σ`;
 }
 
-// anomalyKey is a stable identity for one anomaly (the model carries no id),
-// used for selection and session-local dismissal.
+// The model carries no id; this one drives selection and dismissal.
 export function anomalyKey(a: Anomaly): string {
   return `${a.metric}:${a.scope}:${a.workflow}:${a.bucket_ms}`;
 }
 
 export interface AnomalyChip {
-  key: string;
+  metric: AnomalyMetric;
   label: string;
-  count: number;
   color: string;
   tint: string;
   border: string;
 }
 
-// anomalyChips tallies the outliers by kind for the summary strip. Cost and
-// error counts carry the error tint, volume the warning tint — a coarse signal
-// that mirrors which metrics are usually incidents. Zero-count kinds are dropped.
+const CHIP_DEFS: { metric: AnomalyMetric; noun: string; sev: AnomalySeverity }[] = [
+  { metric: 'cost', noun: 'cost spike', sev: 'critical' },
+  { metric: 'error_rate', noun: 'error spike', sev: 'critical' },
+  { metric: 'runs', noun: 'volume shift', sev: 'warning' },
+];
+
 export function anomalyChips(anomalies: Anomaly[]): AnomalyChip[] {
-  const count = (m: AnomalyMetric) => anomalies.filter((a) => a.metric === m).length;
-  const defs: { key: string; metric: AnomalyMetric; word: (n: number) => string; sev: AnomalySeverity }[] = [
-    { key: 'cost', metric: 'cost', word: (n) => `${n} cost spike${n === 1 ? '' : 's'}`, sev: 'critical' },
-    { key: 'errors', metric: 'error_rate', word: (n) => `${n} error spike${n === 1 ? '' : 's'}`, sev: 'critical' },
-    { key: 'runs', metric: 'runs', word: (n) => `${n} volume shift${n === 1 ? '' : 's'}`, sev: 'warning' },
-  ];
-  return defs
-    .map((d) => {
-      const n = count(d.metric);
-      const m = SEVERITY_META[d.sev];
-      return { key: d.key, label: d.word(n), count: n, color: m.color, tint: m.tint, border: m.border };
-    })
-    .filter((c) => c.count > 0);
+  const counts = new Map<AnomalyMetric, number>();
+  for (const a of anomalies) counts.set(a.metric, (counts.get(a.metric) ?? 0) + 1);
+  return CHIP_DEFS.filter((d) => counts.has(d.metric)).map((d) => {
+    const n = counts.get(d.metric)!;
+    const { color, tint, border } = SEVERITY_META[d.sev];
+    return { metric: d.metric, label: `${n} ${d.noun}${n === 1 ? '' : 's'}`, color, tint, border };
+  });
 }
 
-// bySeverity sorts anomalies most-actionable first (severity, then |score|, then
-// most recent) — the same order the API returns, re-applied after client filters.
+// Same order the API returns: severity, then |score|, then most recent.
 export function bySeverity(a: Anomaly, b: Anomaly): number {
   const s = SEVERITY_META[b.severity].rank - SEVERITY_META[a.severity].rank;
   if (s !== 0) return s;
@@ -74,22 +61,15 @@ export function bySeverity(a: Anomaly, b: Anomaly): number {
   return b.bucket_ms - a.bucket_ms;
 }
 
-// ratioLabel renders how many times the baseline the observed value is, e.g.
-// "4.6×". Returned only when a clean multiple exists (positive baseline and a
-// same-signed observed); otherwise empty, so callers can fall back to the signed
-// deviation. Small ratios keep one decimal, large ones drop it.
+// Empty when there is no clean multiple, so callers fall back to the deviation.
 export function ratioLabel(observed: number, expected: number): string {
   if (expected <= 0 || observed <= 0) return '';
   const r = observed / expected;
-  if (!Number.isFinite(r) || r <= 0) return '';
+  if (!Number.isFinite(r)) return '';
   return `${r >= 10 ? Math.round(r) : r.toFixed(1)}×`;
 }
 
-// An incident groups every anomaly that fired for the same target on the same
-// day — one workflow's bad day usually trips cost, errors and volume at once, and a
-// reviewer wants to judge that as a single event rather than three scattered
-// flags. `severity` is the worst in the group; `anomalies` is pre-sorted
-// most-actionable first.
+// Every anomaly for one target on one day; severity is the worst in the group.
 export interface Incident {
   key: string;
   scope: AnomalyScope;
@@ -99,9 +79,6 @@ export interface Incident {
   anomalies: Anomaly[];
 }
 
-// groupIncidents clusters anomalies by (scope, workflow, day) and orders the
-// incidents the same way rows are ordered: worst severity, then largest |score|,
-// then most recent. Within an incident the anomalies are sorted bySeverity.
 export function groupIncidents(anomalies: Anomaly[]): Incident[] {
   const byKey = new Map<string, Incident>();
   for (const a of anomalies) {
@@ -126,8 +103,6 @@ export function groupIncidents(anomalies: Anomaly[]): Incident[] {
   const incidents = [...byKey.values()];
   for (const inc of incidents) inc.anomalies.sort(bySeverity);
   incidents.sort((x, y) => {
-    // Compare on each incident's most-actionable anomaly (its first, after the
-    // per-incident sort above) so incident order matches the flat list order.
     const s = SEVERITY_META[y.severity].rank - SEVERITY_META[x.severity].rank;
     if (s !== 0) return s;
     const z = Math.abs(y.anomalies[0].score) - Math.abs(x.anomalies[0].score);
@@ -137,12 +112,8 @@ export function groupIncidents(anomalies: Anomaly[]): Incident[] {
   return incidents;
 }
 
-// toChartMarkers aligns already-metric-filtered anomalies onto a chart's buckets
-// by matching bucket_ms, colouring each by severity. It keeps the chart legible
-// when many buckets flag: at most one marker per bucket (the most severe), and no
-// more than `max` markers overall (the most severe) — the full counts still live
-// in the chips and the panel. Anomalies whose bucket is outside the chart window
-// (e.g. baseline-only days) are dropped. onSelect makes each flag clickable.
+// At most one marker per bucket and `max` overall, keeping the most severe;
+// anomalies outside the chart window are dropped.
 export function toChartMarkers(
   anomalies: Anomaly[],
   bucketMs: number[],
@@ -152,8 +123,6 @@ export function toChartMarkers(
   const max = opts?.max ?? 4;
   const seen = new Set<number>();
   const markers: ChartMarker[] = [];
-  // Most severe first, so the one kept per bucket (and the ones kept under the
-  // cap) are the ones worth showing.
   for (const a of [...anomalies].sort(bySeverity)) {
     const index = indexOf.get(a.bucket_ms);
     if (index === undefined || seen.has(index)) continue;

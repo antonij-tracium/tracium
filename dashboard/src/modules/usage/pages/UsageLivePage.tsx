@@ -1,25 +1,22 @@
-// UsageLivePage — the signed-in usage view, fed by the metrics API. Mirrors
-// OverviewLivePage: each section loads independently (Section handles its
-// spinner / error), and an empty workspace shows the "No usage yet" state. The
-// presentational components are shared with the demo UsagePage.
-//
-// Spend / Runs reuse the overview KPI + series endpoints; the three breakdowns
-// (models, users, workflows) have their own usage endpoints. Per-row change vs
-// the previous period comes straight from the *_prev fields the API returns.
-
 import { useState } from 'react';
-import { EmptyState, isLongRange, periodLabel, useMaxWidth, BREAKPOINTS } from '../../../common';
+import {
+  EmptyState,
+  KpiStrip,
+  Panel,
+  PanelFrame,
+  Section,
+  SectionHead,
+  isLongRange,
+  periodLabel,
+  useMaxWidth,
+  BREAKPOINTS,
+} from '../../../common';
 import type { UserId } from '../../../common/ids';
-import { Section } from '../../overview/components';
 import { useKpis, useCostSeries, useErrorSeries } from '../../overview/hooks/useMetrics';
 import {
-  SectionHead,
-  KpiStrip,
   DailyChart,
   DailyChartLegend,
   ModelsList,
-  Panel,
-  PanelFrame,
   UsageMasthead,
   Breakdown,
   TabPill,
@@ -34,6 +31,7 @@ import {
 } from '../hooks/useUsage';
 import type { UserSummary, AttributeSummary, UserUsage, AttributeUsage } from '../interfaces';
 import {
+  UNATTRIBUTED,
   toDailySeries,
   toModelSummaries,
   toWorkflowSummaries,
@@ -48,8 +46,6 @@ interface UsageLivePageProps {
   setView: (v: string) => void;
   setSelected: (updater: (prev: Record<string, string>) => Record<string, string>) => void;
 }
-
-const UNATTRIBUTED = '—';
 
 const toUserSummaries = (users: UserUsage[]): UserSummary[] =>
   users.map((t) => ({
@@ -78,11 +74,8 @@ export function UsageLivePage({ range, setView, setSelected }: UsageLivePageProp
   const [tab, setTab] = useState<BreakdownTab>('user');
   const [sortBy, setSortBy] = useState<SortKey>('cost');
 
-  // On the wide layout the models panel borrows its height from the chart beside
-  // it and scrolls; stacked, it has no sibling to match, so it grows freely.
   const stacked = useMaxWidth(BREAKPOINTS.tablet);
 
-  // The attribute view remembers which custom dimension was last picked.
   const [attrKey, setAttrKey] = useState('');
 
   const kpis = useKpis(range);
@@ -95,12 +88,11 @@ export function UsageLivePage({ range, setView, setSelected }: UsageLivePageProp
   const attrKeys = useAttributeKeys(range, attrEnabled);
 
   const attributeKeys = attrKeys.data?.items ?? [];
-  const activeAttr = attrKey || attributeKeys[0] || '';
+  const activeAttr = attributeKeys.includes(attrKey) ? attrKey : attributeKeys[0] ?? '';
   const view: BreakdownTab = tab === 'attribute' && !attrEnabled ? 'user' : tab;
   const attrUsage = useAttributeUsage(range, view === 'attribute' ? activeAttr : '');
 
   function openClient(id: string) {
-    if (!id || id === UNATTRIBUTED) return;
     setSelected((prev) => ({ ...prev, user: id }));
     setView('user');
   }
@@ -116,7 +108,6 @@ export function UsageLivePage({ range, setView, setSelected }: UsageLivePageProp
     setSortBy('cost');
   }
 
-  // Empty workspace: nothing ingested in the window — no spend and no runs.
   if (kpis.isSuccess && kpis.data.cost.value === 0 && kpis.data.runs.value === 0) {
     return (
       <EmptyState
@@ -162,34 +153,30 @@ export function UsageLivePage({ range, setView, setSelected }: UsageLivePageProp
     >
       <UsageMasthead subtitle={subtitle} updatedAt={updatedAt} />
 
-      <div style={{ paddingBottom: 8 }}>
-        <Section isLoading={kpis.isLoading} isError={kpis.isError} minHeight={90}>
-          {kpis.data && <KpiStrip items={[spendTile(kpis.data), runsTile(kpis.data), tokensTile(totalTokens)]} />}
-        </Section>
-      </div>
+      <Section isLoading={kpis.isLoading} isError={kpis.isError} minHeight={90}>
+        {kpis.data && <KpiStrip items={[spendTile(kpis.data), runsTile(kpis.data), tokensTile(totalTokens)]} />}
+      </Section>
 
-      <div style={{ marginTop: 28 }}>
-        <PanelFrame
-          left={
-            <Panel eyebrow="Spend" title="Daily spend" right={<DailyChartLegend />}>
-              <Section
-                isLoading={cost.isLoading || errors.isLoading}
-                isError={cost.isError || errors.isError}
-                minHeight={200}
-              >
-                <DailyChart series={dailySeries} />
-              </Section>
-            </Panel>
-          }
-          right={
-            <Panel eyebrow="Models" title="Where it goes" scroll={!stacked}>
-              <Section isLoading={models.isLoading} isError={models.isError} minHeight={200}>
-                <ModelsList models={modelRows} />
-              </Section>
-            </Panel>
-          }
-        />
-      </div>
+      <PanelFrame
+        left={
+          <Panel eyebrow="Spend" title={range === '24h' ? 'Hourly spend' : 'Daily spend'} right={<DailyChartLegend />}>
+            <Section
+              isLoading={cost.isLoading || errors.isLoading}
+              isError={cost.isError || errors.isError}
+              minHeight={200}
+            >
+              <DailyChart series={dailySeries} />
+            </Section>
+          </Panel>
+        }
+        right={
+          <Panel eyebrow="Models" title="Where it goes" scroll={!stacked}>
+            <Section isLoading={models.isLoading} isError={models.isError} minHeight={200}>
+              <ModelsList models={modelRows} />
+            </Section>
+          </Panel>
+        }
+      />
 
       <SectionHead
         title="Who's driving cost"

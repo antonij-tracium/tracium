@@ -1,16 +1,5 @@
-// WorkflowDetailLivePage — the signed-in workflow detail view. It fetches the workflow's
-// headline metrics, its three bounded workflow-scoped series, and a page of its
-// recent runs, then hands them to the presentational WorkflowDetailPage.
-//
-// Workflow detail is a raw-window feature (≤30d): per-workflow latency can't come from
-// the daily rollup, so the server rejects longer ranges. We short-circuit those
-// here with an explanatory state rather than firing a request that 400s.
-//
-// The configuration panel is trimmed to what spans can source (model, provider,
-// tokens) — there is no workflow-config store, so runtime params aren't shown.
-
-import type { ReactNode } from 'react';
 import {
+  Centered,
   EmptyState,
   Spinner,
   fmtNum,
@@ -28,7 +17,8 @@ import {
   useWorkflowRuns,
 } from '../hooks/useWorkflowDetail';
 import { deriveRunOutcomes } from '../utils';
-import { WorkflowDetailPage, type WorkflowConfigRow } from './WorkflowDetailPage';
+import { WorkflowDetailPage } from './WorkflowDetailPage';
+import type { MetaRowProps } from '../../../common';
 
 interface WorkflowDetailLivePageProps {
   workflowName: string;
@@ -37,27 +27,8 @@ interface WorkflowDetailLivePageProps {
   setSelected: (updater: (prev: Record<string, string>) => Record<string, string>) => void;
 }
 
-function Centered({ children }: { children: ReactNode }) {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: 320,
-        color: 'var(--muted)',
-        fontSize: 14,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
 export function WorkflowDetailLivePage({ workflowName, range, setView, setSelected }: WorkflowDetailLivePageProps) {
-  // The detail endpoint and the workflow-scoped series both reject rollup ranges,
-  // so disable the fetches at 90d/1y. Hooks are still called unconditionally
-  // (stable order) — `enabled` skips the request rather than a conditional call.
+  // The detail endpoints reject rollup ranges, so skip the requests there.
   const enabled = !isLongRange(range);
   const detail = useWorkflowDetail(workflowName, range, enabled);
   const cost = useWorkflowCostSeries(workflowName, range, enabled);
@@ -88,7 +59,7 @@ export function WorkflowDetailLivePage({ workflowName, range, setView, setSelect
   const d = detail.data;
   const { completed, failed } = deriveRunOutcomes(d.calls, d.error_rate);
 
-  const configRows: WorkflowConfigRow[] = [
+  const configRows: MetaRowProps[] = [
     { label: 'model', value: d.model || '—', mono: true },
     ...(d.provider ? [{ label: 'provider', value: d.provider }] : []),
     { label: 'input tokens', value: fmtNum(d.input_tokens), mono: true },
@@ -110,6 +81,12 @@ export function WorkflowDetailLivePage({ workflowName, range, setView, setSelect
       latencySeries={latency.data ? toLatencyPoints(latency.data.items, range) : []}
       errorSeries={errors.data ? toErrorPoints(errors.data.items, range) : []}
       runs={runs.data ? runs.data.items.map(toRunRow) : []}
+      loadErrors={{
+        cost: cost.isError && !cost.data,
+        latency: latency.isError && !latency.data,
+        errors: errors.isError && !errors.data,
+        runs: runs.isError && !runs.data,
+      }}
       setView={setView}
       setSelected={setSelected}
     />

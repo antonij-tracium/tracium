@@ -1,18 +1,3 @@
-// Outliers panel — a triage worklist, not a distribution plot. The task here is
-// to read each flagged bucket, decide (inspect the workflow, or dismiss the flag),
-// and move on, so the surface is a ranked list that stays scannable no matter how
-// many outliers there are: everything needed to judge a row is on the row, most
-// severe first, with the "why flagged" math one click away in place.
-//
-// Two views share the same rows:
-//   • List — one row per flagged bucket (design 1).
-//   • Grouped — flags for the same target on the same day collapse into one
-//     incident card (design 2); a single bad day for a workflow usually trips cost,
-//     errors and volume together, and that reads as one event.
-//
-// Selection is controlled by the page so a chart flag and this panel stay in sync
-// (clicking a marker on a chart expands the matching row / incident here).
-
 import React, { useEffect, useRef, useState } from 'react';
 import { EmptyState, useResize, bucketLabel, SEVERITY_META } from '../../../../common';
 import type { Anomaly } from '../../interfaces';
@@ -31,8 +16,7 @@ interface OutliersPanelProps {
   anomalies: Anomaly[]; // already filtered to non-dismissed
   range: string;
   dismissedCount?: number;
-  // The expanded row/incident. null means everything is collapsed (the default);
-  // a chart flag click sets it to expand + scroll the matching row into view.
+  // Controlled by the page so a chart flag can expand the matching row.
   selectedKey: string | null;
   onSelectKey: (key: string | null) => void;
   onDismiss: (a: Anomaly) => void;
@@ -251,7 +235,6 @@ function OutlierRow({
   const rowRef = useScrollIntoView<HTMLDivElement>(expanded);
   const meta = SEVERITY_META[a.severity];
   const m = METRIC_META[a.metric];
-  const dirWord = a.direction === 'spike' ? 'spike' : 'drop';
   const target = a.scope === 'workflow' ? a.workflow : 'Workspace-wide';
   const ratio = ratioLabel(a.observed, a.expected);
 
@@ -269,6 +252,7 @@ function OutlierRow({
     >
       <button
         onClick={onToggle}
+        aria-expanded={expanded}
         style={{
           width: '100%',
           display: 'flex',
@@ -284,17 +268,15 @@ function OutlierRow({
       >
         <SeverityDot severity={a.severity} size={a.severity === 'critical' ? 11 : 9} />
 
-        {/* what / where / when */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 150, flex: narrow ? '1 1 100%' : '0 0 auto' }}>
           <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--foreground)' }}>
-            {m.kind} {dirWord}
+            {m.kind} {a.direction}
           </span>
           <span style={{ fontFamily: MONO, fontSize: 13, color: 'var(--muted)' }}>
             {target} · {bucketLabel(a.bucket_ms, range)}
           </span>
         </div>
 
-        {/* observed vs baseline */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 120, flex: narrow ? '1 1 auto' : '0 0 auto', textAlign: narrow ? 'left' : 'right', marginLeft: narrow ? 0 : 'auto' }}>
           <span style={{ fontSize: 16, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: 'var(--foreground)' }}>
             {anomalyValue(a.metric, a.observed)}
@@ -305,7 +287,6 @@ function OutlierRow({
           </span>
         </div>
 
-        {/* magnitude + z */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: narrow ? '1 1 100%' : '0 0 auto', minWidth: narrow ? 0 : 150 }}>
           <MagnitudeBar score={a.score} color={meta.color} />
           <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 600, color: meta.color, fontVariantNumeric: 'tabular-nums', width: 44, textAlign: 'right' }}>
@@ -367,6 +348,7 @@ function IncidentCard({
     >
       <button
         onClick={onToggle}
+        aria-expanded={expanded}
         style={{
           width: '100%',
           display: 'flex',
@@ -385,7 +367,6 @@ function IncidentCard({
           <span style={{ fontFamily: MONO, fontSize: 13, color: 'var(--muted)' }}>{bucketLabel(incident.bucket_ms, range)}</span>
         </div>
 
-        {/* per-metric summary chips */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', flex: narrow ? '1 1 100%' : '0 1 auto' }}>
           {incident.anomalies.map((a) => (
             <MetricChip key={anomalyKey(a)} anomaly={a} />
@@ -404,14 +385,13 @@ function IncidentCard({
             <div key={anomalyKey(a)} style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'flex-start', paddingTop: 14, borderTop: `1px solid ${meta.border}` }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: '0 0 auto' }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: SEVERITY_META[a.severity].color }}>
-                  {METRIC_META[a.metric].kind} {a.direction === 'spike' ? 'spike' : 'drop'}
+                  {METRIC_META[a.metric].kind} {a.direction}
                 </span>
                 <WhyFlagged anomaly={a} />
               </div>
               <span style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.5, flex: '1 1 200px', minWidth: 180 }}>{a.summary}</span>
             </div>
           ))}
-          {/* one action bar for the whole incident */}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingTop: 2 }}>
             {workflowAnom && onInspect && (
               <button onClick={() => onInspect(workflowAnom)} style={primaryBtn}>

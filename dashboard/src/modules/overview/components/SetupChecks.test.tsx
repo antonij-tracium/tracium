@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { SetupChecks } from './SetupChecks';
 import type { SetupCheck } from '../interfaces';
 
@@ -47,7 +47,7 @@ describe('SetupChecks', () => {
   it('remembers issues muted with "Don\'t show again"', () => {
     const { unmount } = renderChecks([rejected, unmetered]);
     fireEvent.click(screen.getByText('Review'));
-    fireEvent.click(screen.getAllByText("Don't show again")[1]);
+    fireEvent.click(within(screen.getByText(unmetered.message)).getByText("Don't show again"));
     expect(screen.getByText('1 potential setup issue in the last 24 hours')).toBeTruthy();
     unmount();
 
