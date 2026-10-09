@@ -1,5 +1,5 @@
 export * from './components';
-export { fmtCost, fmtTokens, fmtNum, fmtPct, fmtMs, fmtDelta } from './utils/formatters';
+export { fmtCost, fmtTokens, fmtNum, fmtPct, fmtMs, fmtDelta, plural } from './utils/formatters';
 export { deltaParts } from './utils/deltas';
 export { relativeTime, formatDate, formatDateTime } from './utils/time';
 export { bucketLabel, toCostPoints, toLatencyPoints, toErrorPoints } from './utils/buckets';

@@ -322,7 +322,7 @@ export function Dashboard({ embedded = false, onLogout, extensions = EMPTY_EXTEN
               ? <WorkflowDetailDemoPage workflow={WORKFLOWS.find(a => a.name === selected.workflow) ?? WORKFLOWS[0]} range={range} setView={setView} setSelected={setSelected} />
               : <WorkflowDetailLivePage workflowName={selected.workflow} range={range} setView={setView} setSelected={setSelected} />)
             : (embedded
-              ? <WorkflowsPage workflows={WORKFLOWS} setView={setView} setSelected={setSelected} workspaceName={workspace?.name} />
+              ? <WorkflowsPage workflows={WORKFLOWS} range={range} setView={setView} setSelected={setSelected} workspaceName={workspace?.name} />
               : <WorkflowsLivePage range={range} setView={setView} setSelected={setSelected} workspaceName={workspace?.name} />))}
           {view === 'trace'       && (embedded
             ? <TraceDetailDashPage setView={setView} />
