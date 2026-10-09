@@ -7,18 +7,47 @@ Breaking changes require a `schema_version` bump. Additive changes do not.
 
 ## [Unreleased]
 
+---
+
+## [1.0.4] - 2026-10-09
+
 ### Added
 - Setup checks: `GET /v1/metrics/setup-checks` reports instrumentation problems (unpriced or missing models, streams without usage, LLM spans that end instantly, errors without a message, traces missing their root span, no LLM spans, workflows without `gen_ai.agent.name`, spans rejected at ingest) with how to fix each; the dashboard flags them in a banner on Overview
 - `Span.setup_issues` lists the span-level checks a span fails
 - `tracium.rejected_spans` (migration 012) counts rejected spans per workspace, hour and error code, written by the collector when `processors.tracium.dead_letter.clickhouse_dsn` is set
+- `CAPTURE_CONTENT=false` (Helm: `collector.captureContent=false`) stops the collector storing prompt and completion text
+- Helm values for pod and container security contexts, and `ingress.annotations`
 
 ### Changed
 - A span rejected for a missing ingest key is no longer attributed to the workspace its sender claimed
 - `tracium.rejected_spans` rows expire after `RETENTION_DAYS`, like spans (migration 013)
+- `POST /v1/auth/password` returns `200` with a new session token instead of `204`; changing a password, here or with the `reset-password` CLI, ends every earlier session
+- `POST /v1/workspaces/{id}/members` always adds a `member`; the `role` field is gone and ownership can't be granted
+- Auth and entitlement failures return the JSON `ErrorResponse`; a session that can't be verified because Postgres is unavailable gets `503 UNAVAILABLE` instead of `401`
+- Login takes the same time whether or not the email has an account
+- Metrics endpoints other than the series reject the `workflow` filter, and attribute usage rejects ranges longer than 30d
+- The API shares one Postgres pool and runs its migrations once at startup; an invalid number in `AUTH_RATE_LIMIT_PER_MINUTE` or `AUTH_VERIFY_RATE_LIMIT_PER_MINUTE` fails startup
+- All images run as a non-root user: uid 10001, or `nginx-unprivileged`'s uid 101 for the dashboard. `docker compose up` hands an existing collector queue volume to the collector's user
+- The migrate image contains the schema migrations, so Compose no longer mounts `collector/schema`
+- Images build with Go 1.26 and Node 24, matching CI
+- Helm: ClickHouse probes use its HTTP `/ping`, an empty `storageClass` uses the cluster default, and the collector no longer receives unused env vars
+- Dashboard: shared stat tiles, KPI strip and formatters; trend arrows are colored by whether the change is good or bad; large traces render faster; dialogs trap focus and close on Escape; pages recover from a crash on navigation
 
 ### Fixed
 - `span.json` documents `workspace_id` as set from the verified ingest key and `model_normalized` as lower-cased only, with no alias resolution
 - `span.json` lists `workflow_name`, `service_name`, `source` and `attributes`, and `available_tools` names `gen_ai.tool.definitions` as a source
+- Workspace role casing, a `500` when revoking an API key, case-sensitive member email lookup, and readiness errors that leaked internal details
+- The collector keeps the unmetered flag without content capture, matches `allowed_models` case-insensitively, treats permanent row errors as permanent, and prices Haiku 4.5
+- Collector key verification no longer fails waiting requests when the coalescing request is cancelled, and serves stale keys to rate-limited senders
+- The dashboard clears cached data on logout, reads daily chart dates in UTC, shows `$0.00` costs, and keeps data when a poll fails
+- Workflow detail no longer shows another workflow's or workspace's numbers while loading, and its failure count matches the stats
+- Usage and Clients: unattributed spend can't be opened as a client, a stale attribute key falls back to a valid one, and cost and runs pair by bucket time
+- Signup asks for 8+ characters, matching the API
+- Helm creates Postgres data in a subdirectory on new volumes and restarts pods when their config changes
+
+### Removed
+- `auth.mode=none` (`AUTH_MODE=none`); the API always requires authentication
+- Unused API config: `server.health_addr`, `auth.token_header` and the `telemetry` section (`log_level`, `log_format` and the `LOG_LEVEL` / `LOG_FORMAT` env vars)
 
 ---
 

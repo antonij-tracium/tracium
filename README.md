@@ -1,4 +1,9 @@
-# Tracium
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/tracium-logo-dark.svg">
+    <img alt="Tracium" src="docs/assets/tracium-logo-light.svg" height="44">
+  </picture>
+</h1>
 
 **Open-source, self-hosted LLM observability.** Tracium is an OpenTelemetry-native
 backend for LLM apps: point any OTel-instrumented app at it and get accurate cost, token,
