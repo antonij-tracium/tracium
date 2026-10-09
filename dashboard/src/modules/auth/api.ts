@@ -1,4 +1,4 @@
-import { APIError } from '../../common/api/client';
+import { apiBaseUrl, APIError } from '../../common/api/client';
 
 export interface LoginRequest {
   email: string;
@@ -39,8 +39,7 @@ export function requestErrorMessage(err: unknown, byStatus: Record<number, strin
 
 /** Calls an endpoint that needs no session, throwing AuthError on failure. */
 export async function publicRequest(path: string, init: RequestInit, failureLabel: string): Promise<Response> {
-  const base = import.meta.env.VITE_API_URL || window.location.origin;
-  const response = await fetch(`${base}${path}`, init);
+  const response = await fetch(`${apiBaseUrl()}${path}`, init);
 
   if (!response.ok) {
     let message = `${failureLabel} (${response.status})`;

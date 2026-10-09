@@ -132,6 +132,13 @@ describe('change password', () => {
     expect(await screen.findByText('Password updated.')).toBeInTheDocument();
   });
 
+  it('lets password managers tell the current and new password apart', () => {
+    openForm();
+    expect(screen.getByLabelText('Current password')).toHaveAttribute('autocomplete', 'current-password');
+    expect(screen.getByLabelText('New password')).toHaveAttribute('autocomplete', 'new-password');
+    expect(screen.getByLabelText('Confirm new password')).toHaveAttribute('autocomplete', 'new-password');
+  });
+
   it('rejects a mismatched confirmation without calling the API', () => {
     openForm();
     fireEvent.change(screen.getByLabelText('Current password'), { target: { value: 'old-pass' } });

@@ -1,9 +1,10 @@
 import type { AuthAppearance } from '../../../extensions';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AuthShell, AuthButton } from '../../auth/components';
 import { formatDate } from '../../../common';
 import { requestErrorMessage } from '../../auth/api';
-import { APIError, WorkspacesAPI } from '../../../common/api';
+import { apiBaseUrl, APIError, WorkspacesAPI } from '../../../common/api';
 import { previewInvite, type InvitePreview } from '../api';
 import styles from '../../auth/pages/LoginPage.module.css';
 
@@ -36,6 +37,7 @@ export default function InvitePage({ token, appearance, session, onAccepted, onD
   const [load, setLoad] = useState<Load>({ state: 'loading' });
   const [accepting, setAccepting] = useState(false);
   const [acceptError, setAcceptError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     let cancelled = false;
@@ -52,8 +54,9 @@ export default function InvitePage({ token, appearance, session, onAccepted, onD
     setAccepting(true);
     setAcceptError(null);
     try {
-      const api = new WorkspacesAPI({ baseUrl: import.meta.env.VITE_API_URL || window.location.origin, apiKey: session.token });
+      const api = new WorkspacesAPI({ baseUrl: apiBaseUrl(), apiKey: session.token });
       const { workspace_id } = await api.acceptInvite(token);
+      navigate('/', { replace: true });
       onAccepted?.(workspace_id);
     } catch (err) {
       const code = err instanceof APIError ? err.code : undefined;
@@ -74,7 +77,15 @@ export default function InvitePage({ token, appearance, session, onAccepted, onD
   };
 
   const dismiss = onDismiss && (
-    <AuthButton variant="secondary" onClick={onDismiss}>{session ? 'Go to dashboard' : 'Dismiss'}</AuthButton>
+    <AuthButton
+      variant="secondary"
+      onClick={() => {
+        navigate(session ? '/' : '/login', { replace: true });
+        onDismiss();
+      }}
+    >
+      {session ? 'Go to dashboard' : 'Dismiss'}
+    </AuthButton>
   );
 
   if (load.state === 'loading') {
@@ -120,7 +131,16 @@ export default function InvitePage({ token, appearance, session, onAccepted, onD
             <div role="alert" className={styles.errorBanner}>
               You’re signed in as <strong>{session.email}</strong>, but this invite is for <strong>{invite.email}</strong>. Sign out and sign in with that address to accept.
             </div>
-            {onSignOut && <AuthButton onClick={onSignOut}>Sign out</AuthButton>}
+            {onSignOut && (
+              <AuthButton
+                onClick={() => {
+                  onSignOut();
+                  navigate(`/invite/${encodeURIComponent(token)}`, { replace: true });
+                }}
+              >
+                Sign out
+              </AuthButton>
+            )}
             {dismiss}
           </>
         )}

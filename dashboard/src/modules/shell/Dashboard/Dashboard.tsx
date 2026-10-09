@@ -12,14 +12,13 @@ import { UsersPage, UsersLivePage, UserDetailPage, UsagePage, UsageLivePage, USE
 import { UserDetailLivePage } from '../../usage/pages/UserDetailLivePage';
 import { ApiKeysPage } from '../../api-keys';
 import { SettingsPage } from '../../settings';
-import { EmptyState, useMaxWidth, BREAKPOINTS } from '../../../common';
-import { readAccount } from '../../auth';
+import { EmptyState, ErrorBoundary, Centered, Spinner, useMaxWidth, BREAKPOINTS } from '../../../common';
+import { readAccount, REDIRECT_KEY, WORKSPACE_KEY, VIEW_KEY, RANGE_KEY } from '../../auth';
 import { createDemoWorkspace } from '../data';
 import { useWorkspaces } from '../hooks/useWorkspaces';
 import type { Workspace, BreadcrumbItem, CommandAction } from '../interfaces';
-import type { ViewId } from '../ids';
+import { VIEW_IDS, type ViewId } from '../ids';
 import { stateToPath, pathToState, type NavState } from '../routing';
-import { REDIRECT_KEY } from '../../auth';
 
 export interface DashboardProps {
   extensions?: DashboardExtensions;
@@ -29,6 +28,7 @@ export interface DashboardProps {
 }
 
 const VIEWS_WITH_RANGE: ViewId[] = ['overview', 'workflows', 'usage', 'users', 'user'];
+const NO_PAGES: readonly ExtensionPage[] = [];
 
 function WorkspaceEmptyState({ onCreate }: { onCreate: () => void }) {
   return (
@@ -87,14 +87,14 @@ function computeInitialNav(persist: boolean, pages: readonly ExtensionPage[]): N
     if (fromRedirect) return fromRedirect;
   }
 
-  const stored = localStorage.getItem('tracium_view') as ViewId | null;
-  const valid = stored && (pages.some(p => p.id === stored) || ['overview','workflows','trace','usage','keys','settings','users','user'].includes(stored));
-  return { view: valid ? stored : 'overview', selected: {} };
+  const stored = localStorage.getItem(VIEW_KEY);
+  const valid = stored && (pages.some(p => p.id === stored) || (VIEW_IDS as readonly string[]).includes(stored));
+  return { view: valid ? (stored as ViewId) : 'overview', selected: {} };
 }
 
 export function Dashboard({ embedded = false, onLogout, extensions = EMPTY_EXTENSIONS }: DashboardProps = {}) {
   validateExtensions(extensions);
-  const pages = extensions.pages ?? [];
+  const pages = extensions.pages ?? NO_PAGES;
   const persist = !embedded;
 
   const initialNavRef = useRef<NavState | null>(null);
@@ -105,25 +105,23 @@ export function Dashboard({ embedded = false, onLogout, extensions = EMPTY_EXTEN
 
   const [view, setViewRaw] = useState<ViewId>(initialNav.view);
   const [range, setRangeRaw] = useState(
-    () => (persist ? localStorage.getItem('tracium_range') : null) ?? '7d',
+    () => (persist ? localStorage.getItem(RANGE_KEY) : null) ?? '7d',
   );
   const [selected, setSelected] = useState<Record<string, string>>(initialNav.selected);
 
   const demoWorkspace = useMemo(() => createDemoWorkspace(), []);
-  const { workspaces: serverWorkspaces, isLoading: wsLoading, createWorkspace: apiCreate, deleteWorkspace: apiDelete } =
-    useWorkspaces(persist);
+  const {
+    workspaces: serverWorkspaces,
+    isLoading: wsLoading,
+    isError: wsError,
+    createWorkspace: apiCreate,
+    deleteWorkspace: apiDelete,
+  } = useWorkspaces(persist);
   const workspaces: Workspace[] = persist ? serverWorkspaces : [demoWorkspace];
-
-  const [workspace, setWorkspace] = useState<Workspace | null>(() =>
-    persist ? null : demoWorkspace,
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState(() =>
+    persist ? localStorage.getItem(WORKSPACE_KEY) : null,
   );
-  const wsInitialized = useRef(false);
-  useEffect(() => {
-    if (!persist || wsInitialized.current || wsLoading) return;
-    wsInitialized.current = true;
-    const id = localStorage.getItem('tracium_ws');
-    setWorkspace(serverWorkspaces.find((w) => w.id === id) ?? serverWorkspaces[0] ?? null);
-  }, [persist, wsLoading, serverWorkspaces]);
+  const workspace = workspaces.find((w) => w.id === selectedWorkspaceId) ?? workspaces[0] ?? null;
 
   // Query keys include workspaceId, so this alone refetches with the rebuilt
   // clients; manual invalidation would race the rebuild.
@@ -140,15 +138,15 @@ export function Dashboard({ embedded = false, onLogout, extensions = EMPTY_EXTEN
   const setView = (v: string) => {
     setViewRaw(v as ViewId);
     if (v !== 'settings') setCreateWsIntent(false);
-    if (persist) localStorage.setItem('tracium_view', v);
+    if (persist) localStorage.setItem(VIEW_KEY, v);
   };
   const setRange = (r: string) => {
     setRangeRaw(r);
-    if (persist) localStorage.setItem('tracium_range', r);
+    if (persist) localStorage.setItem(RANGE_KEY, r);
   };
-  const updateWorkspace = (ws: Workspace) => {
-    setWorkspace(ws);
-    if (persist) localStorage.setItem('tracium_ws', ws.id);
+  const selectWorkspace = (ws: Workspace) => {
+    setSelectedWorkspaceId(ws.id);
+    if (persist) localStorage.setItem(WORKSPACE_KEY, ws.id);
   };
   const goCreateWorkspace = () => {
     setCreateWsIntent(true);
@@ -156,19 +154,12 @@ export function Dashboard({ embedded = false, onLogout, extensions = EMPTY_EXTEN
   };
   const createWorkspace = async (input: { name: string; slug: string; env: Workspace['env'] }) => {
     const ws = await apiCreate(input);
-    updateWorkspace(ws);
+    selectWorkspace(ws);
     setCreateWsIntent(false);
     return ws;
   };
   const deleteWorkspace = async (id: string) => {
-    if (!persist) return;
-    const fallback = workspaces.find((w) => w.id !== id) ?? null;
-    await apiDelete(id);
-    if (workspace?.id === id) {
-      setWorkspace(fallback);
-      if (fallback) localStorage.setItem('tracium_ws', fallback.id);
-      else localStorage.removeItem('tracium_ws');
-    }
+    if (persist) await apiDelete(id);
   };
 
   useEffect(() => {
@@ -183,30 +174,26 @@ export function Dashboard({ embedded = false, onLogout, extensions = EMPTY_EXTEN
     return () => window.removeEventListener('keydown', onKey);
   }, [embedded]);
 
-  // Mirror navigation onto history so Back works and URLs are shareable.
-  // popRef skips re-pushing a state that came from popstate; histInit makes
-  // the first view replace the current entry.
-  const popRef = useRef(false);
+  // Mirror navigation onto history so Back works and URLs are shareable. The
+  // first view, and any state already at the current path (a popstate, or a
+  // StrictMode re-run), replaces the entry instead of pushing a duplicate.
   const histInit = useRef(false);
-
   useEffect(() => {
     if (!persist) return;
-    if (popRef.current) {
-      popRef.current = false;
-      return;
-    }
     const entry = { tracium: true, view, selected };
     const path = stateToPath(view, selected, pages);
+    if (histInit.current && path !== window.location.pathname) {
+      window.history.pushState(entry, '', path);
+    } else {
+      window.history.replaceState(entry, '', path);
+    }
     if (!histInit.current) {
       histInit.current = true;
-      // A deep link stashed before login has now been applied to the initial
-      // view; drop it so it can't override a later in-app navigation.
+      // The deep link stashed before login has been applied; drop it so it
+      // can't override a later visit.
       sessionStorage.removeItem(REDIRECT_KEY);
-      window.history.replaceState(entry, '', path);
-    } else {
-      window.history.pushState(entry, '', path);
     }
-  }, [view, selected, persist]);
+  }, [view, selected, persist, pages]);
 
   useEffect(() => {
     if (!persist) return;
@@ -219,15 +206,14 @@ export function Dashboard({ embedded = false, onLogout, extensions = EMPTY_EXTEN
         if (!parsed) return;
         s = { tracium: true, view: parsed.view, selected: parsed.selected };
       }
-      popRef.current = true;
       setViewRaw(s.view!);
       setSelected(s.selected ?? {});
-      localStorage.setItem('tracium_view', s.view!);
+      localStorage.setItem(VIEW_KEY, s.view!);
       if (s.view !== 'settings') setCreateWsIntent(false);
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
-  }, [persist]);
+  }, [persist, pages]);
 
   const breadcrumb = useMemo((): BreadcrumbItem[] => {
     const page = pages.find(p => p.id === view);
@@ -277,7 +263,7 @@ export function Dashboard({ embedded = false, onLogout, extensions = EMPTY_EXTEN
         setView={setView}
         workspace={workspace}
         workspaces={workspaces}
-        setWorkspace={updateWorkspace}
+        setWorkspace={selectWorkspace}
         createWorkspace={goCreateWorkspace}
         deleteWorkspace={deleteWorkspace}
         embedded={embedded}
@@ -301,16 +287,20 @@ export function Dashboard({ embedded = false, onLogout, extensions = EMPTY_EXTEN
           setRange={setRange}
           showRange={VIEWS_WITH_RANGE.includes(view)}
           onOpenCmd={() => setCmdOpen(true)}
-          workspace={workspace}
-          setWorkspace={updateWorkspace}
-          setView={setView}
           embedded={embedded}
           showMenu={isMobileNav}
           onOpenNav={() => setNavOpen(true)}
         />
         <div style={embedded ? { flex: 1, minHeight: 0, overflow: 'auto' } : { flex: 1 }}>
+          <ErrorBoundary key={view}>
           {!workspace && view !== 'settings' && (!activePage || activePage.requiresWorkspace) ? (
-            <WorkspaceEmptyState onCreate={goCreateWorkspace} />
+            wsLoading ? (
+              <Centered><Spinner /></Centered>
+            ) : wsError ? (
+              <EmptyState message="Could not load your workspaces" description="Check your connection and reload the page." />
+            ) : (
+              <WorkspaceEmptyState onCreate={goCreateWorkspace} />
+            )
           ) : (
           <>
           {Page && <Page workspace={workspace} navigate={setView} />}
@@ -342,6 +332,7 @@ export function Dashboard({ embedded = false, onLogout, extensions = EMPTY_EXTEN
             : <UserDetailLivePage userId={selected.user || ''} range={range} setView={setView} setSelected={setSelected} />)}
           </>
           )}
+          </ErrorBoundary>
         </div>
       </main>
 
