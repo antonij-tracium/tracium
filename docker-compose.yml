@@ -66,6 +66,7 @@ services:
     environment:
       CLICKHOUSE_DSN: clickhouse://default:${CLICKHOUSE_PASSWORD:?set CLICKHOUSE_PASSWORD in .env}@clickhouse:9000/tracium
       PRICING_STATIC_PATH: /etc/tracium/pricing.json
+      CAPTURE_CONTENT: ${CAPTURE_CONTENT:-true}
       INGEST_VERIFY_URL: http://api:8090/v1/ingest/keys/verify
     volumes:
       - ./spec/pricing/pricing.json:/etc/tracium/pricing.json:ro
