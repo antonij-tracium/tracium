@@ -1,24 +1,11 @@
 import type { ExtensionPage } from '../../extensions';
 import type { ViewId } from './ids';
 
-/**
- * Bidirectional mapping between the dashboard's in-memory navigation state
- * (a `view` plus a `selected` record holding the active entity id) and a real
- * URL pathname. This is what makes pages linkable: a user can copy the address
- * bar for a trace/user/workflow and send it to someone, and the recipient lands
- * on the same page.
- *
- * Detail entity ids (trace id, user id, workflow name) can contain characters
- * that are unsafe in a path segment, so they are percent-encoded here and
- * decoded on the way back.
- */
-
 export interface NavState {
   view: ViewId;
   selected: Record<string, string>;
 }
 
-/** Build the URL pathname for a given navigation state. */
 export function stateToPath(view: ViewId, selected: Record<string, string>, pages: readonly ExtensionPage[] = []): string {
   if (pages.some(page => page.id === view)) return `/extensions/${view.slice(10)}`;
   const enc = (v: string) => encodeURIComponent(v);
@@ -35,10 +22,6 @@ export function stateToPath(view: ViewId, selected: Record<string, string>, page
   }
 }
 
-/**
- * Parse a URL pathname back into navigation state. Returns null for paths that
- * don't correspond to a known view, so callers can fall back to a default.
- */
 export function pathToState(pathname: string, pages: readonly ExtensionPage[] = []): NavState | null {
   const page = pages.find(page => pathname === `/extensions/${page.id.slice(10)}`);
   if (page) return { view: page.id, selected: {} };

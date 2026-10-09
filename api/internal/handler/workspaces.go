@@ -138,15 +138,10 @@ func (h *WorkspaceHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxWorkspaceBody)
 	var body struct {
 		Email string `json:"email"`
-		Role  string `json:"role"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Email == "" {
 		respondError(w, http.StatusBadRequest, "BAD_REQUEST", "email is required")
 		return
-	}
-	role := workspace.RoleMember
-	if body.Role == workspace.RoleOwner {
-		role = workspace.RoleOwner
 	}
 	member, err := h.users.ByEmail(r.Context(), auth.NormalizeEmail(body.Email))
 	if err != nil {
@@ -165,12 +160,9 @@ func (h *WorkspaceHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 		if invited {
 			feature = MemberAddFeature
 		}
-		if denial := checkMemberEntitlement(ctx, h.entitlements, extension.Subject{UserID: userID, WorkspaceID: workspaceID}, feature); denial != nil {
-			return denial
-		}
-		return nil
+		return checkMemberEntitlement(ctx, h.entitlements, extension.Subject{UserID: userID, WorkspaceID: workspaceID}, feature)
 	}
-	if err := h.store.GrantMember(r.Context(), workspaceID, member.ID, role, allow); err != nil {
+	if err := h.store.GrantMember(r.Context(), workspaceID, member.ID, allow); err != nil {
 		var denial *entitlementDenial
 		if errors.As(err, &denial) {
 			denial.respond(w)

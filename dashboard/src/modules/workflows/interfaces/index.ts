@@ -1,3 +1,3 @@
 export type { Workflow } from './Workflow';
-export type { WorkflowMeta, WorkflowTool } from './WorkflowMeta';
+export type { WorkflowMeta } from './WorkflowMeta';
 export type { WorkflowDetail } from './WorkflowDetail';

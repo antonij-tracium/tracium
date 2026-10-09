@@ -50,10 +50,11 @@ OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
 OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer YOUR_API_KEY"
 ```
 
-The key both authenticates the sender and decides which workspace the telemetry
-lands in, so you do not set a workspace attribute. Ingest is key-only: a request
+The key authenticates the sender and decides which workspace the telemetry lands
+in, so senders set no workspace attribute. Every OTLP request needs one: a request
 with no key, or an unknown or revoked one, is rejected with 401 and nothing is
-stored.
+stored. Keys can also be issued with `POST /v1/workspaces/{id}/api-keys`; see
+[securing the collector](deploy/docs/collector-auth.md).
 
 ### Works with
 
@@ -88,10 +89,6 @@ cd examples/node && npm install
 TRACIUM_API_KEY=trc_... npm start
 ```
 
-Compose binds published ports to loopback. The dashboard uses its own origin for
-API requests, so it also works through a reverse proxy without rebuilding the
-frontend.
-
 **Want data to look at right away?** With the stack up, seed a demo account,
 workspaces, and ~1,500 realistic traces in one command (requires Node.js 18+):
 
@@ -101,10 +98,6 @@ cd dashboard && npm run seed
 
 Then sign in at http://localhost:3000 with `demo@tracium.ai` / `tracium-demo-1234`.
 See [dashboard/README.md](dashboard/README.md#seed-demo-data) for options.
-
-> OTLP ingest **requires a per-workspace API key** on every request; there is no
-> anonymous path. Keeping the ports on a trusted network is still sound defense in
-> depth. See [securing the collector](deploy/docs/collector-auth.md).
 
 ## Architecture
 
@@ -134,6 +127,9 @@ Each directory has its own `README.md` with the details.
 
 - **`JWT_SECRET` is required.** It signs and verifies auth tokens with one key, so
   generate a unique one per deployment (`openssl rand -hex 32`).
+- **Network:** Compose binds published ports to `127.0.0.1`. The dashboard sends
+  API requests to its own origin, so it works behind a reverse proxy without
+  rebuilding the frontend.
 - **Retention:** `RETENTION_DAYS` (default 90; `0` keeps data forever).
 - **Cost allocation:** any custom OTLP attribute your apps attach (e.g. `team`,
   `user.id`, `environment`) is retained and becomes a dimension you can allocate
@@ -156,14 +152,7 @@ Helm chart in [`deploy/helm/tracium`](deploy/helm/tracium/); steps in
 ## Scope and upgrades
 
 Live traces, overview metrics, per-client usage, workspace creation, and
-workspace access checks are available. Ingest requires a per-workspace API key
-on every request. Issue keys from the dashboard's API-keys screen or via
-`POST /v1/workspaces/{id}/api-keys`; the collector's `traciumauth` authenticator
-verifies each one and rejects anything unknown or revoked
-([securing the collector](deploy/docs/collector-auth.md)). A key is bound to one
-workspace and is the source of truth for where its telemetry lands: the collector
-stamps the key's workspace onto every span, so senders don't set a workspace
-attribute at all.
+workspace access checks are available.
 
 Workspace owners invite teammates by email from **Settings → Members** (or
 `POST /v1/workspaces/{id}/invites`). Tracium doesn't send email: the owner gets a

@@ -72,7 +72,7 @@ func newRouter(cfg Config, repo query.Repository, wsStore workspace.Store, invit
 		r.Post(version.Route(version.V1, "/ingest/keys/verify"), apiKeyHandler.Verify)
 	})
 
-	// Workspace routes — auth only (no tenant required; workspaces are per-user).
+	// Account and workspace routes.
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.Auth(authenticator))
 		// Self-service password change for the signed-in user. Unlike register/login
@@ -114,10 +114,8 @@ func newRouter(cfg Config, repo query.Repository, wsStore workspace.Store, invit
 		}
 	}
 
-	// Authenticated routes.
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.Auth(authenticator))
-		r.Use(middleware.RequireTenant())
 		// Telemetry reads pass through the entitlements provider for the caller;
 		// the default provider allows them.
 		r.Use(services.Gate("telemetry.read"))

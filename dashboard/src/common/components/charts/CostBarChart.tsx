@@ -68,7 +68,6 @@ export function CostBarChart({ series, height = 220, markers = [] }: CostBarChar
               onMouseLeave={() => setHover(null)}
               style={{ cursor: 'pointer' }}
             >
-              {/* invisible hit area */}
               <rect
                 x={pad.left + i * gap}
                 y={pad.top}

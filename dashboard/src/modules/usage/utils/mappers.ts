@@ -1,5 +1,4 @@
-import type { Kpi, CostBucket, ErrorBucket } from '../../overview/interfaces';
-import type { DeltaTone } from '../components';
+import type { CostBucket, ErrorBucket } from '../../overview/interfaces';
 import type {
   DailySeriesPoint,
   ModelCost,
@@ -7,6 +6,8 @@ import type {
   WorkflowUsage,
   WorkflowSummary,
 } from '../interfaces';
+
+export const UNATTRIBUTED = '—';
 
 // Bar colors for the models list, cycled in rank order (highest spend first).
 const MODEL_COLORS = ['var(--accent)', '#7aa5ff', '#c08aff', '#f5a524', '#6366f1', '#34d399'];
@@ -17,22 +18,13 @@ function bucketLabel(ms: number, range: string): string {
   return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
 }
 
-// Split a Kpi into the strip's display delta + tone. Neutral (no baseline) shows
-// no delta chip, matching OverviewLivePage's deltaParts.
-export function deltaParts(k: Kpi): { delta: string; deltaTone: DeltaTone } {
-  if (k.delta_type === 'neutral') return { delta: '', deltaTone: 'neutral' };
-  const pct = Math.round(Math.abs(k.delta) * 1000) / 10;
-  return { delta: `${k.delta >= 0 ? '+' : '-'}${pct}%`, deltaTone: k.delta_type };
-}
-
-// Zip cost-per-bucket with runs-per-bucket (ErrorBucket.total) by index — both
-// series share the same gap-free bucket axis, so positions line up.
+// Runs per bucket come from the error series' totals.
 export function toDailySeries(cost: CostBucket[], errors: ErrorBucket[], range: string): DailySeriesPoint[] {
-  return cost.map((c, i) => ({
-    day: i + 1,
+  const runs = new Map(errors.map((e) => [e.bucket_ms, e.total]));
+  return cost.map((c) => ({
     label: bucketLabel(c.bucket_ms, range),
     cost: c.value,
-    runs: errors[i]?.total ?? 0,
+    runs: runs.get(c.bucket_ms) ?? 0,
   }));
 }
 
