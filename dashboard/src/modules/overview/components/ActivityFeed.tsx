@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { IconDot } from '../../../common';
 import type { TraceId } from '../../../common/ids';
 import hover from '../../../common/styles/hover.module.css';
@@ -11,15 +11,9 @@ interface ActivityFeedProps {
 }
 
 export function ActivityFeed({ items, onSelectTrace }: ActivityFeedProps) {
-  // Pausing freezes the list so a row can be read without it scrolling away.
-  const [paused, setPaused] = useState(false);
-  const [frozen, setFrozen] = useState(items);
-
-  useEffect(() => {
-    if (!paused) setFrozen(items);
-  }, [items, paused]);
-
-  const display = paused ? frozen : items;
+  const [frozen, setFrozen] = useState<ActivityItem[] | null>(null);
+  const paused = frozen !== null;
+  const display = frozen ?? items;
 
   return (
     <div>
@@ -29,7 +23,7 @@ export function ActivityFeed({ items, onSelectTrace }: ActivityFeedProps) {
         subtitle="Real-time trace events"
         right={
           <button
-            onClick={() => setPaused((p) => !p)}
+            onClick={() => setFrozen((f) => (f ? null : items))}
             style={{
               display: 'flex',
               alignItems: 'center',

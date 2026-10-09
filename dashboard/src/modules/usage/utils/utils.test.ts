@@ -10,10 +10,18 @@ const kpis: KpiSet = {
 };
 
 describe('toDailySeries', () => {
-  it('pairs cost and run buckets by position', () => {
+  it('pairs cost and run buckets by timestamp', () => {
     const day = Date.UTC(2026, 8, 24);
-    const series = toDailySeries([{ bucket_ms: day, value: 2 }], [{ bucket_ms: day, total: 7, errors: 1 }], '7d');
-    expect(series).toEqual([{ day: 1, label: '9/24', cost: 2, runs: 7 }]);
+    const next = Date.UTC(2026, 8, 25);
+    const series = toDailySeries(
+      [{ bucket_ms: day, value: 2 }, { bucket_ms: next, value: 3 }],
+      [{ bucket_ms: next, total: 7, errors: 1 }],
+      '7d',
+    );
+    expect(series).toEqual([
+      { label: '9/24', cost: 2, runs: 0 },
+      { label: '9/25', cost: 3, runs: 7 },
+    ]);
   });
 
   it('labels hourly buckets on 24h', () => {
