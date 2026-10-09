@@ -455,7 +455,7 @@ export interface paths {
         put?: never;
         /**
          * Change the signed-in user's password
-         * @description Verifies the current password and replaces it. Requires a login token. There is no email-based reset in the OSS build; operators reset a forgotten password with the API image's `reset-password` CLI.
+         * @description Verifies the current password and replaces it. Requires a login token. Every session issued before the change ends, including the caller's; the response carries the caller's new token. There is no email-based reset in the OSS build; operators reset a forgotten password with the API image's `reset-password` CLI, which also ends existing sessions.
          */
         post: operations["changePassword"];
         delete?: never;
@@ -523,7 +523,7 @@ export interface paths {
         put?: never;
         /**
          * Add a member
-         * @description Grants another account access to the workspace, named by email. Owner only. The member can then read the workspace's telemetry. Consults the `workspaces.members.add` entitlement for the workspace; the default provider allows it.
+         * @description Grants another account access to the workspace, named by email. Owner only. The account joins as a `member`; ownership cannot be granted. The member can then read the workspace's telemetry. Consults the `workspaces.members.add` entitlement for the workspace; the default provider allows it.
          */
         post: operations["addWorkspaceMember"];
         delete?: never;
@@ -759,11 +759,6 @@ export interface components {
              * @description The account to grant access to.
              */
             email: string;
-            /**
-             * @default member
-             * @enum {string}
-             */
-            role: "owner" | "member";
         };
         WorkspaceMember: {
             user_id: string;
@@ -2175,12 +2170,14 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Password changed. */
-            204: {
+            /** @description Password changed. Use the returned token from now on. */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Token"];
+                };
             };
             /** @description Missing fields (`MISSING_FIELDS`) or a new password outside 8–72 bytes (`INVALID_PASSWORD_FORMAT`). */
             400: {
