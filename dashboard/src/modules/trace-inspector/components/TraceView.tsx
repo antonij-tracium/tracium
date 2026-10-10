@@ -1,5 +1,6 @@
 import React, { memo, useCallback, useMemo, useState } from 'react';
 import {
+  IconUser,
   IconX,
   MetaRow,
   SetupIssueNote,
@@ -275,6 +276,25 @@ function HeaderButton({ children, primary, onClick }: { children: React.ReactNod
   );
 }
 
+function ClientChip({ id, onOpen }: { id: string; onOpen?: (id: string) => void }) {
+  const style: React.CSSProperties = {
+    display: 'inline-flex', alignItems: 'center', gap: 6, maxWidth: '100%',
+    padding: '3px 10px 3px 8px', borderRadius: 999,
+    border: '1px solid var(--border)', background: 'var(--surface)',
+    fontSize: 13, fontFamily: 'inherit', color: 'var(--muted)',
+  };
+  const content = (
+    <>
+      <IconUser size={13} />
+      <span>Client</span>
+      <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{id}</span>
+    </>
+  );
+  return onOpen
+    ? <button type="button" title="Open client" onClick={() => onOpen(id)} style={{ ...style, cursor: 'pointer' }}>{content}</button>
+    : <span style={style}>{content}</span>;
+}
+
 export function TraceView({ trace: t, setView, onOpenUser }: TraceViewProps) {
   // A zero-duration trace would divide by zero in the timeline math.
   const totalDuration = t.duration || 1;
@@ -373,26 +393,12 @@ export function TraceView({ trace: t, setView, onOpenUser }: TraceViewProps) {
             ))}
           </div>
           <h1 style={{ fontSize: 26, fontWeight: 600, letterSpacing: '-0.02em', margin: '0 0 6px', color: 'var(--foreground)' }}>{t.workflow}</h1>
-          {t.user && (
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, fontSize: 13.5, color: 'var(--muted)', marginBottom: 4 }}>
-              <span>Client</span>
-              {onOpenUser ? (
-                <button
-                  onClick={() => onOpenUser(t.user!)}
-                  title="Open client"
-                  style={{
-                    padding: 0, border: 'none', background: 'none', cursor: 'pointer',
-                    fontSize: 'inherit', fontFamily: 'var(--font-mono)', color: 'var(--accent)',
-                  }}
-                >{t.user}</button>
-              ) : (
-                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--foreground)' }}>{t.user}</span>
+          {(t.startedAt || t.user) && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px 14px', flexWrap: 'wrap', fontSize: 13.5, color: 'var(--muted)' }}>
+              {t.startedAt && (
+                <span>{t.startedAt}{t.endedAt && <> <span style={{ opacity: 0.4 }}>→</span> {t.endedAt}</>}</span>
               )}
-            </div>
-          )}
-          {t.startedAt && (
-            <div style={{ fontSize: 13.5, color: 'var(--muted)' }}>
-              {t.startedAt}{t.endedAt && <> <span style={{ opacity: 0.4 }}>→</span> {t.endedAt}</>}
+              {t.user && <ClientChip id={t.user} onOpen={onOpenUser} />}
             </div>
           )}
         </div>
