@@ -325,7 +325,7 @@ export function Dashboard({ embedded = false, onLogout, onSessionRenewed, extens
             ? <UsagePage />
             : <UsageLivePage range={range} setView={setView} setSelected={setSelected} />)}
           {view === 'keys'        && <ApiKeysPage demo={embedded} workspaceId={workspace?.id} />}
-          {view === 'settings'    && <SettingsPage sections={extensions.settingsSections} createWorkspace={embedded ? undefined : createWorkspace} createMode={createWsIntent} onCancelCreate={() => setCreateWsIntent(false)} onOpenOverview={() => setView('overview')} onOpenApiKeys={() => setView('keys')} demo={embedded} workspace={workspace} account={embedded ? null : readAccount()} onSessionRenewed={onSessionRenewed} />}
+          {view === 'settings'    && <SettingsPage sections={extensions.settingsSections} createWorkspace={embedded ? undefined : createWorkspace} createMode={createWsIntent} onCancelCreate={() => setCreateWsIntent(false)} onOpenOverview={() => setView('overview')} onOpenApiKeys={() => setView('keys')} ingestEndpoint={extensions.ingestEndpoint} demo={embedded} workspace={workspace} account={embedded ? null : readAccount()} onSessionRenewed={onSessionRenewed} />}
           {view === 'users'     && (embedded
             ? <UsersPage users={USERS} periodLabel="Apr 1 – Apr 30" setView={setView} setSelected={setSelected} />
             : <UsersLivePage range={range} setView={setView} setSelected={setSelected} />)}

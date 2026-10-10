@@ -91,6 +91,15 @@ describe('workspace setup', () => {
     expect(openKeys).toHaveBeenCalledOnce();
   });
 
+  it('points the exporter at the local collector unless an ingest endpoint is supplied', () => {
+    const { rerender } = render(<SettingsPage workspace={workspace} />);
+    expect(screen.getByText(/OTEL_EXPORTER_OTLP_ENDPOINT=http:\/\/localhost:4318/)).toBeInTheDocument();
+    expect(screen.getByText(/local Docker installation/)).toBeInTheDocument();
+    rerender(<SettingsPage workspace={workspace} ingestEndpoint="https://ingest.example.com" />);
+    expect(screen.getByText(/OTEL_EXPORTER_OTLP_ENDPOINT=https:\/\/ingest\.example\.com/)).toBeInTheDocument();
+    expect(screen.queryByText(/localhost/)).not.toBeInTheDocument();
+  });
+
   it('offers manual copying when clipboard access fails', async () => {
     vi.mocked(navigator.clipboard.writeText).mockRejectedValue(new Error('Permission denied'));
     render(<SettingsPage workspace={workspace} />);

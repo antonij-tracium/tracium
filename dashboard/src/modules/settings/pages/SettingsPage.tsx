@@ -35,6 +35,8 @@ export interface SettingsPageProps {
   onOpenOverview?: () => void;
   /** Opens the API keys screen for the selected workspace. */
   onOpenApiKeys?: () => void;
+  /** OTLP endpoint shown in the connection instructions. Defaults to the local collector. */
+  ingestEndpoint?: string;
   onCancelCreate?: () => void;
   /** When true, the Workspace tab opens on a create-workspace form. */
   createMode?: boolean;
@@ -545,6 +547,7 @@ interface WorkspaceViewProps {
   justCreated?: boolean;
   onOpenOverview?: () => void;
   onOpenApiKeys?: () => void;
+  ingestEndpoint?: string;
 }
 
 function CopyButton({ value, label }: { value: string; label: string }) {
@@ -561,13 +564,16 @@ function CopyButton({ value, label }: { value: string; label: string }) {
   </span>;
 }
 
-const EXPORTER_CONFIG = [
-  'OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318',
+const LOCAL_INGEST_ENDPOINT = 'http://localhost:4318';
+
+const exporterConfig = (endpoint: string) => [
+  `OTEL_EXPORTER_OTLP_ENDPOINT=${endpoint}`,
   'OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf',
   'OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer YOUR_API_KEY"',
 ].join('\n');
 
-function WorkspaceConnection({ ws, justCreated, onOpenOverview, onOpenApiKeys }: WorkspaceViewProps) {
+function WorkspaceConnection({ ws, justCreated, onOpenOverview, onOpenApiKeys, ingestEndpoint }: WorkspaceViewProps) {
+  const config = exporterConfig(ingestEndpoint || LOCAL_INGEST_ENDPOINT);
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     if (justCreated) heading.current?.focus();
@@ -586,10 +592,10 @@ function WorkspaceConnection({ ws, justCreated, onOpenOverview, onOpenApiKeys }:
     {onOpenApiKeys && <div style={{ marginBottom: 12 }}><Btn onClick={onOpenApiKeys}>Create API key</Btn></div>}
     <div style={{ paddingBottom: 12, borderBottom: divider }} />
     <h3 style={{ fontSize: 15, fontWeight: 600, margin: '24px 0 8px' }}>2. Configure your OpenTelemetry exporter</h3>
-    <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6, margin: '0 0 12px' }}>Set these environment variables where your application runs, replacing <code>YOUR_API_KEY</code> with the token. The endpoint shown is for an application on the host of a local Docker installation; for other deployments, use the collector address provided by your operator.</p>
+    <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6, margin: '0 0 12px' }}>Set these environment variables where your application runs, replacing <code>YOUR_API_KEY</code> with the token.{!ingestEndpoint && ' The endpoint shown is for an application on the host of a local Docker installation; for other deployments, use the collector address provided by your operator.'}</p>
     <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px 24px', flexWrap: 'wrap', padding: '8px 0 24px', borderBottom: divider }}>
-      <pre style={{ minWidth: 0, flex: '1 1 280px', margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: 13, lineHeight: 1.7, fontFamily: 'var(--font-mono)' }}>{EXPORTER_CONFIG}</pre>
-      <CopyButton value={EXPORTER_CONFIG} label="Copy configuration" />
+      <pre style={{ minWidth: 0, flex: '1 1 280px', margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: 13, lineHeight: 1.7, fontFamily: 'var(--font-mono)' }}>{config}</pre>
+      <CopyButton value={config} label="Copy configuration" />
     </div>
     <h3 style={{ fontSize: 15, fontWeight: 600, margin: '24px 0 8px' }}>3. Send your first trace</h3>
     <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6, margin: 0 }}>Restart your instrumented application and run a request. Requests without a valid key are rejected with <code>401</code> and nothing is stored.</p>
@@ -600,12 +606,12 @@ function WorkspaceConnection({ ws, justCreated, onOpenOverview, onOpenApiKeys }:
   </div>;
 }
 
-function WorkspaceView({ ws, demo = false, justCreated = false, onOpenOverview, onOpenApiKeys }: WorkspaceViewProps) {
+function WorkspaceView({ ws, demo = false, justCreated = false, onOpenOverview, onOpenApiKeys, ingestEndpoint }: WorkspaceViewProps) {
   const [name, setName] = useState(ws.name);
   const [retention, setRetention] = useState(ws.defaultRetention);
 
   if (!demo) return <div>
-    {ws.id ? <WorkspaceConnection ws={ws} justCreated={justCreated} onOpenOverview={onOpenOverview} onOpenApiKeys={onOpenApiKeys} /> : <SectionHead first title="Workspace" hint="Create a workspace to get its connection instructions." />}
+    {ws.id ? <WorkspaceConnection ws={ws} justCreated={justCreated} onOpenOverview={onOpenOverview} onOpenApiKeys={onOpenApiKeys} ingestEndpoint={ingestEndpoint} /> : <SectionHead first title="Workspace" hint="Create a workspace to get its connection instructions." />}
     {!justCreated && <>
       <SectionHead title="Retention" hint="Retention is configured by the deployment operator. Expired spans are deleted; daily aggregates are retained separately." />
       <p style={{ fontSize: 14, color: 'var(--muted)' }}>Workspace editing and retention controls are not yet available.</p>
@@ -851,6 +857,7 @@ export default function SettingsPage({
   createWorkspace,
   onOpenOverview,
   onOpenApiKeys,
+  ingestEndpoint,
   onCancelCreate,
   createMode = false,
   demo = false,
@@ -911,7 +918,7 @@ export default function SettingsPage({
           setTab('workspace');
         }} onCancel={() => { setCreating(false); onCancelCreate?.(); }} />
       : <>
-          <WorkspaceView key={ws.id} ws={ws} demo={demo} justCreated={createdId === ws.id} onOpenOverview={onOpenOverview} onOpenApiKeys={onOpenApiKeys} />
+          <WorkspaceView key={ws.id} ws={ws} demo={demo} justCreated={createdId === ws.id} onOpenOverview={onOpenOverview} onOpenApiKeys={onOpenApiKeys} ingestEndpoint={ingestEndpoint} />
           {!demo && createWorkspace && <div style={{ marginTop: 24 }}><Btn onClick={() => { setCreatedId(null); setCreating(true); }}>{ws.id ? 'Create another workspace' : 'Create workspace'}</Btn></div>}
         </>,
     members:   workspace
