@@ -17,6 +17,7 @@ Breaking changes require a `schema_version` bump. Additive changes do not.
 - `tracium.rejected_spans` (migration 012) counts rejected spans per workspace, hour and error code, written by the collector when `processors.tracium.dead_letter.clickhouse_dsn` is set
 - `CAPTURE_CONTENT=false` (Helm: `collector.captureContent=false`) stops the collector storing prompt and completion text
 - Helm values for pod and container security contexts, and `ingress.annotations`
+- Dashboard extensions: `ingestEndpoint` sets the OTLP endpoint shown in the workspace connection instructions, which otherwise show the local collector
 
 ### Changed
 - A span rejected for a missing ingest key is no longer attributed to the workspace its sender claimed
@@ -32,6 +33,7 @@ Breaking changes require a `schema_version` bump. Additive changes do not.
 - Images build with Go 1.26 and Node 24, matching CI
 - Helm: ClickHouse probes use its HTTP `/ping`, an empty `storageClass` uses the cluster default, and the collector no longer receives unused env vars
 - Dashboard: shared stat tiles, KPI strip and formatters; trend arrows are colored by whether the change is good or bad; large traces render faster; dialogs trap focus and close on Escape; pages recover from a crash on navigation
+- Dashboard: the trace view shows the trace's client as a chip beside the start and end time
 
 ### Fixed
 - `span.json` documents `workspace_id` as set from the verified ingest key and `model_normalized` as lower-cased only, with no alias resolution
