@@ -40,20 +40,65 @@ jobs:
 
   images:
     needs: validate
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.target.runner }}
     permissions:
       contents: read
       packages: write
     strategy:
       matrix:
-        include:
+        image:
           - { name: collector, context: collector }
           - { name: api,        context: api }
           - { name: dashboard,  context: dashboard }
           - { name: migrate,    context: ., file: deploy/docker/migrate/Dockerfile }
+        # Each platform builds on a runner of its own architecture; emulating arm64 is several times slower.
+        target:
+          - { arch: amd64, runner: ubuntu-latest }
+          - { arch: arm64, runner: ubuntu-24.04-arm }
     steps:
       - uses: actions/checkout@v7
-      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: ${{ matrix.image.context }}
+          file: ${{ matrix.image.file }}
+          platforms: linux/${{ matrix.target.arch }}
+          outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/${{ matrix.image.name }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ matrix.image.name }}-${{ matrix.target.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image.name }}-${{ matrix.target.arch }}
+      - name: Record the image digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: digest-${{ matrix.image.name }}-${{ matrix.target.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 7
+
+  manifests:
+    needs: images
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    strategy:
+      matrix:
+        name: [collector, api, dashboard, migrate]
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: digest-${{ matrix.name }}-*
+          path: ${{ runner.temp }}/digests
+          merge-multiple: true
       - uses: docker/setup-buildx-action@v4
       - uses: docker/login-action@v4
         with:
@@ -61,22 +106,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       # Must match the chart's appVersion, which is the tag without the leading v.
-      - name: Derive version (tag without the leading v)
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
-      - uses: docker/build-push-action@v7
-        with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.file }}
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}:${{ env.VERSION }}
-            ${{ !contains(github.ref_name, '-') && format('ghcr.io/{0}/{1}:latest', github.repository_owner, matrix.name) || '' }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Tag the multi-platform image (version = tag without the leading v)
+        working-directory: ${{ runner.temp }}/digests
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}
+        run: |
+          tags=(-t "$IMAGE:${GITHUB_REF_NAME#v}")
+          case "$GITHUB_REF_NAME" in *-*) ;; *) tags+=(-t "$IMAGE:latest") ;; esac
+          sources=()
+          for digest in *; do sources+=("$IMAGE@sha256:$digest"); done
+          docker buildx imagetools create "${tags[@]}" "${sources[@]}"
+          docker buildx imagetools inspect "$IMAGE:${GITHUB_REF_NAME#v}"
 
   chart:
-    needs: images
+    needs: manifests
     runs-on: ubuntu-latest
     permissions:
       contents: write
