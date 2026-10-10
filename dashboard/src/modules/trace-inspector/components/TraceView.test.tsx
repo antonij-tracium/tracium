@@ -41,6 +41,16 @@ describe('TraceView', () => {
     vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
   });
 
+  it('shows the client beside the trace times and opens it', () => {
+    const onOpenUser = vi.fn();
+    render(<TraceView trace={{ ...trace, user: 'acme', startedAt: '10:00:00' }} setView={vi.fn()} onOpenUser={onOpenUser} />);
+    const chip = screen.getByTitle('Open client');
+    expect(chip).toHaveTextContent('acme');
+    expect(chip.parentElement).toHaveTextContent('10:00:00');
+    fireEvent.click(chip);
+    expect(onOpenUser).toHaveBeenCalledWith('acme');
+  });
+
   it('selects the first failing span initially', () => {
     renderTrace();
     expect(row('lookup')).toHaveAttribute('aria-pressed', 'true');
